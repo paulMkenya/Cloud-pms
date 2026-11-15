@@ -2268,11 +2268,14 @@ def auto_fetch_exchange_rates():
 	for prop in frappe.get_all("Property", filters={"disabled": 0}, pluck="name"):
 		if not get_setting(prop, "fx_auto_fetch"):
 			continue
+		# a savepoint, not a bare rollback(): one property's failed fetch must
+		# not discard unrelated uncommitted work in the caller's transaction
+		frappe.db.savepoint("kamra_fx_fetch")
 		try:
 			_fetch_rates(prop, only_missing=True)
 			frappe.db.commit()  # nosemgrep: frappe-manual-commit -- one property's rates stand even if a later property fails
 		except Exception:
-			frappe.db.rollback()
+			frappe.db.rollback(save_point="kamra_fx_fetch")
 			frappe.log_error(title=f"Exchange rate fetch failed: {prop}",
 			                 message=frappe.get_traceback())
 

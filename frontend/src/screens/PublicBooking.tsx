@@ -538,7 +538,9 @@ export default function PublicBooking() {
     advance_due: number
     balance_at_hotel: number
     status: string
+    token: string
   } | null>(null)
+  const [payLink, setPayLink] = useState<{ url: string; message: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loadFailed, setLoadFailed] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -744,6 +746,7 @@ export default function PublicBooking() {
         advance_due: number
         balance_at_hotel: number
         status: string
+        precheckin_token?: string
       }>("kamra.public_api.book",
         {
           property,
@@ -768,7 +771,25 @@ export default function PublicBooking() {
         advance_due: Number(res.advance_due || 0),
         balance_at_hotel: Number(res.balance_at_hotel ?? res.amount_after_tax ?? 0),
         status: res.status,
+        token: res.precheckin_token || "",
       })
+    } catch (e) {
+      setError(serverError(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function payDeposit() {
+    if (!done?.token) return
+    setBusy(true)
+    setError(null)
+    try {
+      const r = await callGuest<{ url: string; message: string }>(
+        "kamra.public_api.guest_payment_link",
+        { token: done.token },
+      )
+      setPayLink(r)
     } catch (e) {
       setError(serverError(e))
     } finally {
@@ -1731,6 +1752,29 @@ export default function PublicBooking() {
                   <div className="flex justify-between gap-4 py-3"><dt className="text-zinc-500">{t("Pay at the property")}</dt><dd className="text-end font-medium text-zinc-800">{money(done.balance_at_hotel)}</dd></div>
                 )}
               </dl>
+              {done.advance_due > 0 && done.token && !payLink && (
+                <Button
+                  className="mt-5 w-full justify-center py-2.5"
+                  disabled={busy}
+                  onClick={payDeposit}
+                >
+                  {busy ? t("Preparing payment…") : t("Pay {amount} deposit now", { amount: money(done.advance_due) })}
+                </Button>
+              )}
+              {payLink && (
+                <div className="mt-5 rounded-2xl border border-brand-200 bg-brand-50 p-4 text-start">
+                  <p className="text-sm font-medium text-zinc-800">{t("Pay securely online")}</p>
+                  <p className="mt-1 break-all text-xs text-zinc-600">{payLink.message}</p>
+                  <a
+                    href={payLink.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-3 inline-flex w-full items-center justify-center rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700"
+                  >
+                    {t("Open secure payment page")}
+                  </a>
+                </div>
+              )}
               <p className="mt-5 text-sm leading-relaxed text-zinc-600">
                 {done.status === "Pending Payment"
                   ? `${t("Your rooms are held until the advance is received.")} `

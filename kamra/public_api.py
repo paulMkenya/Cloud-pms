@@ -9,6 +9,7 @@ import re
 
 import frappe
 from frappe.rate_limiter import rate_limit
+from frappe import _
 from frappe.utils import cint, date_diff
 
 from kamra.authz import act_as
@@ -1069,6 +1070,10 @@ def book(property: str, room_type: str, check_in_date: str,
 		"security_deposit_amount": float(
 			frappe.db.get_value("Property", property, "security_deposit_amount") or 0
 		),
+		# the guest's own bearer token for payment/pre-checkin links —
+		# returned only to whoever just made the booking
+		"precheckin_token": frappe.db.get_value(
+			"Reservation", result["reservation"], "precheckin_token"),
 	}
 
 
@@ -1077,6 +1082,54 @@ def access_info(token: str):
 	"""Guest access instructions when gates pass (precheckin token)."""
 	from kamra.access import guest_access_info
 	return guest_access_info(token)
+
+
+@frappe.whitelist(allow_guest=True)
+def guest_payment_status(token: str):
+	"""Deposit state for the guest's own booking, via the pre-arrival
+	check-in token (the same bearer secret the pre-checkin page uses)."""
+	res = _res_by_token(token)
+	if res.status not in ("Confirmed", "Pending Payment", "Held",
+	                      "Checked In"):
+		frappe.throw("This booking is no longer active.")
+	from kamra.api import _deposit_state
+	return {
+		"reservation": res.name,
+		"status": res.status,
+		"property": res.property,
+		"deposit": _deposit_state(res),
+	}
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+@rate_limit(limit=10, seconds=3600)
+def guest_payment_link(token: str, amount: float | None = None):
+	"""A CloudPay payment link for the guest's own booking deposit — the
+	same link the desk sends, settled to the folio by webhook. Regenerating
+	disables the previous link, so the guest can only pay the latest one."""
+	res = _res_by_token(token)
+	if res.status not in ("Confirmed", "Pending Payment", "Held"):
+		frappe.throw("This booking is no longer awaiting payment.")
+	from kamra.api import _deposit_state
+	state = _deposit_state(res)
+	amt = float(amount or 0) or state["due"]
+	if amt <= 0:
+		frappe.throw("No deposit is due on this booking.")
+	from kamra.folio import open_folio
+	from kamra.payments import create_payment_link
+	link = create_payment_link(open_folio(res), amount=amt,
+	                           purpose="Booking deposit")
+	prop = frappe.get_cached_value("Property", res.property,
+	                               "property_name")
+	link["message"] = _(
+		"Hello {guest}, please pay {cur} {amount} to secure your booking "
+		"{ref} at {property} ({checkin} → {checkout}): {url}"
+	).format(guest=res.guest_name, cur=link["currency"],
+	         amount=f"{amt:,.2f}", ref=res.name, property=prop,
+	         checkin=res.check_in_date, checkout=res.check_out_date,
+	         url=link["url"])
+	link["deposit"] = state
+	return link
 
 
 @frappe.whitelist(allow_guest=True)

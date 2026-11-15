@@ -18,7 +18,7 @@ from unittest.mock import patch
 
 import frappe
 from frappe.tests import IntegrationTestCase
-from frappe.utils import add_days
+from frappe.utils import add_days, getdate
 
 # a Wednesday, years away from anything a seeded site holds
 TODAY = "2031-03-12"
@@ -75,7 +75,9 @@ def make_property(name: str, **fields) -> str:
 		# no-show policy at its defaults; the policy tests change it
 		"no_show_timing": "At audit for arrival date",
 		"protect_late_arrivals": 1, "waive_no_show_fee_for_ota": 1,
-		"non_guaranteed_release_time": None, "timezone": None,
+		"non_guaranteed_release_time": None,
+		"timezone": frappe.utils.get_system_timezone(),
+		"country": "India", "currency": "INR",
 		"default_company_billing": "Room and F&B (liquor to guest)",
 	}
 	payload.update(fields)
@@ -128,6 +130,8 @@ def make_reservation(prop: str, room_type: str, check_in: str, check_out: str,
                      guest: str | None = None, **fields):
 	"""A stay with any dates: past check-ins are what the audit works on,
 	so the past-date guard is waived the way imports and walk-ins waive it."""
+	if getdate(check_in) == getdate(check_out):
+		fields.setdefault("is_day_use", 1)
 	doc = frappe.get_doc({
 		"doctype": "Reservation", "property": prop, "room_type": room_type,
 		"guest": guest or make_guest(), "status": status, "room": room,

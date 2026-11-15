@@ -88,6 +88,16 @@ def _as_dt(value, ref: datetime | None = None) -> datetime:
 	return base + timedelta(hours=h, minutes=m)
 
 
+def _hhmmss(value) -> str:
+	"""'HH:MM:SS' from a Time value: datetime.time, the timedelta the db
+	returns for get_all, or an 'HH:MM[:SS]' string. str(timedelta) is
+	'H:MM:SS' (unpadded hour), so a blind [:5] slice produced '8:00:'."""
+	if isinstance(value, timedelta):
+		secs = int(value.total_seconds()) % 86400
+		value = f"{secs // 3600:02d}:{(secs % 3600) // 60:02d}:{secs % 60:02d}"
+	return str(value)[:8]
+
+
 def billable_units(elapsed_hours: float, plan: dict, *,
                    overstay: str = OVERSTAY_NEXT_HOUR,
                    planned_hours: float | None = None) -> dict:
@@ -195,7 +205,7 @@ def is_due_out(res, now=None) -> bool:
 	etd = res.get("planned_check_out_time")
 	if not etd:
 		return True
-	deadline = _as_dt(f"{co} {str(etd)[:5]}")
+	deadline = _as_dt(f"{co} {_hhmmss(etd)}")
 	return now >= deadline
 
 
@@ -229,7 +239,7 @@ def alert_overdue_day_use(property: str | None = None) -> list[str]:
 			continue
 		if _already_alerted(res.name):
 			continue
-		etd = str(res.planned_check_out_time)[:5]
+		etd = _hhmmss(res.planned_check_out_time)[:5]
 		subject = (f"Day-use past checkout ({etd}) - {res.guest_name}"
 		           + (f" · Room {room_no(res.room)}" if res.room else ""))
 		record(res.property, "front-desk", subject,

@@ -19,6 +19,17 @@ class ReservationCapacityTestCase(IntegrationTestCase):
 			"room_type": self.room_type, "room_number": "101"}).insert(ignore_permissions=True)
 		self.guest = frappe.get_doc({"doctype": "Guest", "first_name": "Capacity Guest"}).insert(ignore_permissions=True).name
 
+	def other_room_type(self):
+		"""A second sellable type: a stay moved here clears type capacity,
+		so a duplicate OTA delivery reaches the ota_live_key index instead
+		of dying on 'sold out' first."""
+		rt = frappe.get_doc({"doctype": "Room Type", "property": self.property,
+			"room_type_code": "ALT", "room_type_name": "Alternate",
+			"base_price": 1000}).insert(ignore_permissions=True).name
+		frappe.get_doc({"doctype": "Room", "property": self.property,
+			"room_type": rt, "room_number": "102"}).insert(ignore_permissions=True)
+		return rt
+
 	def reservation(self, status="Confirmed"):
 		return frappe.get_doc({"doctype": "Reservation", "property": self.property,
 			"room_type": self.room_type, "guest": self.guest, "status": status,
@@ -111,6 +122,7 @@ class ReservationCapacityTestCase(IntegrationTestCase):
 		first.insert(ignore_permissions=True)
 		self.assertEqual(first.ota_live_key, f"{self.property}::OTA-ONCE")
 		second = self.reservation()
+		second.room_type = self.other_room_type()
 		second.ota_ref = "OTA-ONCE"
 		with self.assertRaises(frappe.DuplicateEntryError):
 			second.insert(ignore_permissions=True)
@@ -131,6 +143,7 @@ class ReservationCapacityTestCase(IntegrationTestCase):
 		kept.ota_ref = "OTA-DUP"
 		kept.insert(ignore_permissions=True)
 		extra = self.reservation()
+		extra.room_type = self.other_room_type()
 		extra.ota_ref = "OTA-OTHER"
 		extra.insert(ignore_permissions=True)
 		frappe.db.set_value("Reservation", extra.name, {

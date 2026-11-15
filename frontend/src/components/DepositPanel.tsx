@@ -4,7 +4,7 @@
     the reservation drawer and on the booking-confirmed screen. */
 
 import { useState } from "react"
-import { Check, Copy, Link2, MessageCircle } from "lucide-react"
+import { Check, Copy, CreditCard, Link2, MessageCircle } from "lucide-react"
 import { call, newIdempotencyKey } from "../lib/api"
 import { serverError } from "../lib/resource"
 import { useCashierAuth } from "../lib/cashierAuth"
@@ -40,7 +40,7 @@ export default function DepositPanel(props: {
   const loc = useLocale()
   const { ensureUnlocked, status: pinStatus } = useCashierAuth()
   const { deposit } = props
-  const [mode, setMode] = useState<"record" | "link" | null>(null)
+  const [mode, setMode] = useState<"record" | "link" | "card" | null>(null)
   const [amount, setAmount] = useState(String(deposit.due || ""))
   const [payMode, setPayMode] = useState(loc.payment_modes[0] ?? "Cash")
   const [reference, setReference] = useState("")
@@ -52,10 +52,11 @@ export default function DepositPanel(props: {
     null,
   )
   const [copied, setCopied] = useState(false)
+  const [card, setCard] = useState({ number: "", expiry: "", cvv: "", name: "" })
 
   if (!deposit.can_take && !deposit.paid) return null
 
-  function open(m: "record" | "link") {
+  function open(m: "record" | "link" | "card") {
     setMode(m)
     setError(null)
     setAmount(String(deposit.due || ""))
@@ -99,6 +100,32 @@ export default function DepositPanel(props: {
       })
       setLink(r)
       props.onChanged(r.deposit)
+    } catch (e) {
+      setError(serverError(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function chargeCard() {
+    setBusy(true)
+    setError(null)
+    try {
+      if (pinStatus?.required) await ensureUnlocked()
+      const r = await call<{ deposit?: DepositState; status?: string; payment_id?: string }>(
+        "cloudtrade_hospitality.api.charge_card",
+        {
+          reservation: props.reservation,
+          amount: Number(amount),
+          card_number: card.number,
+          card_expiry: card.expiry,
+          card_cvv: card.cvv,
+          card_name: card.name,
+        },
+      )
+      if (r.deposit) props.onChanged(r.deposit)
+      setMode(null)
+      setCard({ number: "", expiry: "", cvv: "", name: "" })
     } catch (e) {
       setError(serverError(e))
     } finally {
@@ -193,10 +220,16 @@ export default function DepositPanel(props: {
             {t("Record payment")}
           </Button>
           {loc.integrations.payment_gateways.length > 0 && (
-            <Button variant="outline" onClick={() => open("link")}>
-              <Link2 className="size-4" aria-hidden />
-              {t("Send payment link")}
-            </Button>
+            <>
+              <Button variant="outline" onClick={() => open("link")}>
+                <Link2 className="size-4" aria-hidden />
+                {t("Send payment link")}
+              </Button>
+              <Button variant="outline" onClick={() => open("card")}>
+                <CreditCard className="size-4" aria-hidden />
+                {t("Charge card")}
+              </Button>
+            </>
           )}
         </div>
       )}
@@ -254,6 +287,90 @@ export default function DepositPanel(props: {
                 </Button>
               </div>
             </>
+          )}
+
+          {mode === "card" && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <label className="col-span-2 block">
+                  <span className="mb-1 block text-xs font-medium text-zinc-600">
+                    {t("Card number")}
+                  </span>
+                  <input
+                    className={inputCls}
+                    inputMode="numeric"
+                    autoComplete="cc-number"
+                    placeholder="4242 4242 4242 4242"
+                    value={card.number}
+                    onChange={(e) =>
+                      setCard({ ...card, number: e.target.value.replace(/[^\d ]/g, "") })
+                    }
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-xs font-medium text-zinc-600">
+                    {t("Expiry (MM/YY)")}
+                  </span>
+                  <input
+                    className={inputCls}
+                    inputMode="numeric"
+                    autoComplete="cc-exp"
+                    placeholder="MM/YY"
+                    value={card.expiry}
+                    onChange={(e) =>
+                      setCard({ ...card, expiry: e.target.value.replace(/[^\d/]/g, "") })
+                    }
+                  />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-xs font-medium text-zinc-600">CVV</span>
+                  <input
+                    className={inputCls}
+                    type="password"
+                    inputMode="numeric"
+                    autoComplete="cc-csc"
+                    value={card.cvv}
+                    onChange={(e) =>
+                      setCard({ ...card, cvv: e.target.value.replace(/[^\d]/g, "").slice(0, 4) })
+                    }
+                  />
+                </label>
+              </div>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-zinc-600">
+                  {t("Name on card")}
+                </span>
+                <input
+                  className={inputCls}
+                  autoComplete="cc-name"
+                  value={card.name}
+                  onChange={(e) => setCard({ ...card, name: e.target.value })}
+                />
+              </label>
+              <p className="text-xs text-zinc-400">
+                {t("Card details go straight to the payment gateway and are never stored.")}
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  disabled={
+                    busy ||
+                    !(Number(amount) > 0) ||
+                    card.number.replace(/\s/g, "").length < 12 ||
+                    !card.expiry ||
+                    card.cvv.length < 3 ||
+                    !card.name.trim()
+                  }
+                  onClick={chargeCard}
+                >
+                  {busy
+                    ? t("Charging…")
+                    : t("Charge {amt}", { amt: fmt(Number(amount) || 0) })}
+                </Button>
+                <Button variant="ghost" onClick={() => setMode(null)}>
+                  {t("Cancel")}
+                </Button>
+              </div>
+            </div>
           )}
 
           {mode === "link" && !link && (

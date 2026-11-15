@@ -284,11 +284,19 @@ def on_reservation_change(doc, method=None):
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
-def webhook(connection: str, **kwargs):
+def webhook(connection: str | None = None, **kwargs):
 	"""One URL per connection:
 	/api/method/kamra.channel_manager.webhook?connection=CMC-00001
 	Authenticated by the connection's webhook secret (X-Webhook-Secret
-	header or `secret` in the payload)."""
+	header or `secret` in the payload).
+
+	Frappe v16 puts a JSON POST's body — and only the body — into
+	form_dict, so a `?connection=` query arg never reaches the signature.
+	Read it from request.args as well."""
+	if not connection and frappe.request:
+		connection = frappe.request.args.get("connection")
+	if not connection:
+		frappe.throw("Missing connection.", frappe.ValidationError)
 	conn = frappe.get_doc("Channel Manager Connection", connection)
 	if not conn.active:
 		return {"ok": False, "reason": "connection_inactive"}
@@ -299,15 +307,33 @@ def webhook(connection: str, **kwargs):
 	if not secret or not hmac.compare_digest(str(sent), secret):
 		frappe.throw("Webhook secret mismatch.", frappe.PermissionError)
 
-	try:
-		payload = json.loads(frappe.request.data or b"{}") \
-			if frappe.request else dict(kwargs)
-	except Exception:
-		payload = dict(kwargs)
-
+	payload = _webhook_payload(kwargs)
 	events = provider_for(conn.provider).parse_webhook(conn, payload)
 	results = [_apply_event(conn, e) for e in events]
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit -- persists webhook bookings before ack; reviewed as intentional
 	return {"ok": True, "results": results}
+
+
+def _webhook_payload(kwargs):
+	"""Raw JSON body first; fall back to parsed form fields."""
+	raw = ""
+	try:
+		raw = frappe.request.get_data(as_text=True) if frappe.request else ""
+	except Exception:
+		raw = ""
+	if raw:
+		try:
+			return json.loads(raw)
+		except Exception:
+			pass
+	payload = dict(kwargs)
+	inner = payload.get("payload")
+	if isinstance(inner, str):
+		try:
+			payload["payload"] = json.loads(inner)
+		except Exception:
+			pass
+	return payload
 
 
 def _room_type_for(connection: str, external_id: str) -> str | None:

@@ -1653,7 +1653,14 @@ export default function PublicBooking() {
             <div className="mt-12 flex flex-col items-center gap-3">
               <LanguageSwitcher className="md:hidden" />
               <p className="text-center text-xs text-zinc-400">
-                {t("Powered by Kamra - the open-source, agent-ready hotel PMS")}
+                <a
+                  href="https://cloudtradesystems.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-zinc-600 hover:underline"
+                >
+                  {t("Powered by CloudTrade Systems")}
+                </a>
               </p>
             </div>
           </div>

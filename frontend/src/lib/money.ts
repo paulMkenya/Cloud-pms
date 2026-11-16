@@ -38,6 +38,9 @@ interface Locale {
    *  caller picked, and the words that make a charge F&B. */
   fnb_tax_rate?: number
   fnb_charge_words?: string[]
+  /** The pack's gateway can charge a keyed card from the desk. Off unless
+   *  the server says so: no card field is shown, so no card data is typed. */
+  card_charge?: boolean
   /** Off for a dry property: alcohol fields and labels are hidden. */
   sells_alcohol?: boolean
 }

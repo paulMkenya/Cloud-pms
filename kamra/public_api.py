@@ -1112,9 +1112,16 @@ def guest_payment_link(token: str, amount: float | None = None):
 		frappe.throw("This booking is no longer awaiting payment.")
 	from kamra.api import _deposit_state
 	state = _deposit_state(res)
-	amt = float(amount or 0) or state["due"]
-	if amt <= 0:
+	due = float(state["due"] or 0)
+	if due <= 0:
 		frappe.throw("No deposit is due on this booking.")
+	# the guest may pay more than the deposit (up to the whole stay), never
+	# less: a smaller link would not secure the booking
+	amt = float(amount or 0) or due
+	ceiling = max(due, float(res.amount_after_tax or 0) - float(state["paid"] or 0))
+	if amt < due - 0.005 or amt > ceiling + 0.005:
+		frappe.throw(_("The deposit due on this booking is {0}.").format(
+			f"{due:,.2f}"))
 	from kamra.folio import open_folio
 	from kamra.payments import create_payment_link
 	link = create_payment_link(open_folio(res), amount=amt,

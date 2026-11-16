@@ -225,10 +225,12 @@ export default function DepositPanel(props: {
                 <Link2 className="size-4" aria-hidden />
                 {t("Send payment link")}
               </Button>
-              <Button variant="outline" onClick={() => open("card")}>
-                <CreditCard className="size-4" aria-hidden />
-                {t("Charge card")}
-              </Button>
+              {loc.card_charge && (
+                <Button variant="outline" onClick={() => open("card")}>
+                  <CreditCard className="size-4" aria-hidden />
+                  {t("Charge card")}
+                </Button>
+              )}
             </>
           )}
         </div>

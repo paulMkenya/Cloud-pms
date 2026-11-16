@@ -102,8 +102,14 @@ def settle_payment_link(folio_name: str, link_id: str, amount: float) -> bool:
 		frappe.db.set_value("Reservation", res.name, "advance_paid",
 		                    float(res.advance_paid or 0) + amount)
 		if res.status in ("Pending Payment", "Held"):
-			from kamra.api import _confirm_status
-			_confirm_status(res)
+			# money secures a held booking only once the deposit it owes
+			# is covered - a token payment must not lock the inventory
+			from kamra.api import _confirm_status, _deposit_state
+			# re-read: the advance was just written under this document
+			# (saving the stale copy raises TimestampMismatchError)
+			res.reload()
+			if _deposit_state(res)["due"] <= 0.005:
+				_confirm_status(res)
 	from kamra.savings import log_action
 	log_action("payment_received", "Folio", folio.name, folio.property,
 	           minutes_saved=3,

@@ -46,6 +46,7 @@ import RoomDrawer, { type RoomTab } from "../components/RoomDrawer"
 import RoomChangeDialog from "../components/RoomChangeDialog"
 import CustomizeToday from "../components/CustomizeToday"
 import OpenTasksCard from "../components/OpenTasksCard"
+import QuickActions from "../components/QuickActions"
 import {
   cachedLayout,
   DEFAULT_TODAY_LAYOUT,
@@ -481,7 +482,7 @@ function InHouseTable({
 
 export default function Today() {
   const { t, lang } = useT()
-  const { refreshKey } = useOutletContext<ShellContext>()
+  const { refreshKey, canBook, openBooking } = useOutletContext<ShellContext>()
   const navigate = useNavigate()
   const [snap, setSnap] = useState<Snapshot | null>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1066,30 +1067,53 @@ export default function Today() {
 
   return (
     <div>
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold text-zinc-900">
-            {t("Front Desk Overview")}
-          </h1>
-          <p className="mt-0.5 text-sm text-zinc-500">
-            {greeting}. {t("Here's what's happening today.")}
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium tabular-nums text-zinc-600">
-            {prettyDate}
+      {/* the day at a glance: hotel, greeting, the four numbers that matter */}
+      <div
+        className="mb-4 overflow-hidden rounded-2xl px-5 py-5 text-white shadow-sm sm:px-6 sm:py-6"
+        style={{ background: "linear-gradient(135deg, #073527 0%, #0b5442 45%, #0f6b54 80%, #189776 100%)" }}
+      >
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm text-white/75">
+              {greeting}
+              {prettyDate ? ` · ${prettyDate}` : ""}
+            </p>
+            <h1 className="mt-1 truncate text-2xl font-semibold tracking-tight sm:text-3xl">
+              {getCurrentProperty() || t("Front Desk Overview")}
+            </h1>
+            <p className="mt-1 text-sm text-white/80">{t("Here's what's happening today.")}</p>
           </div>
           <Button
             variant="outline"
+            className="shrink-0 border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white"
             disabled={!layoutInfo}
             onClick={() => setCustomizing(true)}
             title={t("Choose what Today shows")}
           >
             <SlidersHorizontal className="size-4" aria-hidden />
-            {t("Customize")}
+            <span className="hidden sm:inline">{t("Customize")}</span>
           </Button>
         </div>
+        <dl className="mt-5 grid grid-cols-4 gap-2 sm:max-w-xl sm:gap-3">
+          {[
+            { k: t("Arrivals"), v: arrivalsN },
+            { k: t("Departures"), v: departuresN },
+            { k: t("In-house"), v: inhouseN },
+            { k: t("Occupancy"), v: `${occupancyPct}%` },
+          ].map((x) => (
+            <div key={x.k} className="min-w-0 rounded-xl bg-white/10 px-2 py-2 ring-1 ring-white/15 sm:px-3">
+              <dt className="truncate text-[10px] font-medium text-white/75 sm:text-[11px] sm:uppercase sm:tracking-wide">{x.k}</dt>
+              <dd className="text-xl font-semibold tabular-nums sm:text-2xl">{x.v}</dd>
+            </div>
+          ))}
+        </dl>
       </div>
+
+      <QuickActions
+        onNewBooking={canBook ? () => openBooking({}) : undefined}
+        arrivals={arrivalsN}
+        departures={departuresN}
+      />
 
       {error && (
         <div className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-700">

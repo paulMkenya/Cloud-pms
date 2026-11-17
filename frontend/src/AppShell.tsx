@@ -1,7 +1,12 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react"
 import {
+  BedDouble,
+  CalendarDays,
   ChevronDown,
   Globe,
+  Home as HomeIcon,
+  UtensilsCrossed,
+  Users,
   IndianRupee,
   KeyRound,
   LayoutGrid,
@@ -502,6 +507,19 @@ export default function AppShell() {
   const { on: kiosk } = useKiosk()
   const canBook = BOOKING_ROLES.some((r) => roles.includes(r))
 
+  // phone tab bar: the four screens this person uses most, then the full menu
+  const TAB_DESK = ["Front Desk", "Hotel Admin", "Finance", "Revenue Manager", "Night Auditor",
+                    "Kamra Agent", "System Manager", "Administrator"]
+  const TAB_FNB = ["F&B Manager", "Hotel Admin", "System Manager", "Administrator"]
+  const phoneTabs = [
+    { to: "/", label: t("Today"), icon: HomeIcon, roles: TAB_DESK, end: true },
+    { to: "/calendar", label: t("Calendar"), icon: CalendarDays, roles: TAB_DESK },
+    { to: "/room-board", label: t("Rooms"), icon: BedDouble, roles: TAB_DESK },
+    { to: "/pos", label: t("Restaurant"), icon: UtensilsCrossed, roles: TAB_FNB },
+    { to: "/guests", label: t("Guests"), icon: Users, roles: TAB_DESK },
+  ].filter((x) => x.roles.some((r) => roles.includes(r))).slice(0, 4)
+  const showTabs = !kiosk && !floor && phoneTabs.length > 0
+
   const items = (currentApp?.items ?? []).filter(
     (item) => !item.roles || item.roles.some((r) => roles.includes(r)),
   )
@@ -772,7 +790,7 @@ export default function AppShell() {
                     ? "h-[100dvh] overflow-hidden p-0"
                     : "min-h-[calc(100dvh-3.5rem)] overflow-auto p-3 lg:min-h-0 lg:flex-1 lg:overflow-hidden",
                 )
-              : "w-full max-w-none px-4 py-6 lg:px-6"
+              : cn("w-full max-w-none px-4 py-6 lg:px-6", showTabs && "pb-24 sm:pb-6")
           }
         >
           <ErrorBoundary>
@@ -791,6 +809,39 @@ export default function AppShell() {
           </ErrorBoundary>
         </main>
       </div>
+
+      {showTabs && (
+        <nav
+          aria-label={t("Main")}
+          className="fixed inset-x-0 bottom-0 z-40 grid border-t border-zinc-200 bg-white/95 pb-[env(safe-area-inset-bottom)] shadow-[0_-4px_16px_rgba(0,0,0,0.06)] backdrop-blur sm:hidden"
+          style={{ gridTemplateColumns: `repeat(${phoneTabs.length + 1}, minmax(0, 1fr))` }}
+        >
+          {phoneTabs.map((tab) => (
+            <NavLink
+              key={tab.to}
+              to={tab.to}
+              end={tab.end}
+              className={({ isActive }) =>
+                cn(
+                  "flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium",
+                  isActive ? "text-brand-700" : "text-zinc-500",
+                )
+              }
+            >
+              <tab.icon className="size-5" aria-hidden />
+              {tab.label}
+            </NavLink>
+          ))}
+          <button
+            type="button"
+            onClick={() => setNavOpen(true)}
+            className="flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-zinc-500"
+          >
+            <Menu className="size-5" aria-hidden />
+            {t("Menu")}
+          </button>
+        </nav>
+      )}
 
       {/* Never float over the till / kitchen pass in focus mode. */}
       {!kiosk && (

@@ -196,12 +196,12 @@ function Shell(props: { children: ReactNode }) {
       <div className="fixed inset-x-0 top-0 h-[5px] bg-[#1C3F38]" aria-hidden />
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-2">
-          <img src={asset("kamra-mark.svg")} alt="Kamra" className="size-16" />
+          <img src={asset("kamra-mark.svg")} alt="Cloud PMS" className="size-16" />
           <span
             className="text-2xl font-semibold tracking-[0.02em] text-[#1C3F38]"
             style={{ fontFamily: "Montserrat, ui-sans-serif, system-ui, sans-serif" }}
           >
-            kamra
+            Cloud
             <span className="ml-1.5 align-middle text-[10px] font-semibold tracking-[0.4em] text-[#1E7B4F]">
               PMS
             </span>

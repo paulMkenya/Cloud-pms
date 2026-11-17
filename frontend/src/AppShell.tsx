@@ -387,7 +387,7 @@ export default function AppShell() {
   const [property, setProperty] = useState(getCurrentProperty())
   const [demoMode, setDemoMode] = useState(false)
   const [build, setBuild] = useState<string | null>(null)
-  // co-branding: the hotel's name and logo on top, Kamra PMS kept beneath
+  // co-branding: the hotel's name and logo on top, Cloud PMS kept beneath
   const [brand, setBrand] = useState<{ name: string | null; logo: string | null }>({ name: null, logo: null })
   const [navOpen, setNavOpen] = useState(false)
 
@@ -395,7 +395,7 @@ export default function AppShell() {
     getSiteInfo().then((info) => {
       setBuild(versionLabel(info))
       setBrand({ name: info.brand_name ?? null, logo: info.brand_logo ?? null })
-      document.title = info.brand_name ? `${info.brand_name} · Kamra PMS` : "Kamra PMS"
+      document.title = info.brand_name ? `${info.brand_name} · Cloud PMS` : "Cloud PMS"
     })
   }, [])
 
@@ -600,11 +600,11 @@ export default function AppShell() {
       {brand.name ? (
         <span className="min-w-0 leading-tight">
           <span className="block truncate text-sm font-semibold text-zinc-900">{brand.name}</span>
-          <span className="block text-[10px] font-semibold tracking-[0.2em] text-brand-600">KAMRA PMS</span>
+          <span className="block text-[10px] font-semibold tracking-[0.2em] text-brand-600">CLOUD PMS</span>
         </span>
       ) : (
         <span className="text-lg font-semibold tracking-tight text-zinc-900">
-          kamra
+          Cloud
           <span className="ml-1 align-middle text-[10px] font-semibold tracking-[0.2em] text-brand-600">
             PMS
           </span>

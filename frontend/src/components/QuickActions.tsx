@@ -66,12 +66,12 @@ export default function QuickActions(props: {
   return (
     <nav
       aria-label={t("Quick actions")}
-      className="mb-6 grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-9"
+      className="mb-6 grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-9 2xl:flex 2xl:flex-wrap"
     >
       {shown.map((a) => {
         const body = (
           <>
-            <span className={cn("relative grid size-11 place-items-center rounded-xl", a.tone)}>
+            <span className={cn("relative grid size-10 shrink-0 place-items-center rounded-lg lg:size-9", a.tone)}>
               <a.icon className="size-5" aria-hidden />
               {!!a.badge && (
                 <span className="absolute -end-1.5 -top-1.5 min-w-5 rounded-full bg-rose-600 px-1.5 text-center text-[11px] font-semibold leading-5 text-white tabular-nums">
@@ -79,13 +79,13 @@ export default function QuickActions(props: {
                 </span>
               )}
             </span>
-            <span className="text-center text-xs font-medium leading-tight text-zinc-700">
+            <span className="text-center text-xs font-medium leading-tight text-zinc-700 2xl:whitespace-nowrap 2xl:text-start 2xl:text-[13px]">
               {a.label}
             </span>
           </>
         )
         const cls =
-          "flex min-h-[5.5rem] flex-col items-center justify-center gap-2 rounded-2xl border border-zinc-200 bg-white px-1.5 py-3 shadow-sm transition hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-md focus-visible:outline-2 focus-visible:outline-brand-600 active:scale-[0.98]"
+          "flex min-h-[5.25rem] flex-col items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white px-1.5 py-3 transition hover:border-brand-300 hover:bg-zinc-50 focus-visible:outline-2 focus-visible:outline-brand-600 active:scale-[0.98] lg:min-h-[4.75rem] lg:gap-1.5 lg:py-2.5 2xl:min-h-0 2xl:flex-row 2xl:justify-start 2xl:gap-2.5 2xl:py-2 2xl:pe-4 2xl:ps-2"
         return a.to ? (
           <Link key={a.label} to={a.to} className={cls}>
             {body}

@@ -144,11 +144,20 @@ def find_by_idempotency(property: str, key: str) -> str | None:
 
 	if not key or not frappe.db.has_column("Reservation", "idempotency_key"):
 		return None
-	return frappe.db.get_value(
-		"Reservation",
-		{"property": property, "idempotency_key": key},
-		"name",
+	# A current (exclusive locking) read, not the transaction's snapshot -
+	# exclusive so two retries never both hold a shared lock and deadlock
+	# upgrading it when the replay updates the row: create_booking
+	# calls this after waiting on the property lock, and under REPEATABLE READ
+	# a plain SELECT would still answer from before the wait - so a retry sent
+	# while the first attempt was in flight would miss it and be refused as a
+	# double booking instead of getting its own reservation back.
+	rows = frappe.db.sql(
+		"""SELECT name FROM `tabReservation`
+		   WHERE property = %s AND idempotency_key = %s
+		   LIMIT 1 FOR UPDATE""",
+		(property, key),
 	)
+	return rows[0][0] if rows else None
 
 
 # What expire_holds records on a lapsed hold: an allowed cancellation_reason

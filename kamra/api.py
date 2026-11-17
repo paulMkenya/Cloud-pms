@@ -6868,8 +6868,16 @@ def _booking_result(doc) -> dict:
 
 
 def _booking_replay(reservation: str) -> dict:
-	"""create_booking's response for a booking that already exists."""
-	out = _booking_result(frappe.get_doc("Reservation", reservation))
+	"""create_booking's response for a booking that already exists.
+
+	Read with a locking (current) read: on a retry that raced the first
+	attempt, the reservation was committed after this transaction's snapshot
+	was taken, so a plain read would not see it at all."""
+	doc = frappe.db.get_value(
+		"Reservation", reservation,
+		["name", "room", "guest", "amount_after_tax", "discount_amount", "status"],
+		as_dict=True, for_update=True)
+	out = _booking_result(doc)
 	out["idempotent_replay"] = 1
 	return out
 
@@ -6887,11 +6895,12 @@ def _assert_key_matches(reservation: str, key: str, room_type: str,
 	"""An idempotency_key replays only the booking it was first used for.
 	The same key on a different stay or guest is a caller bug: refuse it
 	rather than hand back someone else's reservation as a success."""
+	# current read: see _booking_replay
 	r = frappe.db.get_value(
 		"Reservation", reservation,
 		["room_type", "check_in_date", "check_out_date", "guest", "guest_name",
 		 "property"],
-		as_dict=True)
+		as_dict=True, for_update=True)
 	same_stay = (r.room_type == room_type
 	             and getdate(r.check_in_date) == getdate(check_in_date)
 	             and getdate(r.check_out_date) == getdate(check_out_date))
@@ -6903,7 +6912,8 @@ def _assert_key_matches(reservation: str, key: str, room_type: str,
 		# canonical number: storage keeps a leading + as written and stores
 		# a local number as E.164.
 		from kamra import phone as phone_mod
-		stored = frappe.db.get_value("Guest", r.guest, "phone") if r.guest else None
+		stored = (frappe.db.get_value("Guest", r.guest, "phone", for_update=True)
+		          if r.guest else None)
 		region = phone_mod.region_for(r.property)
 		same_guest = (
 			_collapse(r.guest_name).casefold() == _collapse(guest_name).casefold()
@@ -7190,7 +7200,8 @@ def create_booking(property: str, room_type: str, check_in_date: str,
 			occupied = in_house_rooms(property)
 			free = sorted(free, key=lambda r: r["name"] in occupied)
 		# SIU path returns plain dicts; legacy SQL returns frappe._dict.
-		room = free[0]["name"] if free else None
+		room = _first_unbooked_room(
+			[r["name"] for r in free], check_in_date, check_out_date)
 	elif not int(waitlist or 0):
 		lock_sius_for_booking(property, room_type)
 
@@ -7825,6 +7836,40 @@ def inventory_availability(property: str, check_in_date: str, check_out_date: st
 
 @frappe.whitelist()
 @require_roles("Front Desk", "Kamra Agent")
+def _first_unbooked_room(candidates: list[str], check_in_date: str,
+                         check_out_date: str) -> str | None:
+	"""The first candidate room with no live overlapping stay, by a current read.
+
+	available_rooms() is a plain SELECT, so under REPEATABLE READ it answers
+	from the transaction's snapshot - taken before create_booking waited on
+	the property lock. A booking that queued behind another would then pick
+	the room the other one just took, and validate_no_overlap (a locking
+	read) would refuse it although another room is free. Re-checking the
+	candidates with the same overlap rule as validate_no_overlap, as a
+	locking read under the property lock, hands the next free room instead.
+	"""
+	if not candidates:
+		return None
+	taken = set(frappe.db.sql_list(
+		"""
+		SELECT room FROM `tabReservation`
+		WHERE room IN %(rooms)s
+		  AND status IN ('Confirmed', 'Checked In', 'Held', 'Pending Payment')
+		  AND check_in_date < GREATEST(%(check_out)s,
+		                               DATE_ADD(%(check_in)s, INTERVAL 1 DAY))
+		  AND GREATEST(check_out_date,
+		               DATE_ADD(check_in_date, INTERVAL 1 DAY)) > %(check_in)s
+		FOR UPDATE
+		""",
+		{"rooms": tuple(candidates), "check_in": check_in_date,
+		 "check_out": check_out_date},
+	))
+	for name in candidates:
+		if name not in taken:
+			return name
+	return None
+
+
 def available_rooms(property: str, room_type: str, check_in_date: str,
                     check_out_date: str, group_booking: str | None = None,
                     ready_now: int = 0):

@@ -534,9 +534,9 @@ export default function AppShell() {
         href={item.href}
         target="_blank"
         rel="noreferrer"
-        className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-100"
+        className="group flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[13px] font-medium text-[#c3cbd5] transition-colors hover:bg-[#ffffff0f] hover:text-white"
       >
-        <item.icon className="size-4 shrink-0" aria-hidden />
+        <item.icon className="size-4 shrink-0 text-[#8b96a3] group-hover:text-white" aria-hidden />
         <span className="truncate" title={t(item.label)}>{t(item.label)}</span>
       </a>
     ) : item.featured ? (
@@ -545,10 +545,10 @@ export default function AppShell() {
         to={item.to!}
         className={({ isActive }) =>
           cn(
-            "my-1 flex items-center gap-2.5 rounded-lg border px-2 py-1.5 text-sm font-semibold transition-colors",
+            "my-1.5 flex items-center gap-2.5 rounded-md border px-2 py-1.5 text-[13px] font-semibold text-white transition-colors",
             isActive
-              ? "border-brand-700 bg-brand-600 text-white shadow-sm"
-              : "border-brand-100 bg-gradient-to-r from-brand-50 to-white text-brand-800 hover:border-brand-200 hover:from-brand-100",
+              ? "border-[#2fa37f] bg-[#0f6b54] shadow-sm"
+              : "border-[#ffffff1f] bg-[#ffffff0a] hover:border-[#2fa37f] hover:bg-[#ffffff14]",
           )
         }
       >
@@ -556,14 +556,14 @@ export default function AppShell() {
           <>
             <span className={cn(
               "flex size-6 shrink-0 items-center justify-center rounded-md",
-              isActive ? "bg-white/20 text-white" : "bg-brand-600 text-white",
+              isActive ? "bg-[#ffffff33] text-white" : "bg-[#0f6b54] text-white",
             )}>
               <item.icon className="size-3.5" aria-hidden />
             </span>
             <span className="truncate" title={t(item.label)}>{t(item.label)}</span>
             <span className={cn(
               "ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
-              isActive ? "bg-white/20 text-white" : "bg-brand-100 text-brand-700",
+              isActive ? "bg-[#ffffff33] text-white" : "bg-[#3ccf9f26] text-[#7fe0bf]",
             )}>{t("AI")}</span>
           </>
         )}
@@ -575,15 +575,25 @@ export default function AppShell() {
         end={item.to === "/"}
         className={({ isActive }) =>
           cn(
-            "flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium",
+            "group flex items-center gap-2.5 rounded-md px-2.5 py-[7px] text-[13px] font-medium transition-colors",
             isActive
-              ? "bg-brand-50 text-brand-700"
-              : "text-zinc-600 hover:bg-zinc-100",
+              ? "bg-[#ffffff17] text-white shadow-[inset_3px_0_0_#3ccf9f]"
+              : "text-[#c3cbd5] hover:bg-[#ffffff0f] hover:text-white",
           )
         }
       >
-        <item.icon className="size-4 shrink-0" aria-hidden />
-        <span className="truncate" title={t(item.label)}>{t(item.label)}</span>
+        {({ isActive }) => (
+          <>
+            <item.icon
+              className={cn(
+                "size-4 shrink-0",
+                isActive ? "text-[#3ccf9f]" : "text-[#8b96a3] group-hover:text-white",
+              )}
+              aria-hidden
+            />
+            <span className="truncate" title={t(item.label)}>{t(item.label)}</span>
+          </>
+        )}
       </NavLink>
     )
 
@@ -599,9 +609,9 @@ export default function AppShell() {
       }
     }
     return groups.map((g, gi) => (
-      <div key={g.label ?? `ungrouped-${gi}`} className={gi > 0 ? "mt-3" : undefined}>
+      <div key={g.label ?? `ungrouped-${gi}`} className={gi > 0 ? "mt-5" : undefined}>
         {g.label ? (
-          <div className="mb-1 px-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+          <div className="mb-1.5 px-2.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[#6f7c8a]">
             {t(g.label)}
           </div>
         ) : null}
@@ -615,18 +625,20 @@ export default function AppShell() {
       to="/"
       end
       aria-label={t("Home")}
-      className="flex items-center gap-2 rounded-lg px-1 outline-none focus-visible:ring-2 focus-visible:ring-brand-600"
+      className="flex items-center gap-2.5 rounded-lg px-1 outline-none focus-visible:ring-2 focus-visible:ring-[#3ccf9f]"
     >
-      <img src={brand.logo || asset("kamra-mark.svg")} alt="" className="size-7 object-contain" aria-hidden />
+      <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-[#ffffff] p-1 shadow-sm">
+        <img src={brand.logo || asset("kamra-mark.svg")} alt="" className="size-full object-contain" aria-hidden />
+      </span>
       {brand.name ? (
         <span className="min-w-0 leading-tight">
-          <span className="block truncate text-sm font-semibold text-zinc-900">{brand.name}</span>
-          <span className="block text-[10px] font-semibold tracking-[0.2em] text-brand-600">CLOUD PMS</span>
+          <span className="block truncate text-sm font-semibold text-white">{brand.name}</span>
+          <span className="block text-[10px] font-semibold tracking-[0.2em] text-[#7fe0bf]">CLOUD PMS</span>
         </span>
       ) : (
-        <span className="text-lg font-semibold tracking-tight text-zinc-900">
+        <span className="text-lg font-semibold tracking-tight text-white">
           Cloud
-          <span className="ml-1 align-middle text-[10px] font-semibold tracking-[0.2em] text-brand-600">
+          <span className="ml-1 align-middle text-[10px] font-semibold tracking-[0.2em] text-[#7fe0bf]">
             PMS
           </span>
         </span>
@@ -635,7 +647,7 @@ export default function AppShell() {
   )
 
   const navAppLabel = currentApp ? (
-    <div className="mb-2 flex items-center gap-2 rounded-lg px-2 py-1.5">
+    <div className="mb-4 flex items-center gap-2 rounded-md border border-[#ffffff14] bg-[#ffffff08] px-2 py-2">
       <span
         className={cn(
           "flex size-6 items-center justify-center rounded-md",
@@ -644,7 +656,7 @@ export default function AppShell() {
       >
         <currentApp.icon className="size-3.5" aria-hidden />
       </span>
-      <span className="text-sm font-semibold text-zinc-800">
+      <span className="text-[13px] font-semibold text-white">
         {t(currentApp.name)}
       </span>
     </div>
@@ -652,17 +664,16 @@ export default function AppShell() {
 
   const navFooter = (
     <>
-      <div className="mt-auto pt-6">
+      <div className="mt-auto border-t border-[#ffffff14] pt-4">
         <AlertSettings />
       </div>
-      {build ? (
-        <p
-          className="px-2.5 pt-2 text-[11px] text-zinc-400"
-          title={t("The Kamra version this site is running")}
-        >
-          Kamra v{build}
-        </p>
-      ) : null}
+      <p
+        className="px-2.5 pt-2 text-[11px] leading-relaxed text-[#6f7c8a]"
+        title={t("The Kamra version this site is running")}
+      >
+        Cloud PMS{build ? ` v${build}` : ""}
+        <span className="block">by CloudTrade Systems</span>
+      </p>
     </>
   )
 
@@ -687,7 +698,7 @@ export default function AppShell() {
       {!kiosk && !demoMode && <SetupNag />}
       <div className="flex min-h-0 flex-1">
       {!kiosk && (
-      <aside className="hidden w-56 shrink-0 flex-col border-r border-zinc-200 bg-white px-3 py-5 sm:sticky sm:top-0 sm:flex sm:h-screen sm:overflow-y-auto sm:overscroll-contain">
+      <aside className="hidden w-60 shrink-0 flex-col border-r border-[#0a1018] bg-[#111a24] px-3 py-5 text-[#c3cbd5] sm:sticky sm:top-0 sm:flex sm:h-screen sm:overflow-y-auto sm:overscroll-contain">
         <div className="mb-5">{navBrand}</div>
         {navAppLabel}
         <nav className="space-y-0.5">{navGroups}</nav>
@@ -703,12 +714,12 @@ export default function AppShell() {
             onClick={() => setNavOpen(false)}
             aria-hidden
           />
-          <aside className="absolute inset-y-0 start-0 flex w-64 max-w-[85vw] flex-col border-e border-zinc-200 bg-white px-3 py-5 shadow-2xl animate-fade-in">
+          <aside className="absolute inset-y-0 start-0 flex w-64 max-w-[85vw] flex-col border-e border-[#0a1018] bg-[#111a24] px-3 py-5 text-[#c3cbd5] shadow-2xl animate-fade-in">
             <div className="mb-5 flex items-center justify-between gap-2">
               <div className="min-w-0 flex-1">{navBrand}</div>
               <button
                 type="button"
-                className="grid size-9 shrink-0 place-items-center rounded-lg text-zinc-500 hover:bg-zinc-100"
+                className="grid size-9 shrink-0 place-items-center rounded-lg text-[#c3cbd5] hover:bg-[#ffffff14] hover:text-white"
                 aria-label={t("Close")}
                 onClick={() => setNavOpen(false)}
               >

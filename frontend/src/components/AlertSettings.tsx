@@ -50,7 +50,7 @@ export default function AlertSettings() {
         </div>
       )}
       <button onClick={() => setOpen((o) => !o)} aria-expanded={open}
-        className="flex w-full items-center gap-2 rounded-lg px-1.5 py-1.5 text-xs font-medium text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800">
+        className="flex w-full items-center gap-2 rounded-lg px-1.5 py-1.5 text-xs font-medium text-[#9aa5b1] hover:bg-[#ffffff0f] hover:text-white">
         {notify ? <Bell className="size-4" aria-hidden /> : <BellOff className="size-4" aria-hidden />}
         {t("Alerts and sound")}
       </button>

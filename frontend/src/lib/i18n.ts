@@ -22,12 +22,19 @@ function translated(source: string, language: string): string {
   return Object.hasOwn(dictionary, source) ? dictionary[source] : source.replace(/^[a-z]+\|/, "")
 }
 
+/** The product's name on screen. The open-source core calls itself Kamra;
+ * this deployment is Cloud PMS. Swapped in the translated template (never in
+ * the {vars}, so a guest or hotel named Kamra is left alone) and only as a
+ * whole word, so technical names like X-Kamra-Signature stay exact. */
+const PRODUCT = "Cloud PMS"
+const brandName = (s: string) => s.replace(/(?<![\w-])Kamra(?![\w-])/g, PRODUCT)
+
 /** Translate UI text; non-string React content and missing labels pass through. */
 export function t(s: string, vars?: Vars): string
 export function t<T>(s: T): T
 export function t(s: unknown, vars?: Vars): unknown {
   if (typeof s !== "string") return s
-  return interpolate(translated(s, getLang()), vars)
+  return interpolate(brandName(translated(s, getLang())), vars)
 }
 
 /** English plural form for a count: "one" or "other". Arabic and other
@@ -63,7 +70,7 @@ export function useT() {
   const lang = useUILanguage()
   const t = useCallback(
     (s: string, vars?: Vars) => {
-      return interpolate(translated(s, lang), vars)
+      return interpolate(brandName(translated(s, lang)), vars)
     },
     [lang],
   )

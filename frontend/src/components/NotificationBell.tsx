@@ -1,9 +1,10 @@
 /** The bell in the top bar: what each department should know, kept for 30
  *  days. A person sees only the modules they work in (kamra.notifications
  *  decides), and the count is what arrived since they last opened it. */
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState, type ReactElement } from "react"
 import { Bell } from "lucide-react"
 import { useNavigate } from "react-router-dom"
+import { createPortal } from "react-dom"
 
 import { call } from "../lib/api"
 import { getLang } from "../lib/dir"
@@ -52,6 +53,7 @@ export default function NotificationBell({ property }: { property: string }) {
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState("all")
   const ref = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
 
   // every line already heard; null until the first load, so opening the
   // app doesn't ring for what was waiting, and a line leaving the list
@@ -88,13 +90,17 @@ export default function NotificationBell({ property }: { property: string }) {
   useEffect(() => {
     if (!open) return
     const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+      const n = e.target as Node
+      if (ref.current?.contains(n) || panelRef.current?.contains(n)) return
+      setOpen(false)
     }
     window.addEventListener("mousedown", onDown)
     return () => window.removeEventListener("mousedown", onDown)
   }, [open])
 
   if (!data || data.modules.length === 0) return null
+
+  const phone = typeof window !== "undefined" && window.matchMedia("(max-width: 639px)").matches
 
   const markRead = () => {
     setData((d) => d && { ...d, unread: 0, items: [] })
@@ -131,8 +137,18 @@ export default function NotificationBell({ property }: { property: string }) {
           </span>
         )}
       </button>
-      {open && (
-        <div className="absolute end-0 top-10 z-50 flex max-h-[70vh] w-[22rem] max-w-[calc(100vw-2rem)] flex-col rounded-lg border border-zinc-200 bg-white shadow-lg ring-1 ring-black/5 dark:border-zinc-700 dark:bg-zinc-900">
+      {open && panelIn(
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-label={t("Notifications")}
+          className={cn(
+            "flex flex-col rounded-lg border border-zinc-200 bg-white shadow-lg ring-1 ring-black/5 dark:border-zinc-700 dark:bg-zinc-900",
+            phone
+              ? "fixed inset-x-3 top-16 z-[70] mx-auto max-h-[75vh] max-w-md rounded-xl shadow-2xl"
+              : "absolute end-0 top-10 z-50 max-h-[70vh] w-[22rem] max-w-[calc(100vw-2rem)]",
+          )}
+        >
           <div className="flex items-center justify-between border-b border-zinc-100 px-3 py-2 dark:border-zinc-800">
             <span className="text-sm font-semibold">{t("Notifications")}</span>
             {data.unread > 0 && (
@@ -185,8 +201,26 @@ export default function NotificationBell({ property }: { property: string }) {
               ))
             )}
           </div>
-        </div>
+        </div>,
       )}
     </div>
   )
+
+  /** On a phone the panel is a centred card over a dim backdrop, rendered
+   *  on <body>: the top bar's backdrop-blur would otherwise trap a fixed
+   *  panel inside the bar, and anchoring to the bell pushed it off-screen. */
+  function panelIn(panel: ReactElement) {
+    if (!phone) return panel
+    return createPortal(
+      <>
+        <div
+          className="fixed inset-0 z-[60] bg-black/30"
+          aria-hidden
+          onClick={() => setOpen(false)}
+        />
+        {panel}
+      </>,
+      document.body,
+    )
+  }
 }

@@ -259,14 +259,16 @@ function LanguageToggle() {
   return (
     <label
       title={t("Language")}
-      className="flex items-center gap-1 rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+      className="relative flex items-center gap-1 rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
     >
       <Globe className="size-4 shrink-0" aria-hidden />
+      {/* phones: just the globe - the (invisible) list sits over it, so a
+          tap still opens the language picker without widening the bar */}
       <select
         aria-label={t("Language")}
         value={lang}
         onChange={(e) => setLang(e.target.value)}
-        className="max-w-[6rem] cursor-pointer bg-transparent text-xs outline-none"
+        className="absolute inset-0 max-w-none cursor-pointer bg-transparent text-xs opacity-0 outline-none sm:static sm:max-w-[6rem] sm:opacity-100"
       >
         {LANGS.map((l) => (
           <option key={l.code} value={l.code}>
@@ -736,7 +738,7 @@ export default function AppShell() {
           <AppSwitcher apps={apps} current={currentApp ?? apps[0]} />
           {properties.length > 1 ? (
             <select
-              className="min-w-0 max-w-[40vw] truncate rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-sm font-medium focus:outline-2 focus:outline-brand-600 lg:max-w-xs"
+              className="min-w-0 max-w-[34vw] truncate rounded-lg sm:max-w-[40vw] border border-zinc-200 bg-white px-2.5 py-1.5 text-sm font-medium focus:outline-2 focus:outline-brand-600 lg:max-w-xs"
               value={property}
               onChange={(e) => switchProperty(e.target.value)}
               aria-label={t("Property")}

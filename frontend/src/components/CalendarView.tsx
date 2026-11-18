@@ -76,7 +76,7 @@ export function CalendarView(props: {
           <CardTitle>{translate("Availability · ")}{rangeLabel(data.dates)}</CardTitle>
           <span className="text-xs text-zinc-400">{translate("Click a cell to start a booking")}</span>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <Button
             variant="outline"
             aria-label={translate("Previous 14 days")}

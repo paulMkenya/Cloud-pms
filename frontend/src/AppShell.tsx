@@ -387,6 +387,7 @@ export default function AppShell() {
   const location = useLocation()
   const navigate = useNavigate()
   const [booking, setBooking] = useState<BookingInitial | null>(null)
+  const [bookingKey, setBookingKey] = useState(0)
   const [refreshKey, setRefreshKey] = useState(0)
   const [properties, setProperties] = useState<PropertyRow[]>([])
   const [property, setProperty] = useState(getCurrentProperty())
@@ -854,9 +855,16 @@ export default function AppShell() {
       {booking && canBook && (
         <Suspense fallback={null}>
           <BookingDialog
+            key={bookingKey}
             initial={booking}
             onClose={() => setBooking(null)}
             onBooked={() => setRefreshKey((k) => k + 1)}
+            onSwitchProperty={(prop, init) => {
+              // carry the guest, dates and party over to the other property
+              switchProperty(prop)
+              setBookingKey((k) => k + 1)
+              setBooking(init)
+            }}
           />
         </Suspense>
       )}

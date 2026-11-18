@@ -29,6 +29,7 @@ import { useCashierAuth } from "../lib/cashierAuth"
 import DepositPanel, { type DepositState } from "./DepositPanel"
 import CheckInDialog from "./CheckInDialog"
 import TillCard, { useTill } from "./TillCard"
+import FullTypeAlternatives from "./FullTypeAlternatives"
 
 /** Reservation.market_segment options (same list as the doctype). */
 const MARKET_SEGMENTS = ["Corporate", "Leisure", "Group", "MICE", "Government", "Wedding",
@@ -117,6 +118,20 @@ export function BookingDialog(props: {
   }
   onClose: () => void
   onBooked: () => void
+  /** reopen the booking at another property with what was typed so far */
+  onSwitchProperty?: (
+    property: string,
+    initial: {
+      room_type?: string
+      date?: string
+      guest_name?: string
+      phone?: string
+      stays?: number
+      adults?: number
+      children?: number
+      walkIn?: boolean
+    },
+  ) => void
 }) {
   const { t, tn } = useT()
   const [options, setOptions] = useState<BookingOptions | null>(null)
@@ -1458,6 +1473,44 @@ export function BookingDialog(props: {
                   </Field>
                 )}
                 </div>
+
+                {!badDate && !pinnedRoom && (
+                  <FullTypeAlternatives
+                    property={getCurrentProperty()}
+                    roomType={form.room_type}
+                    roomTypeName={selectedRt?.room_type_name}
+                    checkIn={form.check_in_date}
+                    checkOut={checkOut}
+                    adults={form.adults}
+                    children={form.children}
+                    walkIn={walkIn}
+                    onPickType={(rt) => {
+                      autoRoomType.current = false
+                      const x = options?.room_types.find((r) => r.name === rt)
+                      setForm((f) => ({
+                        ...f,
+                        room_type: rt,
+                        adults: clampGuests(f.adults, 1, sleeps(x, "adults")),
+                        children: clampGuests(f.children, 0, sleeps(x, "children")),
+                      }))
+                    }}
+                    onPickProperty={
+                      props.onSwitchProperty
+                        ? (prop, rt) =>
+                            props.onSwitchProperty!(prop, {
+                              room_type: rt,
+                              date: form.check_in_date,
+                              stays: form.nights,
+                              adults: form.adults,
+                              children: form.children,
+                              guest_name: form.guest_name || undefined,
+                              phone: form.phone || undefined,
+                              walkIn,
+                            })
+                        : () => {}
+                    }
+                  />
+                )}
 
                 <div
                   role="radiogroup"

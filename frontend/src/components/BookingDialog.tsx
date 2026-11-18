@@ -420,8 +420,14 @@ export function BookingDialog(props: {
       ? form.check_in_date
       : shiftDate(form.check_in_date, Math.max(1, form.nights))
 
+  // rooms free per type for the chosen dates, shown in the picker so the
+  // desk sees what is full before choosing (not at confirm)
+  const [typeFree, setTypeFree] = useState<Record<string, number> | null>(null)
   useEffect(() => {
-    if (!autoRoomType.current || !options?.room_types.length || badDate) return
+    if (!options?.room_types.length || badDate) {
+      setTypeFree(null)
+      return
+    }
     let live = true
     const types = options.room_types
     Promise.all(
@@ -437,8 +443,10 @@ export function BookingDialog(props: {
           .catch(() => ({ name: rt.name, n: 0 })),
       ),
     ).then((hits) => {
-      if (!live || !autoRoomType.current) return
+      if (!live) return
       const counts = Object.fromEntries(hits.map((h) => [h.name, h.n]))
+      setTypeFree(counts)
+      if (!autoRoomType.current) return
       const pick = pickDefaultRoomType(types, counts)
       setForm((f) => (f.room_type === pick ? f : { ...f, room_type: pick }))
     })
@@ -1411,6 +1419,9 @@ export function BookingDialog(props: {
                       <option key={rt.name} value={rt.name}>
                         {rt.room_type_name} · {t("BAR")} {cur()}
                         {inr(rt.base_price)}/{t("night")}
+                        {typeFree && rt.name in typeFree
+                          ? ` · ${typeFree[rt.name] > 0 ? tn(typeFree[rt.name], "{n} free", "{n} free") : t("Full")}`
+                          : ""}
                       </option>
                     ))}
                   </select>
@@ -1430,6 +1441,33 @@ export function BookingDialog(props: {
                         })}
                       </p>
                     )}
+                  {typeFree && form.room_type in typeFree && (
+                    <p
+                      className={
+                        "mt-1.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium " +
+                        (typeFree[form.room_type] === 0
+                          ? "bg-rose-50 text-rose-700"
+                          : typeFree[form.room_type] <= 2
+                            ? "bg-amber-50 text-amber-800"
+                            : "bg-emerald-50 text-emerald-700")
+                      }
+                    >
+                      <span
+                        className={
+                          "size-1.5 rounded-full " +
+                          (typeFree[form.room_type] === 0
+                            ? "bg-rose-500"
+                            : typeFree[form.room_type] <= 2
+                              ? "bg-amber-500"
+                              : "bg-emerald-500")
+                        }
+                        aria-hidden
+                      />
+                      {typeFree[form.room_type] === 0
+                        ? t("Full for these dates")
+                        : tn(typeFree[form.room_type], "{n} room free for these dates", "{n} rooms free for these dates")}
+                    </p>
+                  )}
                 </Field>
                 {walkIn && (
                   <Field label={t("Room")}>
@@ -2647,7 +2685,7 @@ export function BookingDialog(props: {
                 <>
                 <Button
                   className="w-full justify-center py-2.5 text-base"
-                  disabled={busy || !form.guest_name || !quote || badDate || pastCheckIn || badPhone || badSlot || outDraft !== null || blacklistBlocked || creditBlocked || extraNeedsReason}
+                  disabled={busy || !form.guest_name || !quote || badDate || pastCheckIn || badPhone || badSlot || outDraft !== null || blacklistBlocked || creditBlocked || extraNeedsReason || (!pinnedRoom && typeFree?.[form.room_type] === 0)}
                   onClick={() => submit()}
                 >
                   {busy ? t("Booking…") : t("Confirm booking")}

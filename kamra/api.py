@@ -7834,8 +7834,6 @@ def inventory_availability(property: str, check_in_date: str, check_out_date: st
 	)
 
 
-@frappe.whitelist()
-@require_roles("Front Desk", "Kamra Agent")
 def _first_unbooked_room(candidates: list[str], check_in_date: str,
                          check_out_date: str) -> str | None:
 	"""The first candidate room with no live overlapping stay, by a current read.
@@ -7870,6 +7868,8 @@ def _first_unbooked_room(candidates: list[str], check_in_date: str,
 	return None
 
 
+@frappe.whitelist()
+@require_roles("Front Desk", "Kamra Agent")
 def available_rooms(property: str, room_type: str, check_in_date: str,
                     check_out_date: str, group_booking: str | None = None,
                     ready_now: int = 0):

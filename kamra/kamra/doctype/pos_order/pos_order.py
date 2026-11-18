@@ -143,13 +143,26 @@ class POSOrder(Document):
 		gst = frappe.db.get_value("POS Outlet", self.outlet, "gst_rate")
 		gst = 5 if gst is None else gst
 		from kamra.business_date import get_business_date
-		detail = ", ".join(
-			f"{it.item_name} ×{int(it.qty)}" for it in self.items if not it.voided)
+		parts = [f"{it.item_name} ×{int(it.qty)}" for it in self.items if not it.voided]
+		head, tail = f"{self.outlet.split('-')[-1]}: ", f" ({self.name})"
+		# a bill line holds 140 characters: keep the outlet and the order
+		# number, list items while they fit and count the rest ("+2 more")
+		room = 140 - len(head) - len(tail)
+		detail = ", ".join(parts)
+		if len(detail) > room:
+			shown = []
+			for i, p in enumerate(parts):
+				more = f" +{len(parts) - i - 1} more" if i < len(parts) - 1 else ""
+				if len(", ".join(shown + [p])) + len(more) > room:
+					break
+				shown.append(p)
+			rest = len(parts) - len(shown)
+			detail = (", ".join(shown) + (f" +{rest} more" if rest else ""))[:room]
 		folio.append("charges", {
 			"posting_date": get_business_date(self.property),
 			"charge_type": "Food & Beverage",
 			"reservation": self.reservation,
-			"description": f"{self.outlet.split('-')[-1]}: {detail} ({self.name})",
+			"description": f"{head}{detail}{tail}",
 			"qty": 1,
 			"rate": self.order_total,
 			"amount": self.order_total,

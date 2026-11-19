@@ -66,12 +66,20 @@ def _user_properties(user: str) -> list | None:
 	return sorted(rows) if rows else None
 
 
+def _role_label(role: str, label: str) -> str:
+	"""Tenant-facing role name: `role_labels` in site_config can relabel a
+	role for display (e.g. Hotel Admin → Property Manager on a BnB site)
+	without touching the role identifier or hotel tenants."""
+	custom = (frappe.conf.get("role_labels") or {}).get(role)
+	return custom or label
+
+
 @frappe.whitelist()
 @require_roles()
 def staff_roles() -> list:
 	"""The roles a person can hold, and whether the caller may hand each out."""
 	it = _caller_is_it()
-	return [{"role": r, "label": label, "description": desc,
+	return [{"role": r, "label": _role_label(r, label), "description": desc,
 	         "assignable": it or r not in IT_ONLY} for r, label, desc in ROLES]
 
 

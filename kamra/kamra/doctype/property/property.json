@@ -38,7 +38,9 @@
   "room_levy_percent",
   "room_levy_taxable",
   "default_company_billing",
+  "wifi_name",
   "access_instructions",
+  "wifi_password",
   "require_precheckin_for_access",
   "hourly_view_start",
   "hourly_view_end",
@@ -298,6 +300,16 @@
    "fieldtype": "Select",
    "label": "Default company billing",
    "options": "Room and F&B (liquor to guest)\nRoom only\nEverything except liquor\nNothing (guest pays unless rules say so)"
+  },
+  {
+   "fieldname": "wifi_name",
+   "fieldtype": "Data",
+   "label": "Wi-Fi Network"
+  },
+  {
+   "fieldname": "wifi_password",
+   "fieldtype": "Password",
+   "label": "Wi-Fi Password"
   },
   {
    "description": "Released to the guest only after payment, deposit, and optional pre-check-in gates pass.",

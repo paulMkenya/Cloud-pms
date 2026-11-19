@@ -14,6 +14,37 @@ from frappe import _
 from frappe.utils import now_datetime
 
 
+_UNIT_FIELDS = ("wifi_name", "wifi_password", "access_instructions",
+                "house_rules", "checkin_time", "checkout_time",
+                "location_pin_url", "house_number")
+
+
+def _unit_field(room_doc, prop, field: str):
+	"""One guest-detail field: the booked room's own value first, the
+	property's as fallback. Password fields decrypt through get_password."""
+	if room_doc is not None:
+		v = (room_doc.get_password(field, raise_exception=False)
+		     if field == "wifi_password" else room_doc.get(field))
+		if v:
+			return v
+	if prop.get(field):
+		if field == "wifi_password":
+			return prop.get_password(field, raise_exception=False) or ""
+		return prop.get(field)
+	return ""
+
+
+def unit_guest_details(res) -> dict:
+	"""Guest-facing stay details for a reservation: per-unit (Room)
+	overrides falling back to the Property - Wi-Fi, access instructions,
+	house rules, times, map link and house number."""
+	room = res.get("room")
+	room_doc = frappe.get_doc("Room", room) if room else None
+	prop = frappe.get_cached_doc("Property", res.property)
+	return {f: str(_unit_field(room_doc, prop, f) or "")
+	        for f in _UNIT_FIELDS}
+
+
 def access_gates(reservation: str) -> dict:
 	res = frappe.get_doc("Reservation", reservation)
 	prop = frappe.get_cached_doc("Property", res.property)
@@ -48,11 +79,9 @@ def release_access(reservation: str, *, force: int = 0) -> dict:
 				", ".join(missing)
 			)
 		)
-	instructions = (
-		frappe.db.get_value("Property", res.property, "access_instructions") or ""
-	).strip()
+	instructions = unit_guest_details(res)["access_instructions"].strip()
 	if not instructions:
-		frappe.throw(_("Set access instructions on the Property first."))
+		frappe.throw(_("Set access instructions on the Property or the booked room first."))
 	res.db_set("access_released", 1, update_modified=False)
 	res.db_set("access_released_on", now_datetime(), update_modified=False)
 	return {
@@ -76,7 +105,5 @@ def guest_access_info(token: str) -> dict:
 			"gates": gates,
 			"message": "Access instructions are not available yet.",
 		}
-	text = frappe.db.get_value(
-		"Property", res.property, "access_instructions"
-	) or ""
-	return {"released": 1, "access_instructions": text, "gates": gates}
+	details = unit_guest_details(res)
+	return {"released": 1, "gates": gates, **details}

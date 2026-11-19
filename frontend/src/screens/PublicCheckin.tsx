@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react"
 import PrivacyNotice, { setPrivacyTerms } from "../components/PrivacyNotice"
-import { CalendarDays, Check, Clock } from "lucide-react"
+import { CalendarDays, Check, Clock, KeyRound, MapPin, Wifi } from "lucide-react"
 import { useParams } from "react-router-dom"
-import { call } from "../lib/api"
+import { call, callGuest } from "../lib/api"
 import { Button } from "../components/ui/button"
 import { SignaturePad } from "../components/SignaturePad"
 import { IdDocumentField } from "../components/IdDocumentField"
@@ -32,6 +32,88 @@ function fileToDataUrl(file: File): Promise<string> {
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("unreadable image")) }
     img.src = url
   })
+}
+
+interface AccessDetails {
+  released: number
+  wifi_name?: string
+  wifi_password?: string
+  access_instructions?: string
+  house_rules?: string
+  checkin_time?: string
+  checkout_time?: string
+  location_pin_url?: string
+  house_number?: string
+}
+
+/** Deposit/pre-check-in gated access details for this stay - Wi-Fi,
+ *  instructions, rules, times and map link. Renders nothing until the
+ *  property's gates pass and staff (or auto-release) flip access_released. */
+function AccessDetailsCard({ token }: { token: string }) {
+  const { t } = useT()
+  const [d, setD] = useState<AccessDetails | null>(null)
+  useEffect(() => {
+    callGuest<AccessDetails>("kamra.public_api.access_info", { token })
+      .then(setD)
+      .catch(() => setD(null))
+  }, [token])
+  if (!d) return null
+  if (!d.released) {
+    return (
+      <p className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-500">
+        <KeyRound className="size-4" aria-hidden />
+        {t("Your Wi-Fi and entry details will appear here once access is released.")}
+      </p>
+    )
+  }
+  const hasAnything = d.wifi_name || d.wifi_password || d.access_instructions ||
+    d.house_rules || d.location_pin_url || d.house_number
+  if (!hasAnything) return null
+  return (
+    <div className="rounded-xl border border-brand-200 bg-brand-50/50 p-4">
+      <p className="flex items-center gap-2 text-sm font-semibold text-zinc-800">
+        <KeyRound className="size-4 text-brand-700" aria-hidden />
+        {t("Your access details")}
+      </p>
+      <div className="mt-3 space-y-2 text-sm text-zinc-700">
+        {d.house_number && (
+          <p><span className="font-medium">{t("House / unit:")} </span>{d.house_number}</p>
+        )}
+        {(d.checkin_time || d.checkout_time) && (
+          <p>
+            <span className="font-medium">{t("Times: ")} </span>
+            {d.checkin_time ? `${t("in")} ${String(d.checkin_time).slice(0, 5)}` : ""}
+            {d.checkin_time && d.checkout_time ? " · " : ""}
+            {d.checkout_time ? `${t("out")} ${String(d.checkout_time).slice(0, 5)}` : ""}
+          </p>
+        )}
+        {(d.wifi_name || d.wifi_password) && (
+          <p className="flex items-start gap-2">
+            <Wifi className="mt-0.5 size-4 shrink-0 text-zinc-500" aria-hidden />
+            <span>
+              <span className="font-medium">{t("Wi-Fi: ")} </span>
+              {d.wifi_name}{d.wifi_password ? ` · ${d.wifi_password}` : ""}
+            </span>
+          </p>
+        )}
+        {d.access_instructions && (
+          <p className="whitespace-pre-line leading-relaxed">{d.access_instructions}</p>
+        )}
+        {d.house_rules && (
+          <details className="text-xs">
+            <summary className="cursor-pointer font-medium text-zinc-600">{t("House rules")}</summary>
+            <p className="mt-1 whitespace-pre-line text-zinc-600">{d.house_rules}</p>
+          </details>
+        )}
+        {d.location_pin_url && (
+          <a href={d.location_pin_url} target="_blank" rel="noreferrer"
+            className="inline-flex items-center gap-1.5 font-medium text-brand-700 hover:underline">
+            <MapPin className="size-4" aria-hidden /> {t("Get directions")}
+          </a>
+        )}
+      </div>
+    </div>
+  )
 }
 
 function DocCapture(props: {
@@ -267,6 +349,7 @@ export default function PublicCheckin() {
         {/* self-hides unless the reservation is actually Checked In - 
             stay.status here is the pre-check-in status, not the stay status */}
         {token && <GuestLaundryCard token={token} />}
+        {token && <AccessDetailsCard token={token} />}
 
         {done ? (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 text-emerald-800">

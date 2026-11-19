@@ -15,7 +15,17 @@
   "floor",
   "housekeeping_status",
   "occupancy_status",
-  "notes"
+  "notes",
+  "sb_guest_access",
+  "wifi_name",
+  "wifi_password",
+  "column_break_ga",
+  "access_instructions",
+  "house_rules",
+  "checkin_time",
+  "checkout_time",
+  "location_pin_url",
+  "house_number"
  ],
  "fields": [
   {
@@ -72,6 +82,55 @@
    "fieldname": "notes",
    "fieldtype": "Small Text",
    "label": "Notes"
+  },
+  {
+   "fieldname": "sb_guest_access",
+   "fieldtype": "Section Break",
+   "label": "Guest Access (unit overrides)"
+  },
+  {
+   "fieldname": "wifi_name",
+   "fieldtype": "Data",
+   "label": "Wi-Fi Network"
+  },
+  {
+   "fieldname": "wifi_password",
+   "fieldtype": "Password",
+   "label": "Wi-Fi Password"
+  },
+  {
+   "fieldname": "column_break_ga",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "access_instructions",
+   "fieldtype": "Small Text",
+   "label": "Access Instructions"
+  },
+  {
+   "fieldname": "house_rules",
+   "fieldtype": "Small Text",
+   "label": "House Rules"
+  },
+  {
+   "fieldname": "checkin_time",
+   "fieldtype": "Time",
+   "label": "Check-in Time"
+  },
+  {
+   "fieldname": "checkout_time",
+   "fieldtype": "Time",
+   "label": "Check-out Time"
+  },
+  {
+   "fieldname": "location_pin_url",
+   "fieldtype": "Data",
+   "label": "Map / Directions Link"
+  },
+  {
+   "fieldname": "house_number",
+   "fieldtype": "Data",
+   "label": "House / Unit Number"
   }
  ],
  "grid_page_length": 50,

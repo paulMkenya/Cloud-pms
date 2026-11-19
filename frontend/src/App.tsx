@@ -23,6 +23,7 @@ const AuditPack = lazy(() => import("./screens/AuditPack"))
 const PublicBooking = lazy(() => import("./screens/PublicBooking"))
 const PublicListing = lazy(() => import("./screens/PublicListing"))
 const PublicCheckin = lazy(() => import("./screens/PublicCheckin"))
+const GuestReview = lazy(() => import("./screens/GuestReview"))
 const FolioView = lazy(() => import("./screens/FolioView"))
 const GuestJourney = lazy(() => import("./screens/GuestJourney"))
 const HkApp = lazy(() => import("./screens/HkApp"))
@@ -200,6 +201,8 @@ export default function App() {
         />
         {/* pre-arrival self check-in, tokenized per reservation */}
         <Route path="checkin/:token" element={<PublicCheckin />} />
+        {/* post-stay review, same bearer token */}
+        <Route path="review/:token" element={<GuestReview />} />
         {/* housekeeping phone app - share the /hk URL with the HK team */}
         <Route path="hk" element={<HkApp />} />
         {/* dedicated login route so signing out changes the URL */}

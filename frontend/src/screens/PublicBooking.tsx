@@ -461,6 +461,7 @@ export default function PublicBooking() {
     token: string
   } | null>(null)
   const [payLink, setPayLink] = useState<{ url: string; message: string } | null>(null)
+  const [payFull, setPayFull] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loadFailed, setLoadFailed] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -680,6 +681,7 @@ export default function PublicBooking() {
           ...form,
           meal_plan: selected.meal_plan,
           voucher_code: appliedVoucher,
+          pay_full: payFull ? 1 : 0,
           addons: Object.entries(addons)
             .filter(([, qty]) => qty > 0)
             .map(([experience, qty]) => ({ experience, qty })),
@@ -700,14 +702,14 @@ export default function PublicBooking() {
     }
   }
 
-  async function payDeposit() {
+  async function payDeposit(amount?: number) {
     if (!done?.token) return
     setBusy(true)
     setError(null)
     try {
       const r = await callGuest<{ url: string; message: string }>(
         "kamra.public_api.guest_payment_link",
-        { token: done.token },
+        amount ? { token: done.token, amount } : { token: done.token },
       )
       setPayLink(r)
     } catch (e) {
@@ -1680,13 +1682,29 @@ export default function PublicBooking() {
                 )}
               </dl>
               {done.advance_due > 0 && done.token && !payLink && (
-                <Button
-                  className="mt-5 w-full justify-center py-2.5"
-                  disabled={busy}
-                  onClick={payDeposit}
-                >
-                  {busy ? t("Preparing payment…") : t("Pay {amount} deposit now", { amount: money(done.advance_due) })}
-                </Button>
+                <div className="mt-5 space-y-2">
+                  <Button
+                    className="w-full justify-center py-2.5"
+                    disabled={busy}
+                    onClick={() => payDeposit()}
+                  >
+                    {busy
+                      ? t("Preparing payment…")
+                      : done.balance_at_hotel > 0
+                        ? t("Pay {amount} deposit now", { amount: money(done.advance_due) })
+                        : t("Pay {amount} now", { amount: money(done.advance_due) })}
+                  </Button>
+                  {done.balance_at_hotel > 0 && (
+                    <Button
+                      variant="outline"
+                      className="w-full justify-center py-2.5"
+                      disabled={busy}
+                      onClick={() => payDeposit(done.amount)}
+                    >
+                      {t("Or pay the full {amount} now", { amount: money(done.amount) })}
+                    </Button>
+                  )}
+                </div>
               )}
               {payLink && (
                 <div className="mt-5 rounded-2xl border border-brand-200 bg-brand-50 p-4 text-start">
@@ -1846,6 +1864,36 @@ export default function PublicBooking() {
                   <p className="text-xs text-zinc-500">
                     {t("A refundable security deposit of {amount} may be collected separately.", { amount: money(p.security_deposit_amount) })}
                   </p>
+                )}
+                {(selPlan.advance_due || 0) > 0 &&
+                  (selPlan.advance_due || 0) < selPlan.amount_after_tax && (
+                  <fieldset className="space-y-2">
+                    <legend className="text-sm font-medium text-zinc-700">{t("How would you like to pay?")}</legend>
+                    <label className={"flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-sm " +
+                      (payFull ? "border-zinc-200" : "border-brand-600 bg-brand-50")}>
+                      <input type="radio" name="pay_option" className="mt-0.5 size-4 accent-brand-600"
+                        checked={!payFull} onChange={() => setPayFull(false)} />
+                      <span>
+                        <span className="block font-medium text-zinc-800">
+                          {t("Pay {amount} now, balance at the property", { amount: money(selPlan.advance_due || 0) })}
+                        </span>
+                        <span className="block text-xs text-zinc-500">
+                          {t("{amount} due during your stay", { amount: money((selPlan.balance_at_hotel ?? 0) || selPlan.amount_after_tax - (selPlan.advance_due || 0)) })}
+                        </span>
+                      </span>
+                    </label>
+                    <label className={"flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-sm " +
+                      (payFull ? "border-brand-600 bg-brand-50" : "border-zinc-200")}>
+                      <input type="radio" name="pay_option" className="mt-0.5 size-4 accent-brand-600"
+                        checked={payFull} onChange={() => setPayFull(true)} />
+                      <span>
+                        <span className="block font-medium text-zinc-800">{t("Pay in full now")}</span>
+                        <span className="block text-xs text-zinc-500">
+                          {money(selPlan.amount_after_tax)} · {t("one payment, nothing due at the property")}
+                        </span>
+                      </span>
+                    </label>
+                  </fieldset>
                 )}
                 <label className="flex items-start gap-2 text-sm text-zinc-600">
                   <input type="checkbox" className="mt-0.5 size-4 accent-brand-600"

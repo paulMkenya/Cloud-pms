@@ -912,6 +912,19 @@ def _payment_split(prop, total: float, rules: dict | None = None) -> dict:
 	}
 
 
+def _guest_advance_terms(prop, total: float, rules: dict | None,
+                         pay_full: int) -> tuple[float, str]:
+	"""The guest's chosen split: the property's policy by default, or the
+	whole stay when they opt to pay in full at booking. Only offered where
+	a deposit would otherwise be due - a pay-at-hotel property has no
+	online amount to prepay against."""
+	if not pay_full:
+		return _advance_terms(prop, total, rules)
+	total = float(total or 0)
+	sym = _public_locale(prop.name).get("currency_symbol", "") if prop.get("name") else ""
+	return total, f"Full payment ({sym}{total:,.0f}) online"
+
+
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(limit=10, seconds=3600)
 def book(property: str, room_type: str, check_in_date: str,
@@ -919,7 +932,7 @@ def book(property: str, room_type: str, check_in_date: str,
          email: str = "", adults: int = 2, children: int = 0,
          meal_plan: str = "", special_requests: str = "", addons=None,
          voucher_code: str = "", idempotency_key: str = "", pets: int = 0,
-         child_ages=None, marketing_consent: int = 0):
+         child_ages=None, marketing_consent: int = 0, pay_full: int = 0):
 	"""Create a Website booking. An existing guest profile is reused when
 	both the phone and the full name match; staff verify at check-in.
 	The advance owed is computed from the property's
@@ -974,8 +987,8 @@ def book(property: str, room_type: str, check_in_date: str,
 		voucher_code=voucher_code or None, pets=int(pets or 0),
 	)
 	stay_rules = q.get("stay_rules") or {}
-	advance_due, policy = _advance_terms(
-		prop, float(q["amount_after_tax"] or 0), stay_rules)
+	advance_due, policy = _guest_advance_terms(
+		prop, float(q["amount_after_tax"] or 0), stay_rules, pay_full)
 
 	status = None
 	hold_expires_on = None
@@ -1018,7 +1031,8 @@ def book(property: str, room_type: str, check_in_date: str,
 		# later change to the property's payment config never re-bills this guest
 		total = float(result["amount_after_tax"] or 0)
 		# Recompute against the saved total (voucher / engine may differ).
-		advance_due, policy = _advance_terms(prop, total, stay_rules)
+		advance_due, policy = _guest_advance_terms(
+			prop, total, stay_rules, pay_full)
 		updates = {
 			"advance_due": advance_due,
 			"payment_policy": policy,

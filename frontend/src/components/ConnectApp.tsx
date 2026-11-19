@@ -67,7 +67,7 @@ const toggle = (list: string[], value: string) =>
 /** Marketplace, Connected apps (IT only): read an app's signed manifest,
  *  consent to its scopes and properties, hand over a one-time pairing code,
  *  and disconnect. */
-export default function ConnectApp() {
+export default function ConnectApp({ productName }: { productName?: string }) {
   const { t } = useT()
   const [reg, setReg] = useState<Registry | null>(null)
   const [url, setUrl] = useState("")
@@ -222,7 +222,8 @@ export default function ConnectApp() {
 
             {preview.redirect_uri && (
               <p className="text-xs text-zinc-500">
-                {t("Staff sign in to it with their own Kamra login, through {uri}.", {
+                {t("Staff sign in to it with their own {product} login, through {uri}.", {
+                  product: productName || "Kamra",
                   uri: preview.redirect_uri,
                 })}
               </p>

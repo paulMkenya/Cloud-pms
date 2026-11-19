@@ -23,6 +23,33 @@ DOCS_COUNTRY_PACK = "https://kamrapms.com/docs/write-a-country-pack"
 COUNTRY_PACK_ISSUES = ("https://github.com/Kamra-PMS/kamra-pms/issues"
                        "?q=is%3Aopen+label%3Acountry-pack")
 
+# CloudTrade tenant overlay (site config ``ct_cloudtrade_marketplace``):
+# Kenya/East-Africa cards, CloudTrade quote routing and Cloud PMS naming.
+# Off by default; enable per site with
+# ``bench --site <site> set-config ct_cloudtrade_marketplace 1``.
+CLOUDTRADE_FLAG = "ct_cloudtrade_marketplace"
+DEFAULT_SUPPORT_EMAIL = "support@cloudtrade.pro"
+DEFAULT_SUPPORT_WHATSAPP = "254755000300"
+
+
+def _cloudtrade_enabled() -> bool:
+	return bool(frappe.utils.cint(frappe.conf.get(CLOUDTRADE_FLAG)))
+
+
+def _support_channels() -> dict:
+	return {
+		"email": frappe.conf.get("support_email") or DEFAULT_SUPPORT_EMAIL,
+		"whatsapp": frappe.conf.get("support_whatsapp")
+		or DEFAULT_SUPPORT_WHATSAPP,
+	}
+
+
+def _rename(text):
+	"""Kamra -> Cloud PMS on user-facing card text (URLs untouched)."""
+	if not text:
+		return text
+	return text.replace("Kamra", "Cloud PMS")
+
 
 @frappe.whitelist()
 @require_roles("Hotel Admin", "System Manager")
@@ -39,7 +66,7 @@ def registry(property: str):
 	me = frappe.session.user
 	has_key = bool(frappe.db.get_value("User", me, "api_key"))
 
-	return [
+	cats = [
 		{
 			"category": "Kamra apps",
 			"blurb": "The rooms of your PMS - every app is open and included.",
@@ -207,6 +234,114 @@ def registry(property: str):
 		},
 	]
 
+	if _cloudtrade_enabled():
+		cats = _cloudtrade_cats(cats)
+	return cats
+
+
+def _cloudtrade_cats(cats):
+	"""CloudTrade overlay: Kenya/East-Africa cards, quote routing links and
+	Cloud PMS naming. Every original card stays, in order - new cards are
+	appended inside their section (Kenya pack cards lead Country packs)."""
+	mpesa_status = "connected" if frappe.db.get_value(
+		"Payment Gateway Settings", {"enabled": 1}, "name") else "configure"
+
+	for cat in cats:
+		cat["category"] = _rename(cat["category"])
+		cat["blurb"] = _rename(cat["blurb"])
+		for c in cat["cards"]:
+			for field in ("name", "blurb", "detail"):
+				c[field] = _rename(c.get(field))
+
+	for cat in cats:
+		if cat["category"] == "Guest messaging (WhatsApp)":
+			cat["blurb"] += (" It now covers Kenya and East Africa - "
+			                 "and Africa broadly.")
+		elif cat["category"] == "Payments":
+			cat["cards"] += [
+				_connector(
+					"M-Pesa",
+					"mpesa",
+					"M-Pesa STK push, Paybill and Till payments through "
+					"CloudPay - payment links and deposits land in your "
+					"own M-Pesa account.",
+					action="route", route="/settings",
+					status=mpesa_status,
+					detail="Via CloudPay" if mpesa_status == "connected"
+					else None),
+				_custom(
+					"M-Pesa Paybill/Till reconciliation",
+					"Automatic matching of Paybill/Till payments to "
+					"bookings by account reference is on request. Today "
+					"payments reconcile through CloudPay payment links "
+					"and confirmed M-Pesa references.",
+					request_label="Request reconciliation"),
+			]
+		elif cat["category"] == "Accounting":
+			cat["cards"].append(_custom(
+				"KRA eTIMS",
+				"KRA eTIMS-compliant electronic tax invoices are on "
+				"request - CloudTrade is completing eTIMS certification. "
+				"VAT invoices with KRA PIN already issue today through "
+				"the Kenya pack.",
+				request_label="Request eTIMS"))
+		elif cat["category"] == "Country packs":
+			kenya_cards = [
+				_module(
+					"Kenya",
+					"KES and Africa/Nairobi. 16% VAT with KRA PIN "
+					"invoices, configurable Tourism Levy and county "
+					"charge lines, M-Pesa via CloudPay. eTIMS and "
+					"Swahili template packs on request.",
+					detail="Core included"),
+				_custom(
+					"Tanzania",
+					"VAT, TRA registration and mobile-money payments "
+					"for Tanzanian properties - built on request.",
+					request_label="Request Tanzania pack"),
+				_custom(
+					"Uganda",
+					"URA tax invoices, mobile-money payments and "
+					"East African localisation - built on request.",
+					request_label="Request Uganda pack"),
+				_custom(
+					"Rwanda",
+					"RRA e-invoicing, mobile-money payments and "
+					"Kinyarwanda/French/English guest messaging - "
+					"built on request.",
+					request_label="Request Rwanda pack"),
+			]
+			# Kenya + East Africa lead; every existing card keeps its
+			# relative order after them ("Your country" stays last).
+			cat["cards"] = kenya_cards + [
+				c for c in cat["cards"] if c["name"] != "Your country"
+			] + [c for c in cat["cards"] if c["name"] == "Your country"]
+			for c in cat["cards"]:
+				if c["name"] == "Your country":
+					c["links"] = list(c.get("links") or []) + [
+						{"label": "Request a quote",
+						 "href": "cloudtrade:quote"},
+					]
+	return cats
+
+
+@frappe.whitelist()
+@require_roles("Hotel Admin", "System Manager")
+def support_contact(property: str):
+	"""Where Marketplace quote/request buttons send the user. Returns
+	``enabled: False`` unless the site opts into the CloudTrade overlay -
+	the frontend then behaves exactly as before."""
+	if not _cloudtrade_enabled():
+		return {"enabled": False}
+	prop_name = frappe.db.get_value(
+		"Property", property, "property_name") or property
+	return {
+		"enabled": True,
+		"property": prop_name,
+		"user": frappe.session.user,
+		**_support_channels(),
+	}
+
 
 def _module(name, blurb, planned=False, detail=None):
 	return {"kind": "module", "name": name, "blurb": blurb,
@@ -220,10 +355,13 @@ def _connector(name, key, blurb, action=None, route=None, channel=None,
 	        "status": status, "detail": detail, "connection": connection}
 
 
-def _custom(name, blurb):
+def _custom(name, blurb, request_label=None):
 	"""Built for a hotel on request; the card files an enquiry."""
-	return {"kind": "custom", "name": name, "blurb": blurb,
+	card = {"kind": "custom", "name": name, "blurb": blurb,
 	        "status": "on_request"}
+	if request_label:
+		card["request_label"] = request_label
+	return card
 
 
 def _link(name, blurb, links):

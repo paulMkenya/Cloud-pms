@@ -22,7 +22,15 @@ interface Card {
   key?: string
   command?: string | null
   connection?: string | null
+  request_label?: string | null
   links?: { label: string; href: string }[]
+}
+interface SupportContact {
+  enabled: boolean
+  email?: string
+  whatsapp?: string
+  property?: string
+  user?: string
 }
 interface Category {
   category: string
@@ -67,11 +75,65 @@ function Copyable({ value }: { value: string }) {
   )
 }
 
+function quoteMessage(item: string, support?: SupportContact | null) {
+  return (
+    `Hello CloudTrade, I'd like a quote for ${item}` +
+    (support?.property ? ` for ${support.property}` : "") +
+    (support?.user ? `. My email: ${support.user}.` : ".")
+  )
+}
+
+function SupportChooser({
+  item,
+  support,
+  onPick,
+}: {
+  item: string
+  support: SupportContact
+  onPick: () => void
+}) {
+  const { t } = useT()
+  const msg = quoteMessage(item, support)
+  const wa = (support.whatsapp || "").replace(/\D/g, "")
+  const mail =
+    `mailto:${support.email || ""}` +
+    `?subject=${encodeURIComponent(`CloudTrade quote request: ${item}`)}` +
+    `&body=${encodeURIComponent(msg)}`
+  const waLink = `https://wa.me/${wa}?text=${encodeURIComponent(msg)}`
+  return (
+    <div className="mt-3 space-y-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+      <p className="text-xs font-medium text-zinc-600">
+        {t("How should we send your request?")}
+      </p>
+      <div className="flex flex-col gap-2">
+        <a
+          href={mail}
+          onClick={onPick}
+          className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-center text-sm font-medium text-zinc-800 hover:bg-zinc-50"
+        >
+          {t("Email CloudTrade")}
+        </a>
+        <a
+          href={waLink}
+          target="_blank"
+          rel="noreferrer"
+          onClick={onPick}
+          className="rounded-lg border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-center text-sm font-medium text-emerald-800 hover:bg-emerald-100"
+        >
+          {t("WhatsApp CloudTrade")}
+        </a>
+      </div>
+    </div>
+  )
+}
+
 export default function Marketplace() {
   const { t } = useT()
   const [cats, setCats] = useState<Category[]>([])
   const [error, setError] = useState<string | null>(null)
   const [enquired, setEnquired] = useState<Set<string>>(new Set())
+  const [chooserFor, setChooserFor] = useState<string | null>(null)
+  const [support, setSupport] = useState<SupportContact | null>(null)
   const navigate = useNavigate()
   const property = getCurrentProperty()
   // connecting an app creates a service account: IT only, like the server
@@ -84,6 +146,27 @@ export default function Marketplace() {
       .catch((e) => setError(serverError(e)))
   }, [property])
   useEffect(load, [load])
+  useEffect(() => {
+    call<SupportContact>("kamra.marketplace.support_contact", { property })
+      .then(setSupport)
+      .catch(() => setSupport({ enabled: false }))
+  }, [property])
+
+  const ctEnabled = !!support?.enabled
+  const markEnquired = (name: string) =>
+    setEnquired((s) => new Set(s).add(name))
+  const recordEnquiry = (name: string) =>
+    call("kamra.marketplace.enterprise_enquiry", { property, item: name })
+      .catch(() => {})
+  const openChooser = (card: Card) => {
+    recordEnquiry(card.name)
+    setChooserFor(card.name)
+  }
+  const requestLabel = (c: Card) =>
+    c.request_label ||
+    (c.kind === "enterprise"
+      ? t("Contact us for a quote")
+      : t("Request a custom integration"))
 
   return (
     <div className="space-y-6">
@@ -101,7 +184,7 @@ export default function Marketplace() {
         </div>
       )}
 
-      {isIT && <ConnectApp />}
+      {isIT && <ConnectApp productName={ctEnabled ? "Cloud PMS" : undefined} />}
 
       {cats.map((cat) => (
         <section key={cat.category} className="space-y-3">
@@ -151,18 +234,28 @@ export default function Marketplace() {
                   )}
                   {c.kind === "link" && (
                     <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
-                      {c.links?.map((l) => (
-                        <a
-                          key={l.href}
-                          href={l.href}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-sm font-medium text-brand-700 hover:underline"
-                        >
-                          {translate(l.label)}
-                          <ExternalLink className="size-3.5" aria-hidden />
-                        </a>
-                      ))}
+                      {c.links?.map((l) =>
+                        l.href.startsWith("cloudtrade:") ? (
+                          <button
+                            key={l.href}
+                            onClick={() => openChooser(c)}
+                            className="inline-flex items-center gap-1 text-sm font-medium text-brand-700 hover:underline"
+                          >
+                            {translate(l.label)}
+                          </button>
+                        ) : (
+                          <a
+                            key={l.href}
+                            href={l.href}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-sm font-medium text-brand-700 hover:underline"
+                          >
+                            {translate(l.label)}
+                            <ExternalLink className="size-3.5" aria-hidden />
+                          </a>
+                        ),
+                      )}
                     </div>
                   )}
                   {(c.kind === "custom" || c.kind === "enterprise") && (
@@ -170,22 +263,29 @@ export default function Marketplace() {
                       <p className="mt-3 text-sm text-violet-700">
                         {t("Thanks - our team will reach out about {name}.", { name: c.name })}
                       </p>
+                    ) : chooserFor === c.name && ctEnabled && support ? (
+                      <SupportChooser
+                        item={c.name}
+                        support={support}
+                        onPick={() => {
+                          markEnquired(c.name)
+                          setChooserFor(null)
+                        }}
+                      />
                     ) : (
                       <Button
                         variant="outline"
                         className="mt-3"
                         onClick={() =>
-                          call("kamra.marketplace.enterprise_enquiry", {
-                            property,
-                            item: c.name,
-                          }).then(() =>
-                            setEnquired((s) => new Set(s).add(c.name)),
-                          )
+                          ctEnabled
+                            ? openChooser(c)
+                            : call("kamra.marketplace.enterprise_enquiry", {
+                                property,
+                                item: c.name,
+                              }).then(() => markEnquired(c.name))
                         }
                       >
-                        {c.kind === "enterprise"
-                          ? t("Contact us for a quote")
-                          : t("Request a custom integration")}
+                        {requestLabel(c)}
                       </Button>
                     )
                   )}

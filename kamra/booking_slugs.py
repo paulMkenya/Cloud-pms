@@ -16,27 +16,60 @@ def slugify(text: str) -> str:
 	return s or "listing"
 
 
+def _public_property_slug(property: str) -> str:
+	"""The slug catalog_index advertises for a property (page_slug or name)."""
+	row = frappe.db.get_value(
+		"Property", property, ["page_slug", "property_name"], as_dict=True,
+	)
+	if not row:
+		return slugify(property)
+	return (row.page_slug or "").strip() or slugify(row.property_name or property)
+
+
+def _multi_property_site() -> bool:
+	"""Several bookable properties share this site. Bare listing slugs like
+	"1-bedroom" exist on every property, and /stay/<slug> resolves without
+	a property in the path - so on these sites slugs get a property prefix.
+	Single-property sites keep the short upstream URLs."""
+	return frappe.db.count(
+		"Property", {"booking_engine_enabled": 1, "disabled": 0},
+	) > 1
+
+
 def unique_listing_slug(property: str, base: str, exclude: str | None = None) -> str:
-	"""Return *base* or base-2, base-3, … unique among room types on *property*."""
+	"""Return *base* (property-prefixed on multi-property sites) or
+	-2, -3, … — unique across ALL room types, because /stay/<slug>
+	resolves globally, not within one property."""
 	slug = slugify(base)
 	if not slug:
 		slug = "listing"
+	prefix = f"{_public_property_slug(property)}-" if _multi_property_site() else ""
 	used = set(
 		frappe.get_all(
 			"Room Type",
-			filters={"property": property, "name": ["!=", exclude]} if exclude else {"property": property},
+			filters={"name": ["!=", exclude]} if exclude else {},
 			pluck="listing_slug",
 		)
 	)
 	used.discard(None)
 	used.discard("")
-	if slug not in used:
-		return slug
+	candidate = prefix + slug
+	if candidate not in used:
+		return candidate
 	for i in range(2, 200):
-		candidate = f"{slug}-{i}"
+		candidate = f"{prefix}{slug}-{i}"
 		if candidate not in used:
 			return candidate
-	return f"{slug}-{frappe.generate_hash(length=6)}"
+	return f"{prefix}{slug}-{frappe.generate_hash(length=6)}"
+
+
+def location_slug_for(property: str, location_name: str) -> str:
+	"""Slug for a booking "site" (a location grouping room types). Resolved
+	globally like listing slugs, so it gets the same property prefix."""
+	slug = slugify(location_name)
+	if slug and _multi_property_site():
+		return f"{_public_property_slug(property)}-{slug}"
+	return slug
 
 
 def ensure_room_type_slugs(room_type: str) -> None:
@@ -48,7 +81,7 @@ def ensure_room_type_slugs(room_type: str) -> None:
 		changed = True
 	loc = (rt.get("location_name") or "").strip()
 	if loc and not (rt.get("location_slug") or "").strip():
-		rt.location_slug = slugify(loc)
+		rt.location_slug = location_slug_for(rt.property, loc)
 		changed = True
 	if changed:
 		rt.db_set(

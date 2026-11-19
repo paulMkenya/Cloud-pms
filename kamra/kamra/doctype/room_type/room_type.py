@@ -21,7 +21,9 @@ def clean_room_type_code(code: str) -> str:
 
 class RoomType(Document):
 	def validate(self):
-		from kamra.booking_slugs import slugify, unique_listing_slug
+		from kamra.booking_slugs import (
+			location_slug_for, slugify, unique_listing_slug,
+		)
 
 		cleaned = clean_room_type_code(self.room_type_code)
 		if not cleaned:
@@ -38,7 +40,7 @@ class RoomType(Document):
 		loc = (self.location_name or "").strip()
 		if loc:
 			if not (self.location_slug or "").strip():
-				self.location_slug = slugify(loc)
+				self.location_slug = location_slug_for(self.property, loc)
 			else:
 				self.location_slug = slugify(self.location_slug)
 		else:

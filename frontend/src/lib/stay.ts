@@ -45,8 +45,9 @@ export function nightsBetween(a: string, b: string) {
 }
 
 /** The stay a URL asks for, made sane: a missing or bad check-in is
- *  tomorrow, a past one today; check-out must follow it (else two nights);
- *  at least one adult, never negative children. */
+ *  tomorrow, a past one today; check-out must follow it (else one night -
+ *  a two-night default reads as an inflated price before the guest
+ *  realises it is two days); at least one adult, never negative children. */
 export function stayFromParams(p: {
   checkin?: string
   checkout?: string
@@ -59,7 +60,7 @@ export function stayFromParams(p: {
   const check_out_date =
     parseDate(p.checkout) && p.checkout! > check_in_date
       ? p.checkout!
-      : addDays(check_in_date, 2)
+      : addDays(check_in_date, 1)
   const whole = (v: string | undefined, min: number, dflt: number) => {
     const n = Math.floor(Number(v))
     return Number.isFinite(n) && v ? Math.max(min, n) : dflt

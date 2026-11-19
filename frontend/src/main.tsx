@@ -5,6 +5,8 @@ import "./index.css"
 import App from "./App"
 import { initTheme } from "./lib/theme"
 import { initLang } from "./lib/dir"
+import { setLabelOverrides } from "./lib/i18n"
+import { uiLabels } from "./lib/api"
 import { asset } from "./lib/asset"
 import { AuthProvider } from "./lib/auth"
 import { CashierAuthProvider } from "./lib/cashierAuth"
@@ -39,5 +41,14 @@ function mount() {
 }
 
 // Wait for the active locale chunk so the first paint is already
-// translated; English skips the network round-trip.
-void initLang().then(mount)
+// translated; English skips the network round-trip. Tenant label overrides
+// ride along - a site without them gets an empty map and changes nothing.
+void Promise.all([
+  initLang(),
+  uiLabels()
+    .then((map) => {
+      setLabelOverrides(map)
+      window.dispatchEvent(new Event("kamra:lang"))
+    })
+    .catch(() => {}),
+]).then(mount)

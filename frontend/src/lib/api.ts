@@ -312,6 +312,11 @@ export async function callGuest<T = unknown>(
   return ((await res.json()) as { message: T }).message
 }
 
+/** Tenant display-label overrides (site_config ui_label_overrides) - empty
+ *  on sites without them. Fetched once at boot by main.tsx. */
+export const uiLabels = () =>
+  callGuest<Record<string, string>>("kamra.public_api.ui_labels")
+
 export interface WhoAmI {
   user: string
   full_name: string

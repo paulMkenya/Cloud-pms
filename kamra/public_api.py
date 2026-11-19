@@ -1210,3 +1210,15 @@ def hosting_enquiry(full_name: str, email: str, phone: str = "",
 		pass  # no SMTP yet - the enquiry is already saved
 	return {"ok": True,
 	        "message": "Thanks - we'll get back to you within a day."}
+
+
+@frappe.whitelist(allow_guest=True)
+def ui_labels():
+	"""Tenant display-label overrides from site_config "ui_label_overrides".
+
+	Guest and staff shells fetch this once at boot; the i18n layer swaps a
+	matching English source string before translating, so a tenant can say
+	"property" or "apartment" where the core product says "hotel". Empty
+	dict on every site without the config - a no-op elsewhere."""
+	labels = frappe.conf.get("ui_label_overrides")
+	return labels if isinstance(labels, dict) else {}

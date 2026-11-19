@@ -4,6 +4,20 @@ import { dictionaryFor } from "./locales"
 
 export type Vars = Record<string, string | number>
 
+/** Tenant display-label overrides, fetched once at boot from
+ * kamra.public_api.ui_labels (site_config "ui_label_overrides"). Keys are
+ * exact English source strings; values are the tenant's wording - e.g. a
+ * BnB tenant says "property" where the core says "hotel". Empty everywhere
+ * the site has no config, so other tenants are untouched. */
+let labelOverrides: Record<string, string> = {}
+
+export function setLabelOverrides(map: unknown) {
+  labelOverrides =
+    map && typeof map === "object" && !Array.isArray(map)
+      ? (map as Record<string, string>)
+      : {}
+}
+
 /** Replace `{name}` placeholders in a template. Arabic (and others) can
  * reorder words by placing the same placeholders differently. */
 function interpolate(template: string, vars?: Vars): string {
@@ -19,7 +33,8 @@ function interpolate(template: string, vars?: Vars): string {
  * prefix is dropped. */
 function translated(source: string, language: string): string {
   const dictionary = dictionaryFor(language)
-  return Object.hasOwn(dictionary, source) ? dictionary[source] : source.replace(/^[a-z]+\|/, "")
+  const key = Object.hasOwn(labelOverrides, source) ? labelOverrides[source] : source
+  return Object.hasOwn(dictionary, key) ? dictionary[key] : key.replace(/^[a-z]+\|/, "")
 }
 
 /** The product's name on screen. The open-source core calls itself Kamra;

@@ -24,6 +24,7 @@ const PublicBooking = lazy(() => import("./screens/PublicBooking"))
 const PublicListing = lazy(() => import("./screens/PublicListing"))
 const PublicCheckin = lazy(() => import("./screens/PublicCheckin"))
 const GuestReview = lazy(() => import("./screens/GuestReview"))
+const PortfolioCalendar = lazy(() => import("./screens/PortfolioCalendar"))
 const FolioView = lazy(() => import("./screens/FolioView"))
 const GuestJourney = lazy(() => import("./screens/GuestJourney"))
 const HkApp = lazy(() => import("./screens/HkApp"))
@@ -220,6 +221,7 @@ export default function App() {
           <Route path="assistant" element={<Agents />} />
           <Route path="calendar" element={<CalendarScreen />} />
           <Route path="tape" element={<TapeChart />} />
+          <Route path="portfolio" element={<PortfolioCalendar />} />
           <Route
             path="reservations"
             element={<ConfiguredScreen config="reservationsConfig" />}

@@ -129,6 +129,8 @@ export const APPS: AppDef[] = [
         keywords: ["Arrivals", "Departures", "In-house guests", "Who is in", "Due out"] },
       { to: "/reservations", label: "Reservations", icon: ClipboardList },
       { to: "/tape", label: "Tape Chart", icon: LayoutGrid },
+      { to: "/portfolio", label: "Portfolio", icon: Building2,
+        keywords: ["All properties", "Multi-property", "Portfolio calendar", "Occupancy overview"] },
       { to: "/room-board", label: "Room Board", icon: DoorOpen,
         keywords: ["Rooms", "Room status", "Out of order", "Room history"] },
       { to: "/guests", label: "Guest History", icon: Users,

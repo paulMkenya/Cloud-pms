@@ -5830,6 +5830,31 @@ def tape_chart(property: str, start_date: str | None = None, days: int = 14):
 	}
 
 
+@frappe.whitelist()
+@require_roles("Front Desk", "Kamra Agent")
+def tape_chart_portfolio(start_date: str | None = None, days: int = 14):
+	"""Every property the user can see, each in the same rooms x dates
+	shape as tape_chart() - the portfolio calendar for multi-property
+	tenants. Read-only aggregate; per-property tape chart stays the
+	place to work a stay."""
+	props = frappe.get_list(
+		"Property",
+		filters={"disabled": 0},
+		fields=["name", "property_name"],
+		order_by="property_name asc",
+	)
+	out = []
+	for p in props:
+		try:
+			data = tape_chart(p.name, start_date=start_date, days=days)
+			out.append({"name": p.name, "property_name": p.property_name,
+			            **data})
+		except Exception:
+			frappe.log_error(frappe.get_traceback(),
+			                 f"tape_chart_portfolio {p.name}")
+	return out
+
+
 @frappe.whitelist(methods=["POST"])
 @require_roles("Front Desk", "Kamra Agent")
 def send_precheckin_link(reservation: str, channel: str = "WhatsApp"):

@@ -27,6 +27,7 @@ import ChildAges, {
   agesToSend, canReserve, sizeAges, StayNotice,
   type ChildAge, type StayFit,
 } from "../components/ChildAges"
+import PhotoLightbox, { type Photo } from "../components/PhotoLightbox"
 
 
 const inr = (n: number) =>
@@ -237,6 +238,7 @@ export default function PublicListing() {
   const [done, setDone] = useState<{ reservation: string; amount: number; status?: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [lightbox, setLightbox] = useState<{ photos: Photo[]; start: number; title: string } | null>(null)
 
   const checkOut = search.check_out_date
 
@@ -451,11 +453,18 @@ export default function PublicListing() {
         {/* Photo plane */}
         <div className="mb-6 overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-100 shadow-sm">
           {hero ? (
-            <img
-              src={hero}
-              alt=""
-              className="aspect-[16/9] w-full object-cover sm:aspect-[21/9]"
-            />
+            <button
+              type="button"
+              onClick={() => setLightbox({ photos: uniquePhotos, start: 0, title })}
+              aria-label={t("Open photos")}
+              className="block w-full cursor-zoom-in"
+            >
+              <img
+                src={hero}
+                alt=""
+                className="aspect-[16/9] w-full object-cover sm:aspect-[21/9]"
+              />
+            </button>
           ) : (
             <div className="flex aspect-[16/9] items-center justify-center bg-gradient-to-br from-brand-700 to-brand-900 text-white sm:aspect-[21/9]">
               <span className="text-5xl font-semibold tracking-tight">
@@ -470,12 +479,19 @@ export default function PublicListing() {
           {uniquePhotos.length > 1 && (
             <div className="flex gap-2 overflow-x-auto border-t border-zinc-200 bg-white p-2">
               {uniquePhotos.slice(1, 7).map((m, i) => (
-                <img
+                <button
                   key={`${m.url}-${i}`}
-                  src={m.url}
-                  alt={translate(m.caption ?? "")}
-                  className="h-16 w-24 shrink-0 rounded-lg object-cover"
-                />
+                  type="button"
+                  onClick={() => setLightbox({ photos: uniquePhotos, start: i + 1, title })}
+                  aria-label={t("Open photo {n}", { n: i + 2 })}
+                  className="h-16 w-24 shrink-0 overflow-hidden rounded-lg"
+                >
+                  <img
+                    src={m.url}
+                    alt={translate(m.caption ?? "")}
+                    className="size-full object-cover"
+                  />
+                </button>
               ))}
             </div>
           )}
@@ -936,6 +952,10 @@ export default function PublicListing() {
             </div>
           )}
         </Sheet>
+      )}
+      {lightbox && (
+        <PhotoLightbox photos={lightbox.photos} start={lightbox.start} title={lightbox.title}
+          onClose={() => setLightbox(null)} />
       )}
     </div>
   )

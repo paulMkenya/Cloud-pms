@@ -5855,6 +5855,76 @@ def tape_chart_portfolio(start_date: str | None = None, days: int = 14):
 	return out
 
 
+@frappe.whitelist()
+@require_roles("Front Desk", "Kamra Agent", "Finance", "Revenue Manager",
+               "Hotel Admin")
+def portfolio_summary(date: str | None = None):
+	"""One-call KPI strip per property plus portfolio totals for the
+	multi-property dashboard: rooms, in-house, today's arrivals and
+	departures, unpaid-payment holds, open housekeeping tasks,
+	month-to-date collections and guest balances. Same rules as the
+	per-property screens (cash_summary, open folio totals) so the numbers
+	never disagree."""
+	from kamra.dashboards import _open_folio_totals
+
+	date = date or nowdate()
+	month_start = str(getdate(date).replace(day=1))
+	props = frappe.get_list(
+		"Property",
+		filters={"disabled": 0},
+		fields=["name", "property_name"],
+		order_by="property_name asc",
+	)
+	out = []
+	for p in props:
+		name = p.name
+		try:
+			rooms = frappe.db.count("Room", {"property": name})
+			in_house = frappe.db.count(
+				"Reservation", {"property": name, "status": "Checked In"})
+			arrivals = frappe.db.count("Reservation", {
+				"property": name, "check_in_date": date,
+				"status": ("in", ["Confirmed", "Checked In"])})
+			departures = frappe.db.count("Reservation", {
+				"property": name, "check_out_date": date,
+				"status": "Checked In"})
+			pending = frappe.db.count("Reservation", {
+				"property": name, "status": "Pending Payment",
+				"check_in_date": (">=", date)})
+			hk_open = frappe.db.count("Housekeeping Task", {
+				"property": name, "status": ("in", ["Pending", "In Progress"])})
+			collections = cash_summary(name, month_start, date)
+			balance, _open = _open_folio_totals(name)
+			out.append({
+				"name": name,
+				"property_name": p.property_name,
+				"rooms": int(rooms or 0),
+				"in_house": int(in_house or 0),
+				"arrivals": int(arrivals or 0),
+				"departures": int(departures or 0),
+				"pending_payment": int(pending or 0),
+				"hk_open": int(hk_open or 0),
+				"mtd_collections": float(collections.get("grand_total") or 0),
+				"guest_balance": balance,
+			})
+		except Exception:
+			frappe.log_error(frappe.get_traceback(),
+			                 f"portfolio_summary {name}")
+	totals = {
+		"properties": len(out),
+		"rooms": sum(r["rooms"] for r in out),
+		"in_house": sum(r["in_house"] for r in out),
+		"arrivals": sum(r["arrivals"] for r in out),
+		"departures": sum(r["departures"] for r in out),
+		"pending_payment": sum(r["pending_payment"] for r in out),
+		"hk_open": sum(r["hk_open"] for r in out),
+		"mtd_collections": sum(r["mtd_collections"] for r in out),
+		"guest_balance": sum(r["guest_balance"] for r in out),
+	}
+	return {"date": str(date), "month_start": month_start,
+	        "properties": out, "totals": totals}
+
+
 @frappe.whitelist(methods=["POST"])
 @require_roles("Front Desk", "Kamra Agent")
 def send_precheckin_link(reservation: str, channel: str = "WhatsApp"):

@@ -13,7 +13,8 @@ from __future__ import annotations
 # Values stored on Property.property_kind
 KIND_HOTEL = "Hotel"
 KIND_STR = "Short Term Rental"
-KINDS = (KIND_HOTEL, KIND_STR)
+KIND_SA = "Serviced Apartments"
+KINDS = (KIND_HOTEL, KIND_STR, KIND_SA)
 
 # Module catalogs match kamra.api.ALL_MODULES.
 HOTEL_MODULES = (

@@ -17,7 +17,7 @@ const inputCls =
   "w-full rounded-lg border border-zinc-300 bg-white px-3.5 py-2.5 text-base " +
   "focus:outline-2 focus:outline-offset-1 focus:outline-brand-600"
 
-type PropertyKind = "Hotel" | "Short Term Rental"
+type PropertyKind = "Hotel" | "Short Term Rental" | "Serviced Apartments"
 type Topology = "rooms" | "whole_property"
 
 interface RoomTypeRow {
@@ -371,7 +371,7 @@ export default function Setup() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2">
-              {(["Hotel", "Short Term Rental"] as const).map((k) => (
+              {(["Hotel", "Short Term Rental", "Serviced Apartments"] as const).map((k) => (
                 <button
                   key={k}
                   type="button"
@@ -381,7 +381,7 @@ export default function Setup() {
                     kind === k ? "border-brand-600 bg-brand-50 ring-1 ring-brand-600" : "border-zinc-200 hover:border-zinc-300",
                   )}
                 >
-                  {k === "Hotel" ? t("Hotel") : t("Vacation rental")}
+                  {k === "Hotel" ? t("Hotel") : k === "Short Term Rental" ? t("Vacation rental") : t("Serviced apartments")}
                 </button>
               ))}
             </div>
@@ -494,6 +494,11 @@ export default function Setup() {
                     value: "Short Term Rental" as const,
                     title: t("Vacation rental"),
                     blurb: t("Entire place or a few units. No meal plans; overbooking off by default."),
+                  },
+                  {
+                    value: "Serviced Apartments" as const,
+                    title: t("Serviced apartments"),
+                    blurb: t("Self-contained apartments let by the unit - BnB, corporate housing, city apartments."),
                   },
                 ] as const
               ).map((opt) => (

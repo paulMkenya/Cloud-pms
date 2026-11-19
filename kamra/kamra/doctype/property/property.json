@@ -141,7 +141,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Property Kind",
-   "options": "Hotel\nShort Term Rental"
+   "options": "Hotel\nShort Term Rental\nServiced Apartments"
   },
   {
    "fieldname": "column_break_a",

@@ -69,11 +69,28 @@ def whoami():
 	{user: "Guest"} cleanly instead of a 403 in the console.
 	"""
 	user = frappe.session.user
+	must_change = False
+	if user != "Guest" and frappe.get_meta("User").has_field("kamra_password_change_required"):
+		must_change = bool(frappe.db.get_value(
+			"User", user, "kamra_password_change_required"))
 	return {
 		"user": user,
 		"full_name": frappe.db.get_value("User", user, "full_name") or user,
 		"roles": frappe.get_roles(user),
+		"must_change_password": must_change,
 	}
+
+
+@frappe.whitelist(methods=["POST"])
+def clear_password_change_flag():
+	"""The signed-in user just chose a new password: drop the first-login
+	flag so the app stops routing them to the change-password screen."""
+	user = frappe.session.user
+	if user == "Guest":
+		frappe.throw(_("Sign in first."), frappe.AuthenticationError)
+	if frappe.get_meta("User").has_field("kamra_password_change_required"):
+		frappe.db.set_value("User", user, "kamra_password_change_required", 0)
+	return {"ok": True}
 
 
 @frappe.whitelist()

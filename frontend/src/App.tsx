@@ -107,7 +107,7 @@ function Splash() {
 /** Gate for the app shell: redirects to /login (remembering where you were)
  *  whenever there's no session, so the URL always matches the auth state. */
 function RequireAuth() {
-  const { status } = useAuth()
+  const { status, mustChangePassword } = useAuth()
   const location = useLocation()
   if (status === "loading") return <Splash />
   if (status === "anon")
@@ -118,6 +118,9 @@ function RequireAuth() {
         state={{ from: location.pathname + location.search }}
       />
     )
+  // staff issued a temporary password must replace it before using the app
+  if (mustChangePassword)
+    return <Navigate to="/update-password" replace />
   return <Outlet />
 }
 

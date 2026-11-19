@@ -213,6 +213,11 @@ def save_staff(property: str, email: str, full_name: str, roles, properties=None
 			"doctype": "User", "email": email, "first_name": full_name,
 			"user_type": "System User", "send_welcome_email": 0, "enabled": 1,
 		})
+		# issued credentials must be replaced at first sign-in; welcome-email
+		# users pick their own password from the link, so no flag for them
+		if not str(send_welcome).lower() in ("1", "true") \
+				and frappe.get_meta("User").has_field("kamra_password_change_required"):
+			user.kamra_password_change_required = 1
 
 	if not it:
 		gained = set(want_roles) - set(held)

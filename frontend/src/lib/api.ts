@@ -321,9 +321,14 @@ export interface WhoAmI {
   user: string
   full_name: string
   roles: string[]
+  must_change_password?: boolean
 }
 
 export const whoami = () => call<WhoAmI>("kamra.api.whoami")
+
+/** Drop the first-login password-change flag after a successful change. */
+export const clearPasswordFlag = () =>
+  call<{ ok: boolean }>("kamra.api.clear_password_change_flag", {})
 
 /** Which parts of Kamra this property runs. Empty on the server means
  *  "all of them", so an existing property is untouched. */

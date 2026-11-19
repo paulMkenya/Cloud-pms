@@ -3,7 +3,7 @@
 
 import { useMemo, useState, type ReactNode } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router-dom"
-import { serverError, updatePassword } from "../lib/api"
+import { clearPasswordFlag, serverError, updatePassword } from "../lib/api"
 import { asset } from "../lib/asset"
 import { useAuth } from "../lib/auth"
 import { useT, t as translate } from "../lib/i18n"
@@ -70,6 +70,7 @@ export default function UpdatePassword() {
         key: byKey ? key : undefined,
         old_password: byKey ? undefined : oldPwd,
       })
+      await clearPasswordFlag().catch(() => undefined)
       setDone(true)
       await refresh()
       if (import.meta.env.PROD) {

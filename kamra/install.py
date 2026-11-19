@@ -40,6 +40,10 @@ def ensure_user_fields():
 	create_custom_fields({"User": [{
 		"fieldname": "kamra_job_title", "label": "Job Title", "fieldtype": "Data",
 		"insert_after": "last_name", "permlevel": 1,
+	}, {
+		"fieldname": "kamra_password_change_required", "label": "Password Change Required",
+		"fieldtype": "Check", "insert_after": "kamra_job_title", "permlevel": 1,
+		"description": "Set for staff created with an admin-issued password; the app routes them to change it on first sign-in.",
 	}]}, update=True)
 
 

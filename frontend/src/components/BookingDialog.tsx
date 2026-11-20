@@ -10,6 +10,7 @@ import {
   getCurrentProperty,
   getQuote,
   guestAlert,
+  sendBookingOffer,
   guestSearch,
   type BookingOptions,
   type GuestAlert,
@@ -146,6 +147,9 @@ export function BookingDialog(props: {
     walkIn?: WalkInResult
     /** a single booking: take the deposit right here (#114) */
     deposit?: DepositState
+    /** sent as a guest-confirm offer: link + expiry for the done screen */
+    offerUrl?: string
+    offerExpires?: string
   } | null>(
     null,
   )
@@ -210,6 +214,7 @@ export function BookingDialog(props: {
   const [negRate, setNegRate] = useState("")
   const [negNote, setNegNote] = useState("")
   const [negOpen, setNegOpen] = useState(false)
+  const [offerMode, setOfferMode] = useState(false)
   // Day use (hourly): check in and out the same day, inside a time slot.
   // The server prices it (one billable date) - the quote shows that rate.
   const [dayUse, setDayUse] = useState(false)
@@ -482,6 +487,9 @@ export function BookingDialog(props: {
   })()
   const negRateBad = negRate.trim() !== "" && !Number.isFinite(Number(negRate))
   const canNegotiate = !viaName && moreRooms.length === 0 && !dayUse
+  // a guest-confirm offer works for any single-room desk stay - negotiated
+  // rate or not; hidden for walk-ins, groups and OTA bookings
+  const canOffer = !viaName && !walkIn && moreRooms.length === 0
 
   // phone is optional, but a half-typed one is a data-entry slip, not a choice
   const country = options?.property?.country
@@ -762,6 +770,10 @@ export function BookingDialog(props: {
           .map(([experience, qty]) => ({ experience, qty })),
         agreed_rate: canNegotiate && negRateNum > 0 ? negRateNum : undefined,
         agreed_rate_note: negNote.trim() || undefined,
+        // an offer parks the stay as Requested (no room, no inventory) and
+        // the guest's accept is what books it
+        status: offerMode && canOffer ? "Requested" : undefined,
+        assign_room: offerMode && canOffer ? 0 : undefined,
         ...slotArgs,
         blacklist_override_reason: blacklistOverride,
         credit_override_reason: creditOverride,
@@ -769,7 +781,18 @@ export function BookingDialog(props: {
         marketing_consent: offers ? 1 : undefined,
       })
       await addOthers(res.reservation)
-      setDone({ ref: res.reservation, room: res.room })
+      let offer: { offerUrl?: string; offerExpires?: string } = {}
+      if (offerMode && canOffer) {
+        try {
+          const off = await sendBookingOffer(res.reservation)
+          offer = { offerUrl: off.offer_url, offerExpires: off.expires_on }
+        } catch (e) {
+          // the Requested stay exists; the offer can be re-sent from the
+          // booking-requests inbox on Today
+          setError(shortErr(e))
+        }
+      }
+      setDone({ ref: res.reservation, room: res.room, ...offer })
       props.onBooked()
       call<{ deposit: DepositState }>("kamra.api.reservation_detail", {
         reservation: res.reservation,
@@ -1045,12 +1068,28 @@ export function BookingDialog(props: {
               </div>
             ) : (
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-emerald-800">
-                <p className="text-lg font-semibold">{t("Booked · {ref}", { ref: done.ref })}</p>
+                <p className="text-lg font-semibold">
+                  {done.offerUrl ? t("Offer sent · {ref}", { ref: done.ref }) : t("Booked · {ref}", { ref: done.ref })}
+                </p>
                 <p className="mt-1 text-sm">
-                  {done.room
-                    ? t("Room {n} assigned.", { n: done.room.split("-").pop() ?? "" })
-                    : t("No room auto-assigned - pick one from Reservations.")}{" "}
-                  {t("Find it under Arrivals on the stay date.")}
+                  {done.offerUrl
+                    ? t("The guest confirms by link - the room is only blocked when they accept.")
+                    : done.room
+                      ? t("Room {n} assigned.", { n: done.room.split("-").pop() ?? "" })
+                      : t("No room auto-assigned - pick one from Reservations.")}{" "}
+                  {!done.offerUrl && t("Find it under Arrivals on the stay date.")}
+                </p>
+              </div>
+            )}
+
+            {done.offerUrl && (
+              <div className="rounded-xl border border-sky-200 bg-sky-50 px-5 py-4 text-sky-900">
+                <p className="text-sm font-medium">{t("Guest offer link")}</p>
+                <p className="mt-1 break-all font-mono text-xs">{done.offerUrl}</p>
+                <p className="mt-1 text-xs text-sky-700">
+                  {done.offerExpires
+                    ? t("Valid until {when} - resend or edit it from the booking requests inbox.", { when: done.offerExpires })
+                    : t("Resend it from the booking requests inbox on Today.")}
                 </p>
               </div>
             )}
@@ -1145,7 +1184,7 @@ export function BookingDialog(props: {
               </dl>
             </div>
 
-            {done.deposit && !done.walkIn && !done.waitlist && (
+            {done.deposit && !done.walkIn && !done.waitlist && !done.offerUrl && (
               <DepositPanel
                 reservation={done.ref}
                 deposit={done.deposit}
@@ -2670,6 +2709,25 @@ export function BookingDialog(props: {
                           </div>
                         )}
                       </div>
+                    )}
+
+                    {canOffer && (
+                      <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-dashed border-zinc-300 bg-white px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={offerMode}
+                          onChange={(e) => setOfferMode(e.target.checked)}
+                          className="mt-0.5 size-4 accent-brand-600"
+                        />
+                        <span className="min-w-0">
+                          <span className="block text-sm font-medium text-zinc-700">
+                            {t("Send as offer")}
+                          </span>
+                          <span className="mt-0.5 block text-xs leading-relaxed text-zinc-500">
+                            {t("The guest gets a WhatsApp/SMS link to confirm at this price. Nothing is blocked until they accept; the offer expires in 3 days.")}
+                          </span>
+                        </span>
+                      </label>
                     )}
 
                     <div className="mt-3 rounded-xl border border-zinc-200 bg-white px-4 py-3.5 shadow-sm">

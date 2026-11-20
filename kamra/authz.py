@@ -315,7 +315,11 @@ def require_roles(*roles, scope: dict | None = None):
 	def deco(fn):
 		@wraps(fn)
 		def guarded(*args, **kwargs):
-			if not allowed & set(frappe.get_roles()):
+			# kamra.flags.kamra_trusted marks server-side flows that already
+			# authorized themselves (e.g. a guest accepting a booking offer
+			# by token) and must call role-gated inventory helpers.
+			if not frappe.flags.get("kamra_trusted") \
+					and not allowed & set(frappe.get_roles()):
 				frappe.throw(
 					f"Not permitted - needs one of: {', '.join(sorted(roles))}."
 					if roles else "Not permitted - needs Hotel Admin.",

@@ -24,6 +24,7 @@ const PublicBooking = lazy(() => import("./screens/PublicBooking"))
 const PublicListing = lazy(() => import("./screens/PublicListing"))
 const PublicCheckin = lazy(() => import("./screens/PublicCheckin"))
 const GuestReview = lazy(() => import("./screens/GuestReview"))
+const OfferPage = lazy(() => import("./screens/OfferPage"))
 const Portfolio = lazy(() => import("./screens/Portfolio"))
 const FolioView = lazy(() => import("./screens/FolioView"))
 const GuestJourney = lazy(() => import("./screens/GuestJourney"))
@@ -209,6 +210,8 @@ export default function App() {
         <Route path="checkin/:token" element={<PublicCheckin />} />
         {/* post-stay review, same bearer token */}
         <Route path="review/:token" element={<GuestReview />} />
+        {/* staff-priced offer the guest confirms by link */}
+        <Route path="offer/:token" element={<OfferPage />} />
         {/* housekeeping phone app - share the /hk URL with the HK team */}
         <Route path="hk" element={<HkApp />} />
         {/* dedicated login route so signing out changes the URL */}

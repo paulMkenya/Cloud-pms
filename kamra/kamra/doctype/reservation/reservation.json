@@ -79,6 +79,8 @@
   "auto_price",
   "agreed_rate",
   "agreed_rate_note",
+  "offer_token",
+  "offer_expires_on",
   "sb_notes",
   "special_requests",
   "sb_precheckin",
@@ -314,8 +316,8 @@
    "label": "Check-out Business Date",
    "read_only": 1,
    "description": "The business date the guest checked out on: a checkout can be undone only until it moves on"
-   },
-   {
+  },
+  {
    "fieldname": "booked_check_out_date",
    "fieldtype": "Date",
    "label": "Booked Check Out",
@@ -538,6 +540,19 @@
    "label": "Rate Note (internal)",
    "read_only": 1,
    "no_copy": 1
+  },
+  {
+   "fieldname": "offer_token",
+   "fieldtype": "Data",
+   "label": "Offer Token",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "offer_expires_on",
+   "fieldtype": "Datetime",
+   "label": "Offer Expires On",
+   "read_only": 1
   },
   {
    "default": "0",

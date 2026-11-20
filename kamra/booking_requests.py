@@ -68,7 +68,7 @@ def booking_requests(property: str):
 		        "check_in_date",
 		        "check_out_date", "nights", "adults", "children", "source",
 		        "channel", "ota_ref", "amount_after_tax", "special_requests",
-		        "group_booking", "creation"],
+		        "group_booking", "offer_token", "offer_expires_on", "creation"],
 		order_by="creation asc",
 	)
 	rt_names = {}
@@ -84,6 +84,9 @@ def booking_requests(property: str):
 		r["check_in_date"] = str(r.check_in_date)
 		r["check_out_date"] = str(r.check_out_date)
 		r["creation"] = str(r.creation)
+		r["offer_pending"] = bool(r.get("offer_token"))
+		r["offer_expires_on"] = (str(r["offer_expires_on"])
+		                      if r.get("offer_expires_on") else None)
 		r.update(_availability(r))
 	return {"holds_inventory": False, "count": len(rows), "requests": rows}
 
@@ -105,6 +108,12 @@ def accept_booking_request(reservation: str, room: str | None = None):
 	again - double-booking guard, villa <-> room lockout, category capacity,
 	group-block holds - so a request whose dates sold in the meantime is
 	refused with the reason; decline it instead."""
+	return _accept_request(reservation, room)
+
+
+def _accept_request(reservation: str, room: str | None = None):
+	"""The accept decision itself, shared by the staff inbox and the
+	guest-facing offer page (kamra.offers.respond_offer)."""
 	from kamra.api import agent_channel, available_rooms
 	from kamra.kamra.doctype.reservation.reservation import (
 		InventoryRefused, lock_property_for_inventory, uses_member_rooms,
@@ -190,6 +199,10 @@ def decline_booking_request(reservation: str, reason: str):
 	any room it pointed at is freed. The guest is told by WhatsApp / email
 	when the property has them set up; otherwise the decline is just logged.
 	An OTA request must also be declined on the OTA's side."""
+	return _decline_request(reservation, reason)
+
+
+def _decline_request(reservation: str, reason: str, notify: bool = True):
 	from kamra.api import agent_channel
 	from frappe.model.naming import make_autoname
 
@@ -211,7 +224,8 @@ def decline_booking_request(reservation: str, reason: str):
 	finally:
 		frappe.flags.kamra_cancelling = False
 
-	notified = _notify_guest(res, accepted=False, reason=reason)
+	notified = (_notify_guest(res, accepted=False, reason=reason)
+	            if notify else [])
 	from kamra.savings import log_action
 	log_action(
 		"booking_request_declined", "Reservation", res.name, res.property,

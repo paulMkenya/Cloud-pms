@@ -5,6 +5,7 @@ import {
   call,
   declineBookingRequest,
   getCurrentProperty,
+  sendBookingOffer,
 } from "../lib/api"
 import { Badge } from "./ui/badge"
 import { Button } from "./ui/button"
@@ -35,6 +36,8 @@ type BookingRequest = {
   rooms_free: number
   can_accept: boolean
   blocker?: string | null
+  offer_pending?: boolean
+  offer_expires_on?: string | null
 }
 
 type InboxData = { holds_inventory: boolean; count: number; requests: BookingRequest[] }
@@ -138,6 +141,11 @@ export default function BookingRequests({
                     <Badge tone={r.source === "OTA" ? "indigo" : "zinc"}>
                       {r.source === "OTA" ? r.channel || t("OTA") : t(r.source)}
                     </Badge>
+                    {r.offer_pending && (
+                      <Badge tone="sky" title={r.offer_expires_on ?? undefined}>
+                        {t("Offer sent")}
+                      </Badge>
+                    )}
                     {r.can_accept ? (
                       <Badge tone="green">
                         {t("{n} free now", { n: r.rooms_free })}
@@ -159,6 +167,11 @@ export default function BookingRequests({
                   {!r.can_accept && r.blocker && (
                     <div className="mt-0.5 text-xs text-rose-600">{r.blocker}</div>
                   )}
+                  {r.offer_pending && r.offer_expires_on && (
+                    <div className="mt-0.5 text-xs text-sky-600">
+                      {t("Guest offer - expires {when}", { when: r.offer_expires_on.slice(0, 16) })}
+                    </div>
+                  )}
                   {r.special_requests && (
                     <div className="mt-0.5 line-clamp-2 text-xs text-zinc-400">
                       {r.special_requests}
@@ -166,6 +179,22 @@ export default function BookingRequests({
                   )}
                 </div>
                 <div className="flex shrink-0 gap-1.5">
+                  {r.offer_pending && (
+                    <Button
+                      variant="outline"
+                      disabled={busy === r.name}
+                      title={t("Re-send the offer link to the guest")}
+                      onClick={() =>
+                        run(
+                          r.name,
+                          () => sendBookingOffer(r.name).then(() => ({ notified: [] as string[] })),
+                          t("Offer re-sent to {name}.", { name: r.guest_name }),
+                        )
+                      }
+                    >
+                      {t("Resend")}
+                    </Button>
+                  )}
                   <Button
                     disabled={busy === r.name || !r.can_accept}
                     title={translate(r.can_accept ? undefined : r.blocker ?? undefined)}

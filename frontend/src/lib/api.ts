@@ -625,6 +625,10 @@ export const createBooking = (
     /** negotiated nightly room rate (desk) + internal reason, logged */
     agreed_rate?: number
     agreed_rate_note?: string
+    /** "Requested" parks the stay as a request (holds no inventory) -
+     *  used with sendBookingOffer for guest-confirmed offers */
+    status?: string
+    assign_room?: number
     booked_via?: string
     ota_ref?: string
     ota_total?: number
@@ -655,6 +659,19 @@ export const declineBookingRequest = (reservation: string, reason: string) =>
     "kamra.booking_requests.decline_booking_request",
     { reservation, reason },
   )
+
+/** Send a Requested stay to the guest as a confirm-by-link offer.
+ *  The room is only blocked if the guest accepts. */
+export const sendBookingOffer = (reservation: string, expiresHours?: number) =>
+  call<{
+    reservation: string
+    offer_url: string
+    expires_on: string
+    notified: { queued?: boolean; sent?: boolean; channels?: string[] }
+  }>("kamra.offers.send_offer", {
+    reservation,
+    ...(expiresHours ? { expires_hours: expiresHours } : {}),
+  })
 
 export const promoteWaitlist = (reservation: string) =>
   call<{ ok: boolean; reservation: string; room: string }>(

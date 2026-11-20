@@ -15,3 +15,26 @@ export function htmlToText(s: string): string {
   } while (out !== prev)
   return out.replace(/[<>]/g, "")
 }
+
+/** Keyless Google Maps embed URL. Prefers real coordinates; falls back to a
+ *  saved Google Maps link (place query or short link resolved to a long
+ *  maps.google.com URL). Returns null when neither can produce an embed -
+ *  maps.app.goo.gl short links can't be iframed directly. */
+export function googleMapsEmbed(
+  mapsUrl: string | null | undefined,
+  lat?: number | null,
+  lng?: number | null,
+): string | null {
+  if (lat && lng) {
+    return `https://maps.google.com/maps?q=${lat},${lng}&z=15&output=embed`
+  }
+  if (!mapsUrl) return null
+  try {
+    const u = new URL(mapsUrl)
+    if (u.hostname === "maps.app.goo.gl" || u.hostname === "goo.gl") return null
+    u.searchParams.set("output", "embed")
+    return u.toString()
+  } catch {
+    return null
+  }
+}

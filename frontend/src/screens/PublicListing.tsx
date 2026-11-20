@@ -1,6 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react"
-import L from "leaflet"
-import "leaflet/dist/leaflet.css"
+import { useEffect, useMemo, useState } from "react"
 import { clampGuests, maxCapacity } from "../lib/occupancy"
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import {
@@ -14,6 +12,7 @@ import {
   Users,
 } from "lucide-react"
 import { callGuest } from "../lib/api"
+import { googleMapsEmbed } from "../lib/utils"
 import { serverError } from "../lib/resource"
 import { accentVars } from "../lib/accents"
 import { Badge } from "../components/ui/badge"
@@ -199,22 +198,6 @@ const inputCls =
   "focus:outline-2 focus:outline-offset-1 focus:outline-brand-600"
 
 
-function LeafletMap({ lat, lng, label }: { lat: number; lng: number; label: string }) {
-  const ref = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (!ref.current) return
-    const map = L.map(ref.current, { scrollWheelZoom: false, attributionControl: true })
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    }).addTo(map)
-    L.marker([lat, lng]).addTo(map).bindPopup(label).openPopup()
-    map.setView([lat, lng], 15)
-    return () => { map.remove() }
-  }, [lat, lng, label])
-  return <div ref={ref} className="h-64 w-full" />
-}
-
 function MapBlock({
   address,
   mapsUrl,
@@ -227,14 +210,23 @@ function MapBlock({
   lng: number | null | undefined
 }) {
   const { t } = useT()
-  if (!address && !mapsUrl && (lat == null || lng == null)) return null
+  const embed = googleMapsEmbed(mapsUrl, lat, lng)
+  if (!address && !mapsUrl && !embed) return null
   return (
     <section className="space-y-3">
       <h2 className="text-xl font-semibold text-zinc-900">{t("Where you’ll be")}</h2>
       {address && <p className="text-sm text-zinc-600">{address}</p>}
-      {lat != null && lng != null && (
+      {embed && (
         <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-100 shadow-sm">
-          <LeafletMap lat={lat} lng={lng} label={address || ""} />
+          <iframe
+            title={t("Map")}
+            src={embed}
+            width="100%"
+            height="260"
+            loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
+            className="border-0"
+          />
         </div>
       )}
       {mapsUrl && (
@@ -300,6 +292,7 @@ export default function PublicListing() {
     stayFromParams({ checkin, checkout, adults: adultsParam, children: childrenParam }),
   )
   const [results, setResults] = useState<Record<string, StayResult>>({})
+  const [searching, setSearching] = useState(false)
   const [childAgesState, setChildAges] = useState<ChildAge[]>([])
   const childAges = sizeAges(childAgesState, search.children)
   const agesMissing = search.children > 0 && !agesToSend(childAges)
@@ -416,6 +409,7 @@ export default function PublicListing() {
 
   function fetchResults() {
     if (!resolved) return
+    setSearching(true)
     callGuest<StayResult[]>("kamra.public_api.search_stay", {
       property: resolved.property,
       check_in_date: search.check_in_date,
@@ -426,11 +420,14 @@ export default function PublicListing() {
       pets: search.pets,
       listing_slug: listingSlug,
       location_slug: locationSlug,
-    }).then((rows) => {
-      const map: Record<string, StayResult> = {}
-      rows.forEach((r) => (map[r.room_type] = r))
-      setResults(map)
     })
+      .then((rows) => {
+        const map: Record<string, StayResult> = {}
+        rows.forEach((r) => (map[r.room_type] = r))
+        setResults(map)
+      })
+      .catch(() => {})
+      .finally(() => setSearching(false))
   }
 
   useEffect(() => {
@@ -672,7 +669,7 @@ export default function PublicListing() {
                                     {t("total")}
                                   </span>
                                 </p>
-                              ) : soldOut ? (
+                              ) : soldOut || (!searching && !r) ? (
                                 <p className="font-medium text-rose-600">{t("Sold out")}</p>
                               ) : (
                                 <p className="text-zinc-400">{t("Checking…")}</p>
@@ -893,6 +890,7 @@ export default function PublicListing() {
               <Button
                 variant={isSite ? "outline" : undefined}
                 className="w-full justify-center gap-2 py-2.5 text-base"
+                disabled={searching}
                 onClick={() => {
                   fetchResults()
                   document
@@ -901,7 +899,7 @@ export default function PublicListing() {
                 }}
               >
                 <Search className="size-4" aria-hidden />
-                {t("Check availability")}
+                {searching ? t("Checking…") : t("Check availability")}
               </Button>
 
               {!isSite && primary && (

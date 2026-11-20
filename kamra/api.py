@@ -5150,9 +5150,24 @@ def _do_cancel(res, reason: str = "Guest request", note: str | None = None,
 	log_action("cancel_reservation", "Reservation", res.name, res.property,
 	           minutes_saved=8, rationale=summary)
 
+	# Money the policy hands back: payments sitting as folio credit after
+	# the fee (if any) is posted. Reported so the desk refunds it - or
+	# issues the credit voucher - instead of a paid deposit silently
+	# sitting on a cancelled stay. Computed after res.save so the folio
+	# already carries the cancellation fee.
+	refund_due = 0.0
+	folio_name = None
+	folio_row = frappe.db.get_value(
+		"Folio", {"reservation": res.name, "folio_type": "Guest"},
+		["name", "balance"], as_dict=True)
+	if folio_row:
+		folio_name = folio_row.name
+		refund_due = round(max(0.0, -float(folio_row.balance or 0)), 2)
+
 	return {"reservation": res.name,
 	        "cancellation_number": res.cancellation_number,
 	        "fee": fee, "waived": bool(int(waive_fee or 0)),
+	        "refund_due": refund_due, "folio": folio_name,
 	        "credit_note_voucher": voucher_code}
 
 
@@ -5185,6 +5200,11 @@ def cancellation_letter(reservation: str):
 		frappe.throw("This reservation is not cancelled.")
 	prop = frappe.get_doc("Property", res.property)
 	guest = frappe.get_doc("Guest", res.guest)
+	folio_row = frappe.db.get_value(
+		"Folio", {"reservation": res.name, "folio_type": "Guest"},
+		["name", "balance"], as_dict=True)
+	refund_due = (round(max(0.0, -float(folio_row.balance or 0)), 2)
+	              if folio_row else 0.0)
 	return {
 		"property": {
 			"property_name": prop.property_name,
@@ -5207,6 +5227,7 @@ def cancellation_letter(reservation: str):
 			"cancellation_fee": float(res.cancellation_fee or 0),
 			"cancelled_on": str(res.cancelled_on or ""),
 			"advance_paid": float(res.advance_paid or 0),
+			"refund_due": refund_due,
 		},
 	}
 

@@ -24,6 +24,7 @@ import {
   Zap,
 } from "lucide-react"
 import { callGuest, getDefaultProperty } from "../lib/api"
+import { googleMapsEmbed } from "../lib/utils"
 import { serverError } from "../lib/resource"
 import { accentVars } from "../lib/accents"
 import { Badge } from "../components/ui/badge"
@@ -1565,13 +1566,13 @@ export default function PublicBooking() {
                           {locations.length > 1 && (
                             <p className="text-sm font-semibold text-zinc-800">{loc.name}</p>
                           )}
-                          {loc.latitude && loc.longitude ? (
+                          {googleMapsEmbed(loc.google_maps_url, loc.latitude, loc.longitude) ? (
                             <iframe
                               title={t("{name} map", { name: loc.name })}
                               width="100%"
                               height="220"
                               loading="lazy"
-                              src={`https://maps.google.com/maps?q=${loc.latitude},${loc.longitude}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
+                              src={googleMapsEmbed(loc.google_maps_url, loc.latitude, loc.longitude)!}
                               className="rounded-lg border border-zinc-200"
                             />
                           ) : null}

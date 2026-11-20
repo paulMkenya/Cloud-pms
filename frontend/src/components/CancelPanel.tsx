@@ -42,7 +42,12 @@ export default function CancelPanel({ row, reload }: { row: Row; reload: () => v
   const [waive, setWaive] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [done, setDone] = useState<{ cancellation_number: string; fee: number } | null>(null)
+  const [done, setDone] = useState<{
+    cancellation_number: string
+    fee: number
+    refund_due?: number
+    folio?: string | null
+  } | null>(null)
 
   useEffect(() => {
     if (open && !preview)
@@ -69,6 +74,19 @@ export default function CancelPanel({ row, reload }: { row: Row; reload: () => v
             : t("No fee applied.")}{" "}
           {t("Give the guest the cancellation number.")}
         </p>
+        {(done.refund_due ?? 0) > 0 && done.folio && (
+          <p className="mt-2 rounded-lg bg-amber-100 px-3 py-2 text-amber-900">
+            {t("Guest is owed {amount} back - refund it from the folio.", {
+              amount: `${cur()}${inr(done.refund_due ?? 0)}`,
+            })}{" "}
+            <Link
+              to={`/billing/${encodeURIComponent(done.folio)}`}
+              className="font-semibold underline"
+            >
+              {t("Open folio")}
+            </Link>
+          </p>
+        )}
         <Link
           to={`/cancelled/${encodeURIComponent(String(row.name))}`}
           className="mt-1.5 inline-block font-medium text-emerald-900 underline"
@@ -146,6 +164,8 @@ export default function CancelPanel({ row, reload }: { row: Row; reload: () => v
                   const out = await call<{
                     cancellation_number: string
                     fee: number
+                    refund_due?: number
+                    folio?: string | null
                   }>("kamra.api.cancel_reservation", {
                     reservation: row.name,
                     reason,

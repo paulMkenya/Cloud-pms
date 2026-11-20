@@ -30,6 +30,7 @@ interface Letter {
     cancellation_fee: number
     cancelled_on: string
     advance_paid: number
+    refund_due?: number
   }
 }
 
@@ -51,7 +52,8 @@ export default function CancellationLetter() {
   if (!d) return <p className="py-10 text-center text-zinc-400">{translate("Loading…")}</p>
 
   const r = d.reservation
-  const refundDue = Math.max(0, r.advance_paid - r.cancellation_fee)
+  const refundDue =
+    r.refund_due ?? Math.max(0, r.advance_paid - r.cancellation_fee)
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -107,7 +109,7 @@ export default function CancellationLetter() {
               {r.cancellation_fee > 0 ? `${cur()}${inr(r.cancellation_fee)}` : translate("None")}
             </span>
           </div>
-          {r.advance_paid > 0 && (
+          {(r.advance_paid > 0 || refundDue > 0) && (
             <>
               <div className="flex justify-between">
                 <span className="text-zinc-500">{translate("Advance paid")}</span>

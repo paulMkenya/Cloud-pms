@@ -248,47 +248,53 @@ function PropertyChooser({
   }
   return (
     <div className="min-h-screen bg-zinc-50">
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
-        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 sm:items-center">
-          <div className="min-w-0 flex-1 basis-60">
-            <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl">
-              {t("Places to stay")}
-            </h1>
-            <p className="mt-2 max-w-xl text-zinc-500">
-              {t("Pick a property to see its rooms, prices and availability.")}
-            </p>
-            <Link
-              to="/kamra/loyalty"
-              className="mt-2.5 inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline"
-            >
-              <Coins className="size-4" aria-hidden />
-              {t("Loyalty programme - earn points on every stay")}
-            </Link>
-          </div>
-          <LanguageSwitcher className="ms-auto sm:ms-0" />
+      <div className="mx-auto max-w-6xl px-4 pt-4 pb-10 sm:px-6 sm:py-14">
+        {/* Phones: the title and the language switch share the first row,
+            then the subtitle and the loyalty pill. From sm up the grid
+            reproduces the old layout: text column left, switch right,
+            centred on the block. */}
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 sm:gap-x-4">
+          <h1 className="col-start-1 row-start-1 min-w-0 break-words text-2xl font-semibold tracking-tight text-zinc-900 max-sm:leading-tight sm:text-4xl">
+            {t("Places to stay")}
+          </h1>
+          <LanguageSwitcher className="col-start-2 row-start-1 max-sm:min-h-11 sm:row-span-3 sm:self-center" />
+          <p className="col-span-2 row-start-2 mt-1 text-sm text-zinc-500 sm:col-span-1 sm:mt-2 sm:max-w-xl sm:text-base">
+            {t("Pick a property to see its rooms, prices and availability.")}
+          </p>
+          <Link
+            to="/kamra/loyalty"
+            className="col-span-2 row-start-3 mt-3 inline-flex items-center gap-1.5 justify-self-start text-sm font-medium text-brand-700 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 max-sm:min-h-11 max-sm:rounded-full max-sm:bg-brand-50 max-sm:px-3.5 max-sm:text-brand-800 max-sm:ring-1 max-sm:ring-brand-100 sm:col-span-1 sm:mt-2.5 sm:min-h-6"
+          >
+            <Coins className="size-4 shrink-0" aria-hidden />
+            <span>{t("Loyalty programme - earn points on every stay")}</span>
+          </Link>
         </div>
         {(cities.length > 1 || bedSizes.length > 0) && (
-          <div className="mt-6 flex flex-wrap items-center gap-2">
+          /* phones: two equal columns, label above its dropdown; from sm up
+             the old single inline row (label, dropdown, label, dropdown) */
+          <div className={`mt-4 grid gap-3 sm:mt-6 sm:flex sm:flex-wrap sm:items-center sm:gap-2 ${cities.length > 1 ? "grid-cols-2" : "grid-cols-1"}`}>
             {cities.length > 1 && (
-              <>
-                <label htmlFor="city-filter" className="text-sm text-zinc-500">{t("Location")}</label>
+              <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+                <label htmlFor="city-filter" className="text-xs font-medium text-zinc-500 sm:text-sm sm:font-normal">{t("Location")}</label>
                 <select id="city-filter" value={city} onChange={(e) => setCity(e.target.value)}
-                  className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm focus:outline-2 focus:outline-offset-1 focus:outline-brand-600">
+                  className="w-full min-w-0 truncate rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm focus:outline-2 focus:outline-offset-1 focus:outline-brand-600 max-sm:min-h-11 sm:w-auto">
                   <option value="">{t("All locations")}</option>
                   {cities.map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
-              </>
+              </div>
             )}
-            <label htmlFor="size-filter" className="text-sm text-zinc-500">{t("Room size")}</label>
+            <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+            <label htmlFor="size-filter" className="text-xs font-medium text-zinc-500 sm:text-sm sm:font-normal">{t("Room size")}</label>
             <select id="size-filter" value={size === null ? "" : String(size)}
               onChange={(e) => setSize(e.target.value === "" ? null : Number(e.target.value))}
-              className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm focus:outline-2 focus:outline-offset-1 focus:outline-brand-600">
+              className="w-full min-w-0 truncate rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm focus:outline-2 focus:outline-offset-1 focus:outline-brand-600 max-sm:min-h-11 sm:w-auto">
               <option value="">{t("Any size")}</option>
               <option value="0">{t("Studio")}</option>
               {bedSizes.filter((b) => b > 0).map((b) => (
                 <option key={b} value={b}>{tn(b, "{n} bedroom", "{n} bedrooms")}</option>
               ))}
             </select>
+            </div>
           </div>
         )}
         {shownProps.length === 0 && (
@@ -296,7 +302,7 @@ function PropertyChooser({
             {t("No properties match those filters - try widening them.")}
           </p>
         )}
-        <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-5 grid gap-6 sm:mt-8 sm:grid-cols-2 lg:grid-cols-3">
           {shownProps.map((p) => (
             <Link
               key={p.name}

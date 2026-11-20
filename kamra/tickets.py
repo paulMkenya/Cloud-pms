@@ -285,3 +285,73 @@ def reopen_ticket(ticket: str, reason: str):
 	doc.save()
 	log_event(doc, "Note", note=f"Reopened: {reason.strip()}")
 	return ticket_detail(ticket)
+
+
+# ---------------------------------------------------------------------------
+# Photo proof - photos/videos attached to the ticket (File doctype), the same
+# pattern as housekeeping completion media.
+# ---------------------------------------------------------------------------
+
+@frappe.whitelist()
+@require_roles(*OPS_ROLES)
+def ticket_media(ticket: str):
+	"""Photos/videos attached to one ticket, newest first."""
+	doc = frappe.db.get_value("Service Ticket", ticket, ["property", "name"], as_dict=True)
+	if not doc:
+		frappe.throw(_("Ticket not found."))
+	assert_property_access(doc.property)
+	return frappe.get_all(
+		"File",
+		filters={"attached_to_doctype": "Service Ticket",
+		         "attached_to_name": ticket},
+		fields=["file_url", "file_name", "creation"],
+		order_by="creation desc")
+
+
+@frappe.whitelist(methods=["POST"])
+@require_roles(*OPS_ROLES)
+def ticket_upload_media(ticket: str):
+	"""Attach a photo/video to a ticket (proof of the problem or the fix).
+	Multipart form field 'file', up to 25 MB."""
+	prop = frappe.db.get_value("Service Ticket", ticket, "property")
+	if not prop:
+		frappe.throw(_("Ticket not found."))
+	assert_property_access(prop)
+	req = getattr(frappe.local, "request", None)
+	files = getattr(req, "files", {}) if req else {}
+	if "file" not in files:
+		frappe.throw(_("No file uploaded."))
+	f = files["file"]
+	content = f.stream.read()
+	if len(content) > 25 * 1024 * 1024:
+		frappe.throw(_("File is too large - keep photos/videos under 25 MB."))
+	saved = frappe.get_doc({
+		"doctype": "File",
+		"file_name": f.filename,
+		"content": content,
+		"attached_to_doctype": "Service Ticket",
+		"attached_to_name": ticket,
+		"is_private": 0,
+	}).insert(ignore_permissions=True)
+	log_event(frappe.get_doc("Service Ticket", ticket), "Note",
+	          note=f"Photo added: {saved.file_name}")
+	return {"file_url": saved.file_url, "file_name": saved.file_name}
+
+
+@frappe.whitelist(methods=["POST"])
+@require_roles(*OPS_ROLES)
+def ticket_delete_media(ticket: str, file_url: str):
+	"""Remove a photo/video from a ticket."""
+	prop = frappe.db.get_value("Service Ticket", ticket, "property")
+	if not prop:
+		frappe.throw(_("Ticket not found."))
+	assert_property_access(prop)
+	name = frappe.db.get_value("File", {
+		"attached_to_doctype": "Service Ticket",
+		"attached_to_name": ticket,
+		"file_url": file_url,
+	})
+	if not name:
+		frappe.throw(_("That file is not attached to this ticket."))
+	frappe.delete_doc("File", name, ignore_permissions=True)
+	return {"ok": True}

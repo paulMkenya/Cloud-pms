@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react"
 import { useSearchParams } from "react-router-dom"
 import { useRealtime } from "../lib/realtime"
-import { AlertTriangle, Plus } from "lucide-react"
+import { AlertTriangle, Paperclip, Plus } from "lucide-react"
 import { Sheet } from "../components/ui/sheet"
-import { call, getCurrentProperty } from "../lib/api"
+import { call, getCurrentProperty, uploadTo } from "../lib/api"
 import { listResource, serverError } from "../lib/resource"
 import { Badge } from "../components/ui/badge"
 import { Button } from "../components/ui/button"
@@ -126,6 +126,7 @@ function TicketSheet({
 }) {
   const { t } = useT()
   const [d, setD] = useState<TicketDetail | null>(null)
+  const [media, setMedia] = useState<{ file_url: string; file_name: string }[]>([])
   const [note, setNote] = useState("")
   const [resolution, setResolution] = useState("")
   const [reason, setReason] = useState("")
@@ -136,8 +137,39 @@ function TicketSheet({
     call<TicketDetail>("kamra.tickets.ticket_detail", { ticket: name })
       .then(setD)
       .catch((e) => setErr(serverError(e)))
+    call<{ file_url: string; file_name: string }[]>("kamra.tickets.ticket_media", { ticket: name })
+      .then(setMedia)
+      .catch(() => setMedia([]))
   }, [name])
   useEffect(load, [load])
+
+  async function addMedia(files: FileList | null) {
+    if (!files || !files.length) return
+    setBusy(true)
+    try {
+      for (const f of Array.from(files)) {
+        await uploadTo("kamra.tickets.ticket_upload_media", f, { ticket: name })
+      }
+      load()
+    } catch (e) {
+      setErr(serverError(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function removeMedia(url: string) {
+    if (!confirm(translate("Remove this photo/video?"))) return
+    setBusy(true)
+    try {
+      await call("kamra.tickets.ticket_delete_media", { ticket: name, file_url: url })
+      load()
+    } catch (e) {
+      setErr(serverError(e))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function act(method: string, args: Record<string, unknown>, after?: () => void) {
     setBusy(true)
@@ -287,6 +319,33 @@ function TicketSheet({
               </div>
             </div>
           )}
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              {t("Photos & videos")}
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {media.map((m) => (
+                <a key={m.file_url} href={m.file_url} target="_blank" rel="noreferrer"
+                  className="group relative block">
+                  <img src={m.file_url} alt={m.file_name}
+                    className="size-20 rounded-lg border border-zinc-200 object-cover" />
+                  <button type="button" aria-label={t("Remove")}
+                    className="absolute -end-1.5 -top-1.5 hidden size-5 items-center justify-center rounded-full bg-rose-600 text-[10px] text-white group-hover:flex"
+                    onClick={(e) => { e.preventDefault(); removeMedia(m.file_url) }}>×</button>
+                </a>
+              ))}
+              <label className={cn(
+                "flex size-20 cursor-pointer flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-zinc-300 text-zinc-400 hover:border-brand-400 hover:text-brand-600",
+                busy && "pointer-events-none opacity-50",
+              )}>
+                <Paperclip className="size-4" aria-hidden />
+                <span className="text-[10px]">{t("Add")}</span>
+                <input type="file" accept="image/*,video/*" multiple className="hidden"
+                  disabled={busy} onChange={(e) => { addMedia(e.target.files); e.target.value = "" }} />
+              </label>
+            </div>
+          </div>
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">{t("Timeline")}</p>

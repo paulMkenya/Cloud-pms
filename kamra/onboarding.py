@@ -81,6 +81,11 @@ def setup_checklist(property: str) -> dict:
 		"Property", property,
 		["country", "currency", "gstin", "property_kind", "booking_engine_enabled", "setup_wants"],
 		as_dict=True)
+	if not prop:
+		# a browser still holding a property this site doesn't have (the
+		# SPA's first-load default) - a clean refusal, not a 500
+		frappe.throw(_("Property {0} not found.").format(property),
+		             frappe.DoesNotExistError)
 	mods = _modules(property)
 	wants = set((prop.setup_wants or "").split(","))
 	n = lambda dt, **f: frappe.db.count(dt, {"property": property, **f})  # noqa: E731

@@ -122,10 +122,10 @@ website_route_rules = [
 
 # Clean, shareable guest URLs redirect into the SPA's routes.
 website_redirects = [
-	{"source": r"/book$", "target": "/kamra/book"},
-	{"source": r"/book/(.*)", "target": r"/kamra/book/\1"},
-	{"source": r"/stay$", "target": "/kamra/stay"},
-	{"source": r"/stay/(.*)", "target": r"/kamra/stay/\1"},
+	{"source": r"/book$", "target": "/kamra/book", "forward_query_parameters": True},
+	{"source": r"/book/(.*)", "target": r"/kamra/book/\1", "forward_query_parameters": True},
+	{"source": r"/stay$", "target": "/kamra/stay", "forward_query_parameters": True},
+	{"source": r"/stay/(.*)", "target": r"/kamra/stay/\1", "forward_query_parameters": True},
 	{"source": r"/hk$", "target": "/kamra/hk"},
 	{"source": r"/checkin/(.*)", "target": r"/kamra/checkin/\1"},
 	# Frappe password-reset emails land on /update-password?key=… — keep the key

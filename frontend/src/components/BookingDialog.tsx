@@ -144,6 +144,7 @@ export function BookingDialog(props: {
     ref: string
     room: string | null
     waitlist?: boolean
+    inquiry?: boolean
     walkIn?: WalkInResult
     /** a single booking: take the deposit right here (#114) */
     deposit?: DepositState
@@ -635,11 +636,11 @@ export function BookingDialog(props: {
     return (e as Error).message
   }
 
-  async function submit(waitlist = false) {
+  async function submit(waitlist = false, inquiry = false) {
     setBusy(true)
     setError(null)
     try {
-      if (waitlist) {
+      if (waitlist || inquiry) {
         const res = await createBooking({
           over_capacity_reason: form.over_capacity_reason || undefined,
           over_capacity_guests: form.over_capacity_guests || undefined,
@@ -657,13 +658,18 @@ export function BookingDialog(props: {
           voucher_code: form.voucher_code || undefined,
           pets: form.pets || undefined,
           company: form.company || undefined,
-          waitlist: 1,
+          // an inquiry: the guest asked, nothing is held - staff quote
+          // and confirm it from the Inquiry queue (same as the website's
+          // "Send inquiry instead")
+          waitlist: waitlist ? 1 : undefined,
+          status: inquiry ? "Inquiry" : undefined,
+          assign_room: inquiry ? 0 : undefined,
           agreed_rate: canNegotiate && negRateNum > 0 ? negRateNum : undefined,
           agreed_rate_note: negNote.trim() || undefined,
           ...slotArgs,
           blacklist_override_reason: blacklistOverride,
         })
-        setDone({ ref: res.reservation, room: null, waitlist: true })
+        setDone({ ref: res.reservation, room: null, waitlist: !inquiry, inquiry })
         props.onBooked()
         return
       }
@@ -988,7 +994,7 @@ export function BookingDialog(props: {
         aria-hidden
       />
       <div
-        className="absolute inset-y-0 right-0 flex h-full w-full flex-col bg-white shadow-2xl animate-sheet-in md:w-2/3"
+        className="absolute inset-y-0 right-0 flex h-full h-[100dvh] w-full flex-col bg-white shadow-2xl animate-sheet-in md:w-2/3"
       >
         <header className="flex shrink-0 items-center justify-between gap-4 border-b border-zinc-200 px-6 py-4 md:px-8">
           <div className="min-w-0">
@@ -1060,6 +1066,13 @@ export function BookingDialog(props: {
                         total: `${cur()}${inr(done.walkIn.amount_after_tax ?? 0)}`,
                       })
                     : t("Nothing collected yet - it's all on the bill.")}
+                </p>
+              </div>
+            ) : done.inquiry ? (
+              <div className="rounded-xl border border-sky-200 bg-sky-50 px-5 py-4 text-sky-900">
+                <p className="text-lg font-semibold">{t("Inquiry saved · {ref}", { ref: done.ref })}</p>
+                <p className="mt-1 text-sm">
+                  {t("No room is held and nothing is charged. Quote and confirm it from Booking requests when the guest is ready.")}
                 </p>
               </div>
             ) : done.waitlist ? (
@@ -1227,9 +1240,11 @@ export function BookingDialog(props: {
             </div>
           </div>
         ) : (
-          <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-            {/* Form */}
-            <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5 md:px-8 md:py-6">
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain lg:flex-row lg:overflow-hidden">
+            {/* Form - below lg the whole sheet scrolls as one page, so an
+                opened panel (negotiated rate, offer) never traps the
+                options or the Confirm button off-screen (iOS) */}
+            <div className="px-6 py-5 md:px-8 md:py-6 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
               <div className="w-full max-w-none space-y-6">
                 {options?.property?.sell_message && (
                   <div className="flex items-start gap-2 rounded-xl bg-brand-50 px-4 py-3 text-sm text-brand-900">
@@ -2545,7 +2560,7 @@ export function BookingDialog(props: {
 
             {/* Quote rail - always visible on lg */}
             <aside className="flex w-full shrink-0 flex-col border-t border-zinc-200 bg-zinc-50 lg:w-80 lg:border-l lg:border-t-0 xl:w-[22rem]">
-              <div className="flex-1 overflow-y-auto px-6 py-5 md:px-7">
+              <div className="px-6 py-5 md:px-7 lg:flex-1 lg:overflow-y-auto">
                 <div className="mb-4 flex items-center justify-between">
                   <h3 className="text-xs font-semibold uppercase tracking-wider text-zinc-500">
                     {t("Quote")}
@@ -2785,7 +2800,7 @@ export function BookingDialog(props: {
                 )}
               </div>
 
-              <div className="shrink-0 space-y-2 border-t border-zinc-200 bg-white px-6 py-4 md:px-7">
+              <div className="sticky bottom-0 z-10 shrink-0 space-y-2 border-t border-zinc-200 bg-white px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:px-7 lg:static">
                 {walkIn ? (
                   <>
                     {tillClosed && (
@@ -2827,13 +2842,22 @@ export function BookingDialog(props: {
                 >
                   {busy ? t("Booking…") : t("Confirm booking")}
                 </Button>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <Button
                     variant="outline"
                     className="justify-center"
                     onClick={props.onClose}
                   >
                     {t("Cancel")}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="justify-center"
+                    disabled={busy || !form.guest_name || badDate || pastCheckIn || badPhone || badSlot || outDraft !== null || blacklistBlocked || extraNeedsReason}
+                    onClick={() => submit(false, true)}
+                    title={t("The guest is asking, not booking yet: save it as an inquiry with no room held")}
+                  >
+                    {t("Inquiry")}
                   </Button>
                   <Button
                     variant="outline"

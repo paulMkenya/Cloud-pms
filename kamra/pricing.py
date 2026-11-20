@@ -444,6 +444,14 @@ def rates_include_tax(property: str) -> bool:
 	return bool(frappe.get_cached_doc("Property", property).get("rates_include_tax"))
 
 
+def _levy_inclusive(property: str) -> bool:
+	try:
+		from kamra.settings import get_setting
+		return bool(get_setting(property, "room_levy_inclusive"))
+	except Exception:
+		return False
+
+
 def stay_season_rules(property: str, check_in, check_out,
                       room_type: str | None = None) -> dict:
 	"""The strictest season rules a stay runs into.
@@ -909,6 +917,28 @@ def quote(
 		if old_room_total:
 			room_tax *= room_total / old_room_total
 			los_saved *= room_total / old_room_total
+
+	# An all-in rate card (Kenya: "inclusive of VAT and Tourism Levy"):
+	# the levy comes out of the displayed rate like the tax does, instead of
+	# being added on top. Scaling the nightly rates keeps the folio's
+	# per-night room + levy postings summing to the displayed price.
+	if inclusive and room_total and _levy_inclusive(property):
+		_lp = frappe.get_cached_doc("Property", property)
+		levy_frac = _dec(_lp.get("room_levy_percent") or 0) / Decimal(100)
+		if levy_frac > 0:
+			g = room_tax / room_total
+			taxed = cint(_lp.get("room_levy_taxable")
+			             if _lp.get("room_levy_taxable") is not None else 1)
+			k = (Decimal(1) + g) / (
+				Decimal(1) + g + levy_frac * (Decimal(1) + (g if taxed else Decimal(0))))
+			room_total *= k
+			room_tax *= k
+			los_saved *= k
+			los_floor *= k
+			for n in nightly:
+				n["rate"] = float(_dec(n["rate"]) * k)
+				if "unit_rate" in n:
+					n["unit_rate"] = float(_dec(n["unit_rate"]) * k)
 
 	from kamra.folio import _fnb_gst
 	FNB_GST = _fnb_gst(property)

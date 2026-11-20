@@ -414,6 +414,10 @@ MODULES: tuple[Module, ...] = (
 				S("room_levy_label", "Room levy name", store=P, hint="Municipality fee, city or tourism tax."),
 				S("room_levy_percent", "Room levy", "number", 0, P, min=0, max=100, unit="%"),
 				S("room_levy_taxable", "Tax applies to the levy", "check", 1, P),
+				S("room_levy_inclusive", "Displayed rates include the levy", "check", 0,
+				  hint="With 'Displayed rates include tax' on: the rate card is the "
+				       "all-in price the guest pays - tax and levy are taken out of it, "
+				       "not added on top."),
 				S("cleaning_fee", "Cleaning fee per stay", "number", 0, P, min=0),
 				S("cleaning_fee_taxable", "Cleaning fee is taxable", "check", 1, P),
 				S("pets_allowed", "Pets allowed", "check", 0, P,

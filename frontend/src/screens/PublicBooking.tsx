@@ -953,6 +953,16 @@ export default function PublicBooking() {
       {/* sticky header: who you are booking with, and the stay */}
       <header className="sticky top-0 z-30 border-b border-zinc-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2.5 sm:px-6">
+          {propertySlug && (
+            // a property's own booking page: the way back to every property
+            <Link
+              to={`/book/${search.check_in_date}/${checkOut}/${search.adults}/${search.children}`}
+              className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-sm font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+            >
+              <ChevronLeft className="size-4 rtl:rotate-180" aria-hidden />
+              <span>{t("All properties")}</span>
+            </Link>
+          )}
           <div className="flex min-w-0 items-center gap-2.5">
             <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-brand-600 text-sm font-semibold text-white">
               {p.logo_url

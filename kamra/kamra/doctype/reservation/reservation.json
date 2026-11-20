@@ -81,6 +81,7 @@
   "agreed_rate_note",
   "offer_token",
   "offer_expires_on",
+  "offer_pay_to_confirm",
   "sb_notes",
   "special_requests",
   "sb_precheckin",
@@ -556,6 +557,14 @@
   },
   {
    "default": "0",
+   "description": "The guest confirms this offer by paying. It holds no room: payment confirms it only if a room is still free.",
+   "fieldname": "offer_pay_to_confirm",
+   "fieldtype": "Check",
+   "label": "Offer: pay to confirm",
+   "read_only": 1
+  },
+  {
+   "default": "0",
    "description": "Same-day stay: check-out date equals check-in date.",
    "fieldname": "is_day_use",
    "fieldtype": "Check",
@@ -969,7 +978,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-10-29 14:00:00.000000",
+ "modified": "2026-11-20 21:00:00.000000",
  "modified_by": "Administrator",
  "module": "Kamra",
  "name": "Reservation",

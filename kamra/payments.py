@@ -104,6 +104,31 @@ def folio_for_link(link_id: str) -> str | None:
 	return None
 
 
+def _confirm_paid_offer(res, amount: float) -> None:
+	"""Confirm a paid offer if a room is still free. The payment itself is
+	already posted and must survive a refused accept, hence the savepoint."""
+	from kamra.booking_requests import _accept_request
+	frappe.db.savepoint("paid_offer_accept")
+	frappe.flags.kamra_trusted = True
+	try:
+		_accept_request(res.name)
+	except Exception as e:
+		frappe.db.rollback(save_point="paid_offer_accept")
+		frappe.log_error(
+			title=f"Paid offer could not be confirmed - rebook or refund {res.name}",
+			message=f"KES {amount:,.2f} received; accept refused: {e}")
+		try:
+			from cloudtrade_hospitality.director_notify import alert_director
+			alert_director(
+				"a guest paid an offer but the room is no longer free",
+				f"Received: KES {amount:,.0f}. The booking stays a request. "
+				"Move it to another room/date or refund the guest.", res=res)
+		except Exception:
+			pass
+	finally:
+		frappe.flags.kamra_trusted = False
+
+
 def settle_payment_link(folio_name: str, link_id: str, amount: float) -> bool:
 	"""Post money received through a link, once per link payment. Money that
 	arrives before the guest does is an Advance on the booking: it counts
@@ -114,7 +139,7 @@ def settle_payment_link(folio_name: str, link_id: str, amount: float) -> bool:
 	res = frappe.get_doc("Reservation", folio.reservation) \
 		if folio.reservation else None
 	pre_arrival = bool(res and res.status in (
-		"Confirmed", "Pending Payment", "Held"))
+		"Confirmed", "Pending Payment", "Held", "Requested"))
 	folio.append("payments", {
 		"posting_date": nowdate(),
 		"payment_kind": "Advance" if pre_arrival else "Payment",
@@ -142,6 +167,13 @@ def settle_payment_link(folio_name: str, link_id: str, amount: float) -> bool:
 			res.reload()
 			if _deposit_state(res)["due"] <= 0.005:
 				_confirm_status(res)
+		elif res.status == "Requested" and res.get("offer_pay_to_confirm"):
+			# a pay-to-confirm offer holds no room: the payment confirms it
+			# through the same inventory-checked accept a clerk runs
+			res.reload()
+			from kamra.api import _deposit_state
+			if _deposit_state(res)["due"] <= 0.005:
+				_confirm_paid_offer(res, amount)
 	from kamra.savings import log_action
 	log_action("payment_received", "Folio", folio.name, folio.property,
 	           minutes_saved=3,

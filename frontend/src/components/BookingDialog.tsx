@@ -776,13 +776,9 @@ export function BookingDialog(props: {
           .map(([experience, qty]) => ({ experience, qty })),
         agreed_rate: canNegotiate && negRateNum > 0 ? negRateNum : undefined,
         agreed_rate_note: negNote.trim() || undefined,
-        // an offer is a Pending Payment hold: the room is held for the
-        // payment window and the guest's payment confirms it; unpaid
-        // offers are released automatically
-        status: offerMode && canOffer ? "Pending Payment" : undefined,
-        hold_expires_on: offerMode && canOffer
-          ? new Date(Date.now() + 2 * 3600_000).toISOString()
-          : undefined,
+        // an offer holds no room: it is a request the guest's payment
+        // confirms - only if a room is still free then (72h offer)
+        status: offerMode && canOffer ? "Requested" : undefined,
         ...slotArgs,
         blacklist_override_reason: blacklistOverride,
         credit_override_reason: creditOverride,
@@ -793,7 +789,7 @@ export function BookingDialog(props: {
       let offer: { offerUrl?: string; offerExpires?: string } = {}
       if (offerMode && canOffer) {
         try {
-          const off = await sendBookingOffer(res.reservation)
+          const off = await sendBookingOffer(res.reservation, undefined, true)
           offer = { offerUrl: off.offer_url, offerExpires: off.expires_on }
         } catch (e) {
           // the Requested stay exists; the offer can be re-sent from the
@@ -1089,7 +1085,7 @@ export function BookingDialog(props: {
                 </p>
                 <p className="mt-1 text-sm">
                   {done.offerUrl
-                    ? t("The guest pays by link to confirm - the room is held for 2 hours, then released if unpaid.")
+                    ? t("The guest pays by link to confirm within 72 hours. The room stays on sale until then - payment confirms it if it's still free.")
                     : done.room
                       ? t("Room {n} assigned.", { n: done.room.split("-").pop() ?? "" })
                       : t("No room auto-assigned - pick one from Reservations.")}{" "}
@@ -2742,7 +2738,7 @@ export function BookingDialog(props: {
                             {t("Send as offer")}
                           </span>
                           <span className="mt-0.5 block text-xs leading-relaxed text-zinc-500">
-                            {t("The guest gets a WhatsApp/SMS link with the full price and a pay button - payment confirms the booking. The room is held for 2 hours; unpaid offers cancel automatically.")}
+                            {t("The guest gets a WhatsApp/SMS link with the full price and a pay button, valid 72 hours. The room is not held - payment confirms the booking if it is still free, and the guest can pick other dates if not.")}
                           </span>
                         </span>
                       </label>

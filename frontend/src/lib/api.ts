@@ -665,7 +665,8 @@ export const declineBookingRequest = (reservation: string, reason: string) =>
 
 /** Send a Requested stay to the guest as a confirm-by-link offer.
  *  The room is only blocked if the guest accepts. */
-export const sendBookingOffer = (reservation: string, expiresHours?: number) =>
+export const sendBookingOffer = (reservation: string, expiresHours?: number,
+                                 payToConfirm?: boolean) =>
   call<{
     reservation: string
     offer_url: string
@@ -674,6 +675,7 @@ export const sendBookingOffer = (reservation: string, expiresHours?: number) =>
   }>("kamra.offers.send_offer", {
     reservation,
     ...(expiresHours ? { expires_hours: expiresHours } : {}),
+    ...(payToConfirm ? { pay_to_confirm: 1 } : {}),
   })
 
 export const promoteWaitlist = (reservation: string) =>

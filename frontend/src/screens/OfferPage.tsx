@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { useParams } from "react-router-dom"
-import { CalendarDays, Check, CreditCard, MailWarning, RefreshCw, X } from "lucide-react"
+import { AlertTriangle, CalendarDays, Check, CreditCard, MailWarning, RefreshCw, X } from "lucide-react"
 import { callGuest } from "../lib/api"
 import { serverError } from "../lib/resource"
 import { Button } from "../components/ui/button"
@@ -37,6 +37,9 @@ interface Offer {
   deposit_expected?: number
   paid?: number
   remaining?: number
+  pay_to_confirm?: boolean
+  available?: boolean
+  can_change_dates?: boolean
 }
 
 const kes = (n: number) =>
@@ -51,6 +54,10 @@ export default function OfferPage() {
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<"accepted" | "declined" | null>(null)
   const [payMsg, setPayMsg] = useState<string | null>(null)
+  // other dates: offers hold no room, so the guest may need to move
+  const [changing, setChanging] = useState(false)
+  const [newIn, setNewIn] = useState("")
+  const [newOut, setNewOut] = useState("")
 
   function load() {
     if (!token) return Promise.resolve()
@@ -75,6 +82,25 @@ export default function OfferPage() {
         { token, accept: accept ? 1 : 0 },
       )
       setDone(out.accepted ? "accepted" : "declined")
+    } catch (e) {
+      setError(serverError(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function changeDates() {
+    if (!token || !newIn || !newOut) return
+    setBusy("dates")
+    setError(null)
+    setPayMsg(null)
+    try {
+      const out = await callGuest<Offer>("kamra.offers.offer_change_dates", {
+        token, check_in_date: newIn, check_out_date: newOut,
+      })
+      setOffer(out)
+      setChanging(false)
+      setPayMsg(t("Dates updated - the price below is for your new dates."))
     } catch (e) {
       setError(serverError(e))
     } finally {
@@ -183,7 +209,36 @@ export default function OfferPage() {
       </div>,
     )
 
-  const awaitingPayment = offer.status === "Pending Payment"
+  const awaitingPayment = offer.status === "Pending Payment" || !!offer.pay_to_confirm
+  const unavailable = offer.status === "Requested" && offer.available === false
+  const today = new Date().toISOString().slice(0, 10)
+  const datePicker = offer.can_change_dates && (changing || unavailable) && (
+    <div className="mt-4 space-y-3 rounded-xl border border-zinc-200 px-4 py-3.5">
+      <p className="text-sm font-medium text-zinc-800">{t("Pick other dates")}</p>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="block text-xs font-medium text-zinc-500">
+          {t("Check-in")}
+          <input type="date" min={today} value={newIn}
+            onChange={(e) => setNewIn(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-2 py-2 text-sm text-zinc-900" />
+        </label>
+        <label className="block text-xs font-medium text-zinc-500">
+          {t("Check-out")}
+          <input type="date" min={newIn || today} value={newOut}
+            onChange={(e) => setNewOut(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-2 py-2 text-sm text-zinc-900" />
+        </label>
+      </div>
+      <Button className="w-full justify-center py-2.5"
+        disabled={busy !== null || !newIn || !newOut || newOut <= newIn}
+        onClick={changeDates}>
+        {busy === "dates" ? t("Checking…") : t("Check availability and update")}
+      </Button>
+      <p className="text-xs text-zinc-400">
+        {t("Same room type and rate - the price is worked out for the new nights.")}
+      </p>
+    </div>
+  )
   const depositDue = Number(offer.deposit_due ?? 0)
   const remaining = Number(offer.remaining ?? offer.total)
   const paidSoFar = Number(offer.paid ?? 0)
@@ -235,16 +290,30 @@ export default function OfferPage() {
         )}
       </div>
 
-      {awaitingPayment && (
+      {unavailable ? (
+        <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3">
+          <p className="flex items-center gap-2 text-sm font-medium text-rose-900">
+            <AlertTriangle className="size-4" aria-hidden />
+            {t("These dates are no longer available")}
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-rose-800">
+            {t("Someone booked the room for these dates after this offer was sent. Pick other dates below - your offer rate still applies.")}
+          </p>
+        </div>
+      ) : awaitingPayment && (
         <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
           <p className="text-sm font-medium text-amber-900">
             {t("Payment confirms this booking")}
           </p>
           <p className="mt-1 text-xs leading-relaxed text-amber-800">
-            {t("The room is held until the offer expires. Pay the deposit to confirm, or settle the full amount - balance is then nothing at the property.")}
+            {offer.status === "Pending Payment"
+              ? t("The room is held until the offer expires. Pay the deposit to confirm, or settle the full amount - balance is then nothing at the property.")
+              : t("Available now. The room isn't reserved until you pay - pay the deposit or the full amount to secure these dates.")}
           </p>
         </div>
       )}
+
+      {datePicker}
 
       {error && (
         <div role="alert" className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
@@ -257,7 +326,7 @@ export default function OfferPage() {
         </div>
       )}
 
-      {awaitingPayment ? (
+      {unavailable ? null : awaitingPayment ? (
         <div className="mt-5 space-y-2">
           {depositDue > 0.005 && (
             <Button
@@ -324,9 +393,18 @@ export default function OfferPage() {
           </Button>
         </div>
       )}
+      {offer.can_change_dates && !unavailable && !changing && (
+        <button type="button"
+          className="mt-3 w-full text-center text-xs font-medium text-brand-700 underline"
+          onClick={() => { setChanging(true); setNewIn(offer.check_in_date); setNewOut(offer.check_out_date) }}>
+          {t("Need other dates?")}
+        </button>
+      )}
       <p className="mt-3 text-center text-xs text-zinc-400">
         {awaitingPayment
-          ? t("Payment confirms the booking instantly. If the window closes unpaid, the room is released.")
+          ? offer.status === "Pending Payment"
+            ? t("Payment confirms the booking instantly. If the window closes unpaid, the room is released.")
+            : t("Payment confirms the booking instantly if the room is still free.")
           : t("Confirming blocks the room at this price. Nothing is reserved until you confirm.")}
       </p>
     </div>,

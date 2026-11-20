@@ -1165,8 +1165,17 @@ def guest_payment_link(token: str, amount: float | None = None):
 	same link the desk sends, settled to the folio by webhook. Regenerating
 	disables the previous link, so the guest can only pay the latest one."""
 	res = _res_by_token(token)
-	if res.status not in ("Confirmed", "Pending Payment", "Held"):
+	pay_offer = res.status == "Requested" and res.get("offer_pay_to_confirm")
+	if res.status not in ("Confirmed", "Pending Payment", "Held") and not pay_offer:
 		frappe.throw("This booking is no longer awaiting payment.")
+	if pay_offer:
+		# the offer holds no room: never take money for dates that are gone
+		from kamra.offers import _dates_available, _expired
+		if _expired(res):
+			frappe.throw(_("This offer has expired - ask the property for a new one."))
+		if not _dates_available(res, fail_open=False):
+			frappe.throw(_("These dates were just booked by someone else - "
+			               "pick other dates on your offer page."))
 	from kamra.api import _deposit_state
 	state = _deposit_state(res)
 	due = float(state["due"] or 0)

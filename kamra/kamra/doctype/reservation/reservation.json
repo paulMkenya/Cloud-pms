@@ -78,6 +78,7 @@
   "discount_amount",
   "auto_price",
   "agreed_rate",
+  "agreed_rate_note",
   "sb_notes",
   "special_requests",
   "sb_precheckin",
@@ -524,11 +525,19 @@
   },
   {
    "depends_on": "auto_price",
-   "description": "A nightly room rate the desk agreed (Revenue Manager / Hotel Admin). Replaces the rate card, demand premium and rate plan; taxes still apply.",
+   "description": "A nightly room rate the desk agreed at booking. Replaces the rate card, demand premium and rate plan; taxes still apply.",
    "fieldname": "agreed_rate",
    "fieldtype": "Currency",
    "label": "Agreed Nightly Rate",
    "read_only": 1
+  },
+  {
+   "depends_on": "agreed_rate",
+   "fieldname": "agreed_rate_note",
+   "fieldtype": "Small Text",
+   "label": "Rate Note (internal)",
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "default": "0",

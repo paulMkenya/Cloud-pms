@@ -4726,6 +4726,8 @@ def walk_in(property: str, room_type: str, room: str, check_out_date: str,
             blacklist_override_reason: str | None = None,
             credit_override_reason: str | None = None,
             defer_check_in: int = 0,
+            agreed_rate: float = 0,
+            agreed_rate_note: str | None = None,
             booked_via: str | None = None,
             ota_ref: str | None = None,
             ota_total: float = 0,
@@ -4794,6 +4796,7 @@ def walk_in(property: str, room_type: str, room: str, check_out_date: str,
 		check_in_time=check_in_time, check_out_time=check_out_time,
 		blacklist_override_reason=blacklist_override_reason,
 		credit_override_reason=credit_override_reason,
+		agreed_rate=agreed_rate, agreed_rate_note=agreed_rate_note,
 		booked_via=booked_via, ota_ref=ota_ref, ota_total=ota_total,
 		ota_commission_pct=ota_commission_pct)
 	reservation = booked["reservation"]
@@ -6801,7 +6804,8 @@ def get_quote(property: str, room_type: str, check_in_date: str,
               over_capacity_charge: float = 0, pets: int = 0,
               company: str | None = None,
               check_in_time: str | None = None,
-              check_out_time: str | None = None):
+              check_out_time: str | None = None,
+              agreed_rate: float = 0):
 	"""Price a stay. With a company and no rate plan, the company's
 	negotiated plan applies - the same plan create_booking stores.
 	check_in_time / check_out_time price an hourly or block day-use plan."""
@@ -6820,7 +6824,8 @@ def get_quote(property: str, room_type: str, check_in_date: str,
 	          over_capacity_charge=float(over_capacity_charge or 0),
 	          pets=int(pets or 0), company=company or None,
 	          check_in_time=check_in_time or None,
-	          check_out_time=check_out_time or None)
+	          check_out_time=check_out_time or None,
+	          agreed_rate=float(agreed_rate or 0))
 	if isinstance(q, dict):
 		q["cancellation"] = cancellation_outlook(
 			property, room_type, check_in_date, check_out_date)
@@ -7200,7 +7205,9 @@ def create_booking(property: str, room_type: str, check_in_date: str,
                    ota_total: float = 0,
                    ota_commission_pct: float | None = None,
                    marketing_consent: int = 0,
-                   market_segment: str | None = None):
+                   market_segment: str | None = None,
+                   agreed_rate: float = 0,
+                   agreed_rate_note: str | None = None):
 	"""One-call booking: attach to an existing guest profile when given,
 	else reuse a profile whose phone and full name both match (a
 	blacklisted phone always resolves to its profile) / create one.
@@ -7227,6 +7234,8 @@ def create_booking(property: str, room_type: str, check_in_date: str,
 	from kamra.kamra.doctype.reservation.reservation import lock_property_for_inventory
 	from kamra.reservation_state import find_by_idempotency, lock_sius_for_booking
 	assert_property_access(property)
+	if float(agreed_rate or 0) < 0:
+		frappe.throw("Agreed rate cannot be negative.")
 	# Before the free-room read and the stay insert, so a second booking
 	# waits and then sees this one.
 	lock_property_for_inventory(property)
@@ -7402,6 +7411,12 @@ def create_booking(property: str, room_type: str, check_in_date: str,
 		# priced by the engine like any agreed rate
 		from kamra.group_blocks import group_rate
 		doc.agreed_rate = group_rate(doc.group_booking, doc.room_type)
+	elif float(agreed_rate or 0) > 0:
+		# a nightly rate the desk negotiated for this stay - the quote
+		# engine prices it (taxes, meals, voucher still apply); it replaces
+		# the rate card, demand premium and long-stay discount
+		doc.agreed_rate = float(agreed_rate)
+		doc.agreed_rate_note = (agreed_rate_note or "").strip() or None
 
 	# Booking a party above the room's capacity is a decision someone makes
 	# by arrangement; the reason is what records who agreed it, and the
@@ -7533,6 +7548,16 @@ def create_booking(property: str, room_type: str, check_in_date: str,
 		rationale=f"Booked {room_type} {check_in_date}→{check_out_date} for {guest_name}",
 		channel=channel or ("API" if source == "AI Agent" else "Desk"),
 	)
+	if float(doc.get("agreed_rate") or 0) > 0 and not doc.get("group_booking"):
+		log_action(
+			action_type="negotiated_rate",
+			reference_doctype="Reservation",
+			reference_name=doc.name,
+			property=property,
+			rationale=(f"Agreed nightly rate {doc.agreed_rate:,.0f}"
+			           + (f" — {doc.agreed_rate_note}" if doc.get("agreed_rate_note") else "")),
+			channel=channel or "Desk",
+		)
 	if cint(marketing_consent):
 		from kamra.privacy import set_marketing_consent
 		set_marketing_consent(doc.guest, 1, "Desk", property)

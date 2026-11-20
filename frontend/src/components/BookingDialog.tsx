@@ -205,6 +205,11 @@ export function BookingDialog(props: {
   const [onBehalf, setOnBehalf] = useState(false)
   // explicit opt-in to promotional WhatsApp; never ticked by default
   const [offers, setOffers] = useState(false)
+  // negotiated nightly rate - the desk quotes the price the guest agreed;
+  // the engine still adds taxes, meals and the voucher discount on top
+  const [negRate, setNegRate] = useState("")
+  const [negNote, setNegNote] = useState("")
+  const [negOpen, setNegOpen] = useState(false)
   // Day use (hourly): check in and out the same day, inside a time slot.
   // The server prices it (one billable date) - the quote shows that rate.
   const [dayUse, setDayUse] = useState(false)
@@ -469,6 +474,15 @@ export function BookingDialog(props: {
   const creditOverride =
     creditFails && credit?.blocked && creditReason.trim() ? creditReason.trim() : undefined
 
+  // a negotiated rate prices one room on one date range - not an OTA stay
+  // (the site already fixed its price), not a multi-room group, not day use
+  const negRateNum = (() => {
+    const n = Number(negRate)
+    return negRate.trim() !== "" && Number.isFinite(n) && n > 0 ? n : 0
+  })()
+  const negRateBad = negRate.trim() !== "" && !Number.isFinite(Number(negRate))
+  const canNegotiate = !viaName && moreRooms.length === 0 && !dayUse
+
   // phone is optional, but a half-typed one is a data-entry slip, not a choice
   const country = options?.property?.country
   const badPhone =
@@ -496,6 +510,7 @@ export function BookingDialog(props: {
         voucher_code: form.voucher_code || undefined,
         over_capacity_charge: extraCharge || undefined,
         pets: form.pets || undefined,
+        agreed_rate: canNegotiate && negRateNum > 0 ? negRateNum : undefined,
       })
         .then((q) => {
           setQuote(q)
@@ -524,6 +539,8 @@ export function BookingDialog(props: {
     form.over_capacity_charge,
     form.over_capacity_guests,
     form.pets,
+    canNegotiate,
+    negRateNum,
     checkOut,
   ])
 
@@ -633,6 +650,8 @@ export function BookingDialog(props: {
           pets: form.pets || undefined,
           company: form.company || undefined,
           waitlist: 1,
+          agreed_rate: canNegotiate && negRateNum > 0 ? negRateNum : undefined,
+          agreed_rate_note: negNote.trim() || undefined,
           ...slotArgs,
           blacklist_override_reason: blacklistOverride,
         })
@@ -741,6 +760,8 @@ export function BookingDialog(props: {
         addons: Object.entries(addonQty)
           .filter(([, q]) => q > 0)
           .map(([experience, qty]) => ({ experience, qty })),
+        agreed_rate: canNegotiate && negRateNum > 0 ? negRateNum : undefined,
+        agreed_rate_note: negNote.trim() || undefined,
         ...slotArgs,
         blacklist_override_reason: blacklistOverride,
         credit_override_reason: creditOverride,
@@ -798,6 +819,8 @@ export function BookingDialog(props: {
         payment_amount: amount,
         payment_reference: walk.pay_reference.trim() || undefined,
         idempotency_key: walkInKey,
+        agreed_rate: canNegotiate && negRateNum > 0 ? negRateNum : undefined,
+        agreed_rate_note: negNote.trim() || undefined,
         ...slotArgs,
         blacklist_override_reason: blacklistOverride,
         ...viaArgs,
@@ -2593,6 +2616,59 @@ export function BookingDialog(props: {
                           {cur()}
                           {inr(addonsGross)}
                         </span>
+                      </div>
+                    )}
+
+                    {canNegotiate && (
+                      <div className="rounded-xl border border-dashed border-zinc-300 bg-white px-4 py-3">
+                        <button
+                          type="button"
+                          onClick={() => setNegOpen((o) => !o)}
+                          className="flex w-full items-center justify-between gap-2 text-sm font-medium text-zinc-700 hover:text-zinc-900"
+                        >
+                          <span>{t("Negotiated rate")}</span>
+                          <span className="text-xs font-normal text-zinc-400">
+                            {negRateNum > 0
+                              ? `${cur()}${inr(negRateNum)}`
+                              : negOpen
+                                ? t("Hide")
+                                : t("Set custom nightly rate")}
+                          </span>
+                        </button>
+                        {negOpen && (
+                          <div className="mt-3 space-y-2">
+                            <label className="block text-xs font-medium text-zinc-500">
+                              {t("Nightly rate")} ({cur()})
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              step="any"
+                              inputMode="decimal"
+                              value={negRate}
+                              onChange={(e) => setNegRate(e.target.value)}
+                              placeholder={t("e.g. 3,200")}
+                              className={inputCls}
+                            />
+                            {negRateBad && (
+                              <p className="text-xs text-rose-600">
+                                {t("Enter a number, e.g. 3200")}
+                              </p>
+                            )}
+                            <input
+                              type="text"
+                              value={negNote}
+                              onChange={(e) => setNegNote(e.target.value)}
+                              placeholder={t("Reason (internal, optional)")}
+                              className={inputCls}
+                            />
+                            {negRateNum > 0 && (
+                              <p className="text-xs leading-relaxed text-emerald-700">
+                                {t("Quoted at the negotiated rate - the rate card, demand premium and long-stay discount are replaced; taxes still apply.")}
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
 

@@ -554,6 +554,8 @@ export interface QuoteParams {
   voucher_code?: string
   over_capacity_charge?: number
   pets?: number
+  /** desk-negotiated nightly room rate - replaces the rate card */
+  agreed_rate?: number
 }
 
 export const getQuote = (params: QuoteParams) =>
@@ -620,6 +622,9 @@ export const createBooking = (
     blacklist_override_reason?: string
     /** Finance / Hotel Admin only: book past a company credit block (logged) */
     credit_override_reason?: string
+    /** negotiated nightly room rate (desk) + internal reason, logged */
+    agreed_rate?: number
+    agreed_rate_note?: string
     booked_via?: string
     ota_ref?: string
     ota_total?: number

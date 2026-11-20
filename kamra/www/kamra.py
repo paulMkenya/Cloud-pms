@@ -82,11 +82,23 @@ def _guest_meta(slug: str | None) -> dict | None:
 	from kamra.booking_slugs import property_for_slug, resolve_public_slug
 
 	listing = None
+	listing_image = None
 	try:
 		if slug:
 			scope = resolve_public_slug(slug)
 			name = scope["property"]
 			listing = scope.get("room_type_name")
+			if scope.get("room_type"):
+				# the unit's own photo makes the best share card; property
+				# imagery is the fallback below
+				row = frappe.db.sql(
+					"""SELECT url FROM `tabRoom Type Media`
+					   WHERE parent=%s AND (media_type='image'
+					      OR url REGEXP '\\.(jpe?g|png|webp)$')
+					   ORDER BY idx LIMIT 1""",
+					scope["room_type"], as_dict=True)
+				if row:
+					listing_image = row[0].url
 		else:
 			name = property_for_slug(frappe.form_dict.get("property") or "")
 			if not name:
@@ -109,4 +121,5 @@ def _guest_meta(slug: str | None) -> dict | None:
 	               or f"Book {prop.property_name}{' in ' + place if place else ''} directly with the hotel.")
 	return {"title": title, "description": " ".join(description.split())[:160],
 	        "lang": prop.get("booking_language"),
-	        "image": prop.get("og_image") or prop.get("hero_image") or prop.get("logo_url")}
+	        "image": (listing_image or prop.get("og_image")
+		          or prop.get("hero_image") or prop.get("logo_url"))}

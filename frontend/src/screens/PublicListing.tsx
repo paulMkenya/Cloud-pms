@@ -436,6 +436,19 @@ export default function PublicListing() {
       ? resolved.location_name ?? data.property.property_name
       : primary?.room_type_name ?? data.property.property_name
     document.title = `${name} · ${data.property.property_name}`
+    // keep the share image in step when navigating inside the SPA -
+    // same fallback chain as the server-rendered tags
+    const p = data.property
+    const ogImage = primary?.media?.[0]?.url || p.hero_image || p.gallery?.[0]?.url
+    if (ogImage) {
+      let og = document.querySelector<HTMLMetaElement>('meta[property="og:image"]')
+      if (!og) {
+        og = document.createElement("meta")
+        og.setAttribute("property", "og:image")
+        document.head.appendChild(og)
+      }
+      og.content = ogImage
+    }
   }, [data, resolved, isSite, primary, t])
 
   async function submitBooking() {

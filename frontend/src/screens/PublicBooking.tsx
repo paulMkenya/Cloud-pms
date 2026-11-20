@@ -587,8 +587,15 @@ export default function PublicBooking() {
           price: money(minPrice), description: p.description ?? "",
         }).slice(0, 158),
     )
-    if (p.og_image) {
-      setMetaTag("og:image", p.og_image)
+    const ogImage = p.og_image || p.hero_image || p.gallery?.[0]?.url
+    if (ogImage) {
+      let og = document.querySelector<HTMLMetaElement>('meta[property="og:image"]')
+      if (!og) {
+        og = document.createElement("meta")
+        og.setAttribute("property", "og:image")
+        document.head.appendChild(og)
+      }
+      og.content = ogImage
     }
     let canonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]')
     if (!canonical) {

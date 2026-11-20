@@ -4,6 +4,7 @@ import { Globe, Plus, Trash2, Eye } from "lucide-react"
 
 import { getCurrentProperty, frappeFetch } from "../lib/api"
 import ImageField from "../components/ImageField"
+import SmartLinks from "../components/SmartLinks"
 import { PRESETS, accentHex } from "../lib/accents"
 import { serverError, updateResource } from "../lib/resource"
 import { Button } from "../components/ui/button"
@@ -159,6 +160,7 @@ export default function BookingEngine() {
     { id: "payments", label: "Payments" },
     { id: "faq", label: "FAQ" },
     { id: "seo", label: "SEO" },
+    { id: "share", label: "Share Links" },
   ]
 
   return (
@@ -765,6 +767,10 @@ export default function BookingEngine() {
                     ))}
                   </div>
                 </div>
+              )}
+
+              {section === "share" && (
+                <SmartLinks property={property} pageSlug={doc.page_slug} propertyName={doc.property_name} />
               )}
 
               {section === "seo" && (

@@ -357,6 +357,7 @@ export const APPS: AppDef[] = [
       { to: "/booking-settings/payments", label: "Payments", icon: Receipt },
       { to: "/booking-settings/faq", label: "FAQ", icon: HelpCircle },
       { to: "/booking-settings/seo", label: "SEO", icon: Search },
+      { to: "/booking-settings/share", label: "Share Links", icon: Share2 },
       { to: "/settings/booking-engine", label: "Settings", icon: SettingsIcon,
         roles: ["Revenue Manager", "Hotel Admin", "System Manager", "Administrator"] },
     ],

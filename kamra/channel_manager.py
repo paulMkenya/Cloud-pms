@@ -708,3 +708,89 @@ def connection_status(property: str):
 			               f"?connection={c.name}",
 		})
 	return out
+
+
+# ---------------------------------------------------------------------------
+# Channels status screen: every property's OTA/channel connections, per
+# room-type external ids, sync health and the iCal export state.
+# ---------------------------------------------------------------------------
+
+def _ical_state(property: str) -> dict:
+	"""iCal feed status without leaking the token; the URL itself is only
+	handed out by ical_feed_link() to the same roles."""
+	try:
+		from cloudtrade_hospitality import settings as ct_settings
+		has = bool(ct_settings.get(property, "ical_token"))
+	except Exception:
+		has = False
+	return {"configured": has}
+
+
+@frappe.whitelist()
+@require_roles("Revenue Manager", "Hotel Admin", "Front Desk", "Kamra Agent",
+               "System Manager")
+def channel_status_matrix(property: str | None = None):
+	"""Per-property channel status for the Channels settings page.
+
+	One row per property the caller can reach: its channel-manager
+	connections (provider, active, mappings, last push + status), each
+	room type's external ids per connection, and whether the iCal export
+	feed is configured. Read-only."""
+	from kamra.authz import restricted_properties
+	from kamra.crs import assert_property_access
+
+	if property:
+		assert_property_access(property)
+		props = [property]
+	else:
+		props = frappe.get_all("Property", pluck="name", order_by="property_name")
+	mine = restricted_properties()
+	if mine is not None:
+		props = [p for p in props if p in mine]
+
+	out = []
+	for prop in props:
+		prop_name = frappe.db.get_value("Property", prop, "property_name") or prop
+		conns = []
+		for name in _connections(prop, only_active=False):
+			c = frappe.get_doc("Channel Manager Connection", name)
+			maps = frappe.get_all(
+				"Channel Room Mapping", filters={"connection": name},
+				fields=["room_type", "external_room_id", "external_rate_id"])
+			conns.append({
+				"name": c.name, "provider": c.provider, "active": c.active,
+				"external_property_id": c.external_property_id,
+				"sync_days": c.sync_days,
+				"last_push": str(c.last_push or ""),
+				"last_push_status": c.last_push_status or "",
+				"mappings": maps,
+			})
+		room_types = frappe.get_all(
+			"Room Type", filters={"property": prop},
+			fields=["name", "room_type_name"], order_by="room_type_name")
+		units = frappe.db.count("Room", {"property": prop})
+		out.append({
+			"property": prop, "property_name": prop_name,
+			"units": units,
+			"room_types": [{"name": r.name, "label": r.room_type_name or r.name}
+			               for r in room_types],
+			"connections": conns,
+			"ical": _ical_state(prop),
+		})
+	return out
+
+
+@frappe.whitelist()
+@require_roles("Revenue Manager", "Hotel Admin", "System Manager",
+               "Administrator")
+def ical_feed_link(property: str):
+	"""The property's iCal export URL (creates the token on first call).
+	Paste it into Airbnb/Booking.com's calendar import. Staff-only - the
+	URL is the feed's only credential."""
+	from kamra.crs import assert_property_access
+	assert_property_access(property)
+	try:
+		from cloudtrade_hospitality.ical import token_url
+	except Exception:
+		frappe.throw(_("The iCal export is not available on this site."))
+	return {"url": token_url(property)}

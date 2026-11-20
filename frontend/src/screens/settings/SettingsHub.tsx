@@ -17,6 +17,7 @@ import {
   LayoutGrid,
   ListTodo,
   Palette,
+  RadioTower,
   ScrollText,
   Search,
   ShieldCheck,
@@ -52,6 +53,7 @@ import {
 } from "./cards"
 import { McpAccessPage } from "./McpAccessPage"
 import { GuestMessagesPage } from "./GuestMessagesPage"
+import { ChannelsPage } from "./ChannelsPage"
 import { ModulePage, Switch, type OptionSources } from "./ModulePage"
 import { WebhooksPage } from "./WebhooksPage"
 
@@ -99,6 +101,9 @@ const CUSTOM_PAGES: CustomPage[] = [
   { id: "claude", title: "AI access (MCP)", group: "access", icon: LayoutGrid,
     description: "Who may connect Claude or another AI client, what it may do here, and the live connections.",
     keywords: "mcp claude chatgpt n8n desktop connector oauth agent ai access read manage permissions roles block tools disconnect" },
+  { id: "channels", title: "Channels", group: "integrations", icon: RadioTower,
+    description: "OTA and channel-manager connections per property, room-type listings and sync health.",
+    keywords: "airbnb booking.com agoda expedia channex aiosell staah channel manager ota sync ical calendar export mapping" },
   { id: "guest-messages", title: "Guest messages", group: "integrations", icon: MessageSquareText,
     description: "WhatsApp and SMS texts guests receive - booking, deposit, reminders and access details.",
     keywords: "whatsapp sms template message guest notification booking confirmation deposit reminder wifi access wording text" },
@@ -535,6 +540,8 @@ function CustomPageBody({
       )
     case "guest-messages":
       return <GuestMessagesPage />
+    case "channels":
+      return <ChannelsPage />
     case "webhooks":
       return <WebhooksPage property={property} />
     case "verify":

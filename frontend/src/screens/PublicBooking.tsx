@@ -262,7 +262,7 @@ function PropertyChooser({
             {t("Pick a property to see its rooms, prices and availability.")}
           </p>
           <Link
-            to="/kamra/loyalty"
+            to="/loyalty"
             className="col-span-2 row-start-3 mt-3 inline-flex items-center gap-1.5 justify-self-start text-sm font-medium text-brand-700 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 max-sm:min-h-11 max-sm:rounded-full max-sm:bg-brand-50 max-sm:px-3.5 max-sm:text-brand-800 max-sm:ring-1 max-sm:ring-brand-100 sm:col-span-1 sm:mt-2.5 sm:min-h-6"
           >
             <Coins className="size-4 shrink-0" aria-hidden />
@@ -1189,7 +1189,7 @@ export default function PublicBooking() {
               {p.property_name}
             </h1>
             <Link
-              to="/kamra/loyalty"
+              to="/loyalty"
               className="mt-1.5 inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline"
             >
               <Coins className="size-4" aria-hidden />

@@ -184,7 +184,7 @@
    "fieldname": "source",
    "fieldtype": "Select",
    "label": "Source",
-   "options": "Manual\nAI Agent\nPhone\nWalk-in\nOTA\nWebsite\nPMS"
+   "options": "Manual\nAI Agent\nPhone\nWalk-in\nOTA\nWebsite\nPMS\nWhatsApp"
   },
   {
    "description": "OTA name for channel bookings, e.g. booking.com",
@@ -978,7 +978,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-11-20 21:00:00.000000",
+ "modified": "2026-11-20 22:00:00.000000",
  "modified_by": "Administrator",
  "module": "Kamra",
  "name": "Reservation",

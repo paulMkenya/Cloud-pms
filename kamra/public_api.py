@@ -1054,7 +1054,9 @@ def book(property: str, room_type: str, check_in_date: str,
 			pets=int(pets or 0),
 			meal_plan=meal_plan or None,
 			voucher_code=voucher_code or None,
-			source="Website",
+			# a server-side caller (the WhatsApp bot) books through this same
+			# path under its own channel; HTTP callers can't set flags
+			source=frappe.flags.get("kamra_booking_source") or "Website",
 			addons=safe_addons or None,
 			assign_room=assign_room,
 			status=status,

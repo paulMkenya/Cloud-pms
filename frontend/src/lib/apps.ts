@@ -26,6 +26,7 @@ import {
   HeartPulse,
   Home,
   Landmark,
+  KeyRound,
   Layers,
   LayoutGrid,
   ListChecks,
@@ -404,6 +405,17 @@ export const APPS: AppDef[] = [
         icon: ExternalLink,
         roles: ["Administrator", "System Manager"],
       },
+    ],
+  },
+  {
+    id: "owner-portal",
+    name: "My Property",
+    icon: KeyRound,
+    tint: APP_TILE,
+    description: "The unit owner's view: booked nights, earnings and monthly statements.",
+    roles: ["Property Owner", "System Manager", "Administrator"],
+    items: [
+      { to: "/owner-portal", label: "My Property", icon: KeyRound },
     ],
   },
 ]

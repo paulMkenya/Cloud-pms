@@ -135,6 +135,24 @@
    "description": "The legal entity guests see on invoices and documents (e.g. the management company). Falls back to Legal Name when blank."
   },
   {
+   "fieldname": "owner_name",
+   "fieldtype": "Data",
+   "label": "Owner Name",
+   "description": "The unit owner this property belongs to (owner portal)."
+  },
+  {
+   "fieldname": "owner_email",
+   "fieldtype": "Data",
+   "label": "Owner Email",
+   "description": "Login email that unlocks this property in the owner portal."
+  },
+  {
+   "fieldname": "owner_commission_pct",
+   "fieldtype": "Float",
+   "label": "Management Fee %",
+   "description": "The operator's share of room revenue on owner statements. 0 = owner keeps all."
+  },
+  {
    "description": "2 to 6 letters or digits. Numbers allowance vouchers (ALW-<code>-YY-#####). Changing it starts a new voucher series.",
    "fieldname": "short_code",
    "fieldtype": "Data",

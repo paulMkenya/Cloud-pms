@@ -44,6 +44,132 @@ const PROVIDER_LABEL: Record<string, string> = {
   expedia: "Expedia",
 }
 
+interface IcalSource {
+  name: string
+  url: string
+  room: string
+  enabled?: number
+}
+interface IcalState {
+  sources: IcalSource[]
+  all_sources: IcalSource[]
+  rooms: { name: string; label: string }[]
+}
+
+function IcalImportCard({ property }: { property: string }) {
+  const { t } = useT()
+  const [st, setSt] = useState<IcalState | null>(null)
+  const [name, setName] = useState("")
+  const [url, setUrl] = useState("")
+  const [room, setRoom] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState("")
+
+  const load = useCallback(() => {
+    call<IcalState>("cloudtrade_hospitality.ical_import.sources", { property })
+      .then(setSt)
+      .catch(() => setSt(null))
+  }, [property])
+  useEffect(load, [load])
+
+  async function save() {
+    if (!st) return
+    const rows = [...st.all_sources, { name: name || url.slice(0, 60), url, room, enabled: 1 }]
+    setBusy(true)
+    try {
+      await call("cloudtrade_hospitality.ical_import.save_sources", {
+        property, sources_json: JSON.stringify(rows),
+      })
+      setName(""); setUrl(""); setRoom(""); setMsg("")
+      load()
+    } catch (e) {
+      setMsg(serverError(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function remove(srcName: string) {
+    setBusy(true)
+    try {
+      await call("cloudtrade_hospitality.ical_import.remove_source", {
+        property, name: srcName,
+      })
+      load()
+    } catch (e) {
+      setMsg(serverError(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function sync(srcName?: string) {
+    setBusy(true)
+    try {
+      const out = await call<{ sources: { blocks?: number; error?: string }[] }>(
+        "cloudtrade_hospitality.ical_import.sync_now",
+        { property, source: srcName ?? null })
+      const n = out.sources?.reduce((a, s) => a + (s.blocks ?? 0), 0) ?? 0
+      setMsg(t("Synced - {n} night block(s) updated", { n }))
+      load()
+    } catch (e) {
+      setMsg(serverError(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!st) return null
+  return (
+    <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50/60 px-3 py-3">
+      <p className="text-sm font-medium text-zinc-800">{t("iCal import")}</p>
+      <p className="mt-0.5 text-xs text-zinc-500">
+        {t("Paste an Airbnb/Booking.com calendar export URL per unit - those nights are blocked automatically every hour.")}
+      </p>
+      {st.all_sources.length > 0 && (
+        <div className="mt-2 space-y-1.5">
+          {st.all_sources.map((s) => {
+            const roomLabel = st.rooms.find((r) => r.name === s.room)?.label ?? s.room
+            return (
+              <div key={s.name} className="flex flex-wrap items-center gap-2 rounded-md bg-white px-2.5 py-1.5 text-xs">
+                <span className="font-medium text-zinc-700">{s.name || s.url.slice(0, 40)}</span>
+                <span className="text-zinc-500">→ {roomLabel}</span>
+                <span className="ms-auto flex gap-1">
+                  <button type="button" className="text-brand-700 hover:underline" disabled={busy}
+                    onClick={() => sync(s.name)}>{t("Sync now")}</button>
+                  <button type="button" className="text-rose-600 hover:underline" disabled={busy}
+                    onClick={() => remove(s.name)}>{t("Remove")}</button>
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+      <div className="mt-2 grid gap-2 sm:grid-cols-[10rem_1fr_10rem_auto]">
+        <input className="rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs" placeholder={t("Name (e.g. Airbnb)")}
+          value={name} onChange={(e) => setName(e.target.value)} />
+        <input className="rounded-lg border border-zinc-200 bg-white px-2 py-1.5 font-mono text-xs" placeholder="https://…/calendar.ics"
+          value={url} onChange={(e) => setUrl(e.target.value)} />
+        <select className="rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-xs"
+          value={room} onChange={(e) => setRoom(e.target.value)}>
+          <option value="">{t("Unit / room")}</option>
+          {st.rooms.map((r) => <option key={r.name} value={r.name}>{r.label}</option>)}
+        </select>
+        <Button variant="outline" className="px-2 py-1 text-xs" disabled={busy || !url || !room} onClick={save}>
+          {t("Add")}
+        </Button>
+      </div>
+      <div className="mt-2 flex items-center gap-3">
+        {st.all_sources.length > 0 && (
+          <button type="button" className="text-xs text-brand-700 hover:underline" disabled={busy}
+            onClick={() => sync()}>{t("Sync all now")}</button>
+        )}
+        {msg && <span className="text-xs text-zinc-500">{msg}</span>}
+      </div>
+    </div>
+  )
+}
+
 export function ChannelsPage() {
   const { t } = useT()
   const [rows, setRows] = useState<PropStatus[] | null>(null)
@@ -218,6 +344,8 @@ export function ChannelsPage() {
                 {feedUrl[p.property]}
               </p>
             )}
+
+            <IcalImportCard property={p.property} />
           </div>
         </section>
       ))}

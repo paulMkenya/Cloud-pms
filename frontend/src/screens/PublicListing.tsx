@@ -490,6 +490,7 @@ export default function PublicListing() {
   const fromRate = Math.min(...data.room_types.map((r) => r.base_price))
   const photos = isSite
     ? [
+        ...(p.hero_image ? [{ url: p.hero_image, caption: null }] : []),
         ...(siteMeta?.cover_image ? [{ url: siteMeta.cover_image, caption: null }] : []),
         ...data.room_types.flatMap((rt) => rt.media),
         ...(p.gallery || []),
@@ -633,9 +634,9 @@ export default function PublicListing() {
                         className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm sm:grid sm:grid-cols-5"
                       >
                         <div className="relative bg-zinc-100 sm:col-span-2">
-                          {rt.media[0] ? (
+                          {(rt.media[0]?.url || p.hero_image) ? (
                             <img
-                              src={rt.media[0].url}
+                              src={rt.media[0]?.url || p.hero_image!}
                               alt=""
                               className="h-44 w-full object-cover sm:h-full"
                             />

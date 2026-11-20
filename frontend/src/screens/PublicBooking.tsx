@@ -832,6 +832,12 @@ export default function PublicBooking() {
     ...data.room_types.flatMap((rt) => imagesOf(rt.media)),
     ...sites.filter((s) => s.cover_image).map((s) => ({ url: s.cover_image!, caption: s.name })),
   ].filter((ph, i, arr) => ph.url && arr.findIndex((x) => x.url === ph.url) === i)
+  // Room types with no photos of their own show the property's photos -
+  // never the empty BedDouble placeholder while the property has imagery.
+  const propertyPhotos: Photo[] = [
+    ...(p.hero_image ? [{ url: p.hero_image, caption: null }] : []),
+    ...(p.gallery ?? []),
+  ]
 
   const fmtDay = (iso: string) =>
     (parseDate(iso) ?? new Date()).toLocaleDateString(lang, { weekday: "short", day: "numeric", month: "short" })
@@ -892,8 +898,8 @@ export default function PublicBooking() {
     <>
       {!compact && (
         <div className="flex gap-3">
-          {imagesOf(sel.media)[0] && (
-            <img src={imagesOf(sel.media)[0].url} alt="" className="size-16 shrink-0 rounded-lg object-cover" />
+          {(imagesOf(sel.media)[0] || propertyPhotos[0]) && (
+            <img src={(imagesOf(sel.media)[0] || propertyPhotos[0])!.url} alt="" className="size-16 shrink-0 rounded-lg object-cover" />
           )}
           <div className="min-w-0">
             <p className="font-semibold text-zinc-900">{sel.room_type_name}</p>
@@ -1327,7 +1333,8 @@ export default function PublicBooking() {
                   )}
                   {roomsShown.map((rt) => {
                     const r = results[rt.name]
-                    const photos: Photo[] = imagesOf(rt.media)
+                    const rtPhotos = imagesOf(rt.media)
+                    const photos: Photo[] = rtPhotos.length ? rtPhotos : propertyPhotos
                     const plans = plansOf(r).filter((pl) => mealFilter === null || pl.meal_plan === mealFilter)
                     const reservable = canReserve(r) && !agesMissing
                     const soldOut = r && r.rooms_left === 0
@@ -1827,8 +1834,8 @@ export default function PublicBooking() {
               {/* what they are booking */}
               <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-zinc-50 p-4">
                 <div className="flex min-w-0 items-center gap-3">
-                  {imagesOf(sel.media)[0] && (
-                    <img src={imagesOf(sel.media)[0].url} alt="" className="size-14 shrink-0 rounded-lg object-cover" />
+                  {(imagesOf(sel.media)[0] || propertyPhotos[0]) && (
+                    <img src={(imagesOf(sel.media)[0] || propertyPhotos[0])!.url} alt="" className="size-14 shrink-0 rounded-lg object-cover" />
                   )}
                   <div className="min-w-0 text-sm">
                     <p className="font-semibold text-zinc-900">{sel.room_type_name}</p>

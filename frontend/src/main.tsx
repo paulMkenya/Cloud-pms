@@ -2,6 +2,22 @@ import { StrictMode } from "react"
 import { createRoot } from "react-dom/client"
 import { BrowserRouter } from "react-router-dom"
 import "./index.css"
+
+// A tab opened before a deploy can ask for a screen chunk that no longer
+// exists. Reload once to pick up the new build instead of a dead screen.
+window.addEventListener("vite:preloadError", (event) => {
+  try {
+    const key = "kamra_chunk_reload"
+    const last = Number(sessionStorage.getItem(key) || 0)
+    if (Date.now() - last > 60_000) {
+      sessionStorage.setItem(key, String(Date.now()))
+      event.preventDefault()
+      window.location.reload()
+    }
+  } catch {
+    window.location.reload()
+  }
+})
 import App from "./App"
 import { initTheme } from "./lib/theme"
 import { initLang } from "./lib/dir"

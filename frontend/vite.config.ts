@@ -11,7 +11,9 @@ export default defineConfig(({ command }) => ({
   plugins: [react(), tailwindcss()],
   build: {
     outDir: "../kamra/public/frontend",
-    emptyOutDir: true,
+    // keep earlier builds' chunks: a tab opened before a deploy still
+    // lazy-loads its screens (old hashes) instead of 404ing
+    emptyOutDir: false,
     sourcemap: false,
     rollupOptions: {
       output: {

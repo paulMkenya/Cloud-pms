@@ -184,13 +184,17 @@ export default function BookingRequests({
                       variant="outline"
                       disabled={busy === r.name}
                       title={t("Re-send the offer link to the guest")}
-                      onClick={() =>
+                      onClick={() => {
+                        // the guest already has the link: a resend sends the
+                        // WhatsApp/SMS again and restarts the 72h window
+                        if (!window.confirm(t("Send the offer to {name} again? They already have it - this sends the WhatsApp/SMS again and restarts the 72-hour window.", { name: r.guest_name })))
+                          return
                         run(
                           r.name,
                           () => sendBookingOffer(r.name).then(() => ({ notified: [] as string[] })),
                           t("Offer re-sent to {name}.", { name: r.guest_name }),
                         )
-                      }
+                      }}
                     >
                       {t("Resend")}
                     </Button>

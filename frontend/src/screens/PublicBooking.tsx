@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { clampGuests, maxCapacity } from "../lib/occupancy"
+import { clampGuests, maxCapacity, sleeps } from "../lib/occupancy"
 import PrivacyNotice, { setPrivacyTerms } from "../components/PrivacyNotice"
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom"
 import {
@@ -226,9 +226,12 @@ function PropertyChooser({
   query: string
 }) {
   const { t } = useT()
+  const [city, setCity] = useState("")
   useEffect(() => {
     document.title = t("Places to stay - book direct")
   }, [t])
+  const cities = [...new Set(properties.map((p) => p.city).filter((c): c is string => !!c))].sort()
+  const shownProps = city ? properties.filter((p) => p.city === city) : properties
   const linkFor = (slug: string) => {
     const qs = new URLSearchParams(query)
     qs.set("property", slug)
@@ -248,8 +251,18 @@ function PropertyChooser({
           </div>
           <LanguageSwitcher />
         </div>
+        {cities.length > 1 && (
+          <div className="mt-6 flex flex-wrap items-center gap-2">
+            <label htmlFor="city-filter" className="text-sm text-zinc-500">{t("Location")}</label>
+            <select id="city-filter" value={city} onChange={(e) => setCity(e.target.value)}
+              className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm focus:outline-2 focus:outline-offset-1 focus:outline-brand-600">
+              <option value="">{t("All locations")}</option>
+              {cities.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+        )}
         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {properties.map((p) => (
+          {shownProps.map((p) => (
             <Link
               key={p.name}
               to={linkFor(p.property_slug)}
@@ -443,6 +456,8 @@ export default function PublicBooking() {
   const [editing, setEditing] = useState(false)
   const [mealFilter, setMealFilter] = useState<string | null>(null)
   const [availableOnly, setAvailableOnly] = useState(false)
+  const [bedFilter, setBedFilter] = useState<number | null>(null)
+  const [fitsParty, setFitsParty] = useState(false)
   const [selected, setSelected] = useState<{ room_type: string; meal_plan: string } | null>(null)
   const [lightbox, setLightbox] = useState<{ photos: Photo[]; start: number; title: string } | null>(null)
   const [booking, setBooking] = useState<string | null>(null) // room type name
@@ -656,7 +671,7 @@ export default function PublicBooking() {
     }
   }
 
-  async function submitBooking() {
+  async function submitBooking(inquiry = false) {
     if (!booking || !property || !selected) return
     setBusy(true)
     setError(null)
@@ -680,6 +695,7 @@ export default function PublicBooking() {
           pets: search.pets,
           ...form,
           meal_plan: selected.meal_plan,
+          inquiry: inquiry ? 1 : 0,
           voucher_code: appliedVoucher,
           pay_full: payFull ? 1 : 0,
           addons: Object.entries(addons)
@@ -828,7 +844,22 @@ export default function PublicBooking() {
   const sel = selected ? data.room_types.find((r) => r.name === selected.room_type) : null
   const selPlan = selected ? plansOf(results[selected.room_type]).find((pl) => pl.meal_plan === selected.meal_plan) : null
   const selTerms = selected ? cancelTerms(results[selected.room_type]) : null
-  const roomsShown = data.room_types.filter((rt) => !availableOnly || canReserve(results[rt.name]))
+  const bedroomsOf = (rt: { room_type_name?: string }) => {
+    const m = /(\d+)\s*(?:bed|br|bedroom)/i.exec(rt.room_type_name || "")
+    if (m) return Number(m[1])
+    return /studio/i.test(rt.room_type_name || "") ? 0 : null
+  }
+  const fitsPartyFn = (rt: { adults_capacity: number; children_capacity: number }) => {
+    const capA = sleeps(rt, "adults"), capC = sleeps(rt, "children")
+    return (capA === 0 || capA >= search.adults) && (capC === 0 || capC >= search.children)
+  }
+  const roomsShown = data.room_types.filter((rt) => {
+    if (availableOnly && !canReserve(results[rt.name])) return false
+    if (bedFilter !== null && bedroomsOf(rt) !== bedFilter) return false
+    if (fitsParty && !fitsPartyFn(rt)) return false
+    return true
+  })
+  const bedChoices = [...new Set(data.room_types.map(bedroomsOf).filter((b): b is number => b !== null))].sort((a, b) => a - b)
 
   const summary = (compact: boolean) => sel && selPlan ? (
     <>
@@ -1207,6 +1238,27 @@ export default function PublicBooking() {
 
                 {/* filters */}
                 <div className="mt-4 flex flex-wrap items-center gap-2">
+                  {bedChoices.length > 0 && (
+                    <div className="flex flex-wrap gap-2" role="group" aria-label={t("Bedrooms")}>
+                      {[null, ...bedChoices].map((b) => (
+                        <button key={b ?? "all"} type="button"
+                          aria-pressed={bedFilter === b}
+                          onClick={() => setBedFilter(b)}
+                          className={"rounded-full border px-3 py-1.5 text-sm transition " +
+                            (bedFilter === b
+                              ? "border-brand-600 bg-brand-600 text-white"
+                              : "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400")}>
+                          {b === null ? t("Any size") : b === 0 ? t("Studio") : tn(b, "{n} bedroom", "{n} bedrooms")}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-zinc-700">
+                    <input type="checkbox" className="peer sr-only" checked={fitsParty}
+                      onChange={(e) => setFitsParty(e.target.checked)} />
+                    <span className="relative h-5 w-9 rounded-full bg-zinc-300 transition peer-checked:bg-brand-600 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand-600 after:absolute after:start-0.5 after:top-0.5 after:size-4 after:rounded-full after:bg-white after:transition peer-checked:after:translate-x-4 rtl:peer-checked:after:-translate-x-4" aria-hidden />
+                    {t("Fits my party")}
+                  </label>
                   {mealChoices.length > 1 && (
                     <div className="flex flex-wrap gap-2" role="group" aria-label={t("Meal plan")}>
                       {[null, ...mealChoices].map((mp) => (
@@ -1652,9 +1704,17 @@ export default function PublicBooking() {
                 <PrivacyNotice propertyName={p.property_name} contact={p.privacy_contact}
                   retentionMonths={p.guest_retention_months} />
                 <Button
+                  variant="outline"
+                  className="w-full justify-center py-2.5"
+                  disabled={busy || !form.guest_name.trim() || !form.phone.trim()}
+                  onClick={() => submitBooking(true)}
+                >
+                  {t("Send inquiry instead")}
+                </Button>
+                <Button
                   className="w-full justify-center py-2.5 text-base"
                   disabled={busy || !form.guest_name.trim() || !form.phone.trim()}
-                  onClick={submitBooking}
+                  onClick={() => submitBooking(false)}
                 >
                   {busy ? t("Booking…") : bookCta}
                 </Button>

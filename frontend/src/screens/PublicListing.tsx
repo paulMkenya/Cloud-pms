@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import L from "leaflet"
+import "leaflet/dist/leaflet.css"
 import { clampGuests, maxCapacity } from "../lib/occupancy"
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import {
@@ -197,13 +199,20 @@ const inputCls =
   "focus:outline-2 focus:outline-offset-1 focus:outline-brand-600"
 
 
-function mapEmbedUrl(lat: number, lng: number) {
-  const d = 0.02
-  return (
-    `https://www.openstreetmap.org/export/embed.html?bbox=` +
-    `${lng - d}%2C${lat - d}%2C${lng + d}%2C${lat + d}` +
-    `&layer=mapnik&marker=${lat}%2C${lng}`
-  )
+function LeafletMap({ lat, lng, label }: { lat: number; lng: number; label: string }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!ref.current) return
+    const map = L.map(ref.current, { scrollWheelZoom: false, attributionControl: true })
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    }).addTo(map)
+    L.marker([lat, lng]).addTo(map).bindPopup(label).openPopup()
+    map.setView([lat, lng], 15)
+    return () => { map.remove() }
+  }, [lat, lng, label])
+  return <div ref={ref} className="h-64 w-full" />
 }
 
 function MapBlock({
@@ -225,13 +234,7 @@ function MapBlock({
       {address && <p className="text-sm text-zinc-600">{address}</p>}
       {lat != null && lng != null && (
         <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-100 shadow-sm">
-          <iframe
-            title={t("Map")}
-            className="h-64 w-full border-0"
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-            src={mapEmbedUrl(lat, lng)}
-          />
+          <LeafletMap lat={lat} lng={lng} label={address || ""} />
         </div>
       )}
       {mapsUrl && (

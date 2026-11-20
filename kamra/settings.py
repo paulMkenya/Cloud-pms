@@ -513,6 +513,18 @@ MODULES: tuple[Module, ...] = (
 				S("registration_fee", "Registration fee", "number", 0, P, min=0,
 				  hint="Used when guests pay a registration fee."),
 			)),
+			Section("alerts", "Booking alerts", "", (
+				S("alert_whatsapp", "Alert WhatsApp numbers", "text", "", "kv",
+				  hint="Comma-separated. Gets new bookings, payment alerts, cancellations, abandoned bookings - with guest contact details."),
+				S("alert_sms", "Alert SMS numbers", "text", "", "kv",
+				  hint="Comma-separated. Same alerts as WhatsApp, on SMS."),
+				S("alert_email", "Alert email addresses", "text", "", "kv",
+				  hint="Comma-separated. Same alerts by email."),
+				S("guest_booking_whatsapp", "WhatsApp guests on booking events", "check", 1, "kv",
+				  hint="Confirmation, deposit link, payment reminder, abandoned-hold recovery."),
+				S("guest_booking_sms", "SMS guests on booking events", "check", 0, "kv",
+				  hint="Same guest messages on SMS."),
+			)),
 		),
 	),
 )

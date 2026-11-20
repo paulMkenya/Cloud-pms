@@ -105,9 +105,12 @@ export default function OfferPage() {
     }
   }
 
+  // m-auto card: vertically centred when it fits, top-aligned and fully
+  // scrollable when the content is taller than the viewport (align-items
+  // centring clips the top of an over-tall card on small screens)
   const shell = (children: React.ReactNode) => (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 px-4 py-10">
-      <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
+    <div className="flex min-h-dvh flex-col bg-zinc-50 px-4 py-10">
+      <div className="m-auto w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
         {children}
       </div>
     </div>

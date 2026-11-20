@@ -347,7 +347,8 @@ doc_events["Reservation"] = {
 	"on_update": ["kamra.realtime.notify",
 	              "kamra.channel_manager.on_reservation_change",
 	              "kamra.webhooks.on_reservation_update",
-	              "kamra.notifications.on_reservation_update"],
+	              "kamra.notifications.on_reservation_update",
+	              "kamra.loyalty.on_reservation_update"],
 	"on_trash": "kamra.realtime.notify",
 }
 

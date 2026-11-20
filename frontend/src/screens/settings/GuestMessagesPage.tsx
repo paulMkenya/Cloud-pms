@@ -28,6 +28,10 @@ interface Scopes {
   properties: string[]
   rooms: { name: string; property: string; label: string }[]
 }
+interface TemplateList {
+  templates: GuestTemplate[]
+  token_docs: Record<string, string>
+}
 
 const CHANNELS = [
   { id: "both", label: "WhatsApp + SMS" },
@@ -47,6 +51,8 @@ function scopeLabel(scope: string, props: Scopes | null) {
 export function GuestMessagesPage() {
   const { t } = useT()
   const [templates, setTemplates] = useState<GuestTemplate[] | null>(null)
+  const [tokenDocs, setTokenDocs] = useState<Record<string, string>>({})
+  const [preview, setPreview] = useState("")
   const [scopes, setScopes] = useState<Scopes | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [sel, setSel] = useState<string | null>(null)
@@ -60,10 +66,11 @@ export function GuestMessagesPage() {
   const [body, setBody] = useState("")
 
   const load = useCallback(() => {
-    call<GuestTemplate[]>("cloudtrade_hospitality.guest_templates.list_templates")
+    call<TemplateList>("cloudtrade_hospitality.guest_templates.list_templates")
       .then((rows) => {
-        setTemplates(rows)
-        setSel((s) => s ?? rows[0]?.key ?? null)
+        setTemplates(rows.templates)
+        setTokenDocs(rows.token_docs || {})
+        setSel((s) => s ?? rows.templates[0]?.key ?? null)
       })
       .catch((e) => setError(serverError(e)))
     call<Scopes>("cloudtrade_hospitality.guest_templates.template_scopes")
@@ -82,6 +89,23 @@ export function GuestMessagesPage() {
     if (scopeKind === "property") return scopeProp
     return scopeRoom ? `${scopeProp}:${scopeRoom}` : ""
   }, [scopeKind, scopeProp, scopeRoom])
+
+  // live preview of whatever is in the editor box, rendered with sample
+  // values at the scope/channel currently picked
+  useEffect(() => {
+    if (!sel) return
+    const ch = channel === "sms" ? "sms" : "whatsapp"
+    const id = setTimeout(() => {
+      call<{ text: string }>("cloudtrade_hospitality.guest_templates.preview_template", {
+        key: sel, scope: scopeValue || "*", channel: ch, body,
+      }).then((r) => setPreview(r.text || "")).catch(() => setPreview(""))
+    }, 350)
+    return () => clearTimeout(id)
+  }, [sel, scopeValue, channel, body])
+
+  function insertToken(tok: string) {
+    setBody((b) => `${b}{${tok}}`)
+  }
 
   const roomsForProp = useMemo(
     () => (scopes?.rooms ?? []).filter((r) => r.property === scopeProp),
@@ -172,9 +196,22 @@ export function GuestMessagesPage() {
           <div className="space-y-4">
             <div className="rounded-xl border border-zinc-200 bg-white p-4">
               <p className="text-sm font-medium text-zinc-800">{t("Default text")}</p>
-              <p className="mt-1 text-xs text-zinc-400">
-                {t("Placeholders")}: {tpl.tokens.map((x) => `{${x}}`).join(" ")}
-              </p>
+              <div className="mt-1">
+                <p className="text-xs font-medium text-zinc-500">{t("Placeholders - click to insert")}</p>
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {tpl.tokens.map((x) => (
+                    <button
+                      key={x}
+                      type="button"
+                      title={tokenDocs[x] ? translate(tokenDocs[x]) : x}
+                      onClick={() => insertToken(x)}
+                      className="rounded-md border border-zinc-200 bg-white px-1.5 py-0.5 font-mono text-[11px] text-brand-700 hover:border-brand-300 hover:bg-brand-50"
+                    >
+                      {`{${x}}`}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 {tpl.default_whatsapp && (
                   <pre className="whitespace-pre-wrap rounded-lg bg-zinc-50 p-3 text-xs text-zinc-600">{tpl.default_whatsapp}</pre>
@@ -256,13 +293,37 @@ export function GuestMessagesPage() {
                   </select>
                 </label>
               </div>
+              <div className="mt-3 flex flex-wrap gap-1">
+                {tpl.tokens.map((x) => (
+                  <button
+                    key={x}
+                    type="button"
+                    title={tokenDocs[x] ? translate(tokenDocs[x]) : x}
+                    onClick={() => insertToken(x)}
+                    className="rounded-md border border-zinc-200 bg-white px-1.5 py-0.5 font-mono text-[11px] text-brand-700 hover:border-brand-300 hover:bg-brand-50"
+                  >
+                    {`{${x}}`}
+                  </button>
+                ))}
+              </div>
               <textarea
-                className="mt-3 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 font-mono text-xs"
+                className="mt-2 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 font-mono text-xs"
                 rows={5}
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 placeholder={t("Message text with {placeholders}")}
               />
+              {(body.trim() || channel !== "both") && (
+                <div className="mt-2 rounded-lg border border-sky-100 bg-sky-50/60 px-3 py-2">
+                  <p className="text-[11px] font-medium uppercase tracking-wider text-sky-700">
+                    {t("Preview")} · {channel === "sms" ? "SMS" : "WhatsApp"}
+                    {scopeValue && scopeValue !== "*" ? ` · ${scopeLabel(scopeValue, scopes)}` : ""}
+                  </p>
+                  <pre className="mt-1 whitespace-pre-wrap text-xs text-zinc-600">
+                    {preview || t("(preview appears as you type)")}
+                  </pre>
+                </div>
+              )}
               <div className="mt-2 flex gap-2">
                 <Button className="px-3 py-1.5 text-xs" disabled={busy || !scopeValue || !body.trim()}
                   onClick={() => { save(scopeValue, channel, body); setBody("") }}>

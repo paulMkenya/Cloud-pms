@@ -37,7 +37,12 @@
   "sb_marketing",
   "marketing_consent",
   "marketing_consent_date",
-  "marketing_consent_source"
+  "marketing_consent_source",
+  "sb_loyalty",
+  "loyalty_points",
+  "loyalty_lifetime_points",
+  "loyalty_enrolled_on",
+  "loyalty_tier"
  ],
  "fields": [
   {
@@ -216,6 +221,40 @@
    "label": "Consent source",
    "options": "\nBooking Page\nDesk\nWhatsApp Keyword",
    "read_only": 1
+  },
+  {
+   "fieldname": "sb_loyalty",
+   "fieldtype": "Section Break",
+   "label": "Loyalty programme"
+  },
+  {
+   "fieldname": "loyalty_points",
+   "fieldtype": "Int",
+   "label": "Points balance",
+   "default": "0",
+   "read_only": 1,
+   "in_list_view": 1,
+   "description": "Available points. Earned on completed stays, spent on vouchers - every change is a Loyalty Transaction row."
+  },
+  {
+   "fieldname": "loyalty_lifetime_points",
+   "fieldtype": "Int",
+   "label": "Lifetime points",
+   "default": "0",
+   "read_only": 1
+  },
+  {
+   "fieldname": "loyalty_enrolled_on",
+   "fieldtype": "Date",
+   "label": "Enrolled on",
+   "read_only": 1
+  },
+  {
+   "fieldname": "loyalty_tier",
+   "fieldtype": "Data",
+   "label": "Tier",
+   "read_only": 1,
+   "description": "Computed tier label once lifetime thresholds are configured."
   }
  ],
  "grid_page_length": 50,

@@ -8,6 +8,7 @@ import {
   CalendarDays,
   Check,
   ChevronDown,
+  Coins,
   ChevronLeft,
   ChevronRight,
   Clock,
@@ -256,6 +257,13 @@ function PropertyChooser({
             <p className="mt-2 text-zinc-500">
               {t("Pick a property to see its rooms, prices and availability.")}
             </p>
+            <Link
+              to="/kamra/loyalty"
+              className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline"
+            >
+              <Coins className="size-4" aria-hidden />
+              {t("Loyalty programme - earn points on every stay")}
+            </Link>
           </div>
           <LanguageSwitcher />
         </div>
@@ -1164,6 +1172,13 @@ export default function PublicBooking() {
             <h1 className="mt-1.5 text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl">
               {p.property_name}
             </h1>
+            <Link
+              to="/kamra/loyalty"
+              className="mt-1.5 inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline"
+            >
+              <Coins className="size-4" aria-hidden />
+              {t("Loyalty programme - earn points on this stay")}
+            </Link>
             {p.description && (
               <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-zinc-600">{p.description}</p>
             )}

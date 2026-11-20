@@ -63,6 +63,7 @@ const OpsSLA = lazy(() => import("./screens/OpsSLA"))
 const Dashboard = lazy(() => import("./screens/Dashboard"))
 const Owner = lazy(() => import("./screens/Owner"))
 const OwnerPortal = lazy(() => import("./screens/OwnerPortal"))
+const ListingReports = lazy(() => import("./screens/ListingReports"))
 const CRS = lazy(() => import("./screens/CRS"))
 const POS = lazy(() => import("./screens/POS"))
 const Kitchen = lazy(() => import("./screens/Kitchen"))
@@ -358,6 +359,7 @@ export default function App() {
           <Route path="allowance-voucher/:name" element={<AllowanceVoucher />} />
           <Route path="rate-calendar" element={<RateCalendar />} />
           <Route path="revenue-reports" element={<RevenueReports />} />
+          <Route path="listing-reports" element={<ListingReports />} />
           <Route path="ops-sla" element={<OpsSLA />} />
           <Route path="whatsapp" element={<WhatsAppChat />} />
           <Route

@@ -8,6 +8,7 @@ cash drawer reconcile to.
 import json
 
 import frappe
+from frappe import _
 from frappe.utils import add_days, getdate, nowdate
 
 from kamra.authz import require_roles
@@ -609,4 +610,127 @@ def sla_report(property: str, from_date: str, to_date: str):
 		"oldest_open": oldest_open,
 		"open_total": len(open_all),
 		"unassigned_open": sum(1 for t in open_all if not t.assigned_to_user),
+	}
+
+
+# ---------------------------------------------------------------------------
+# Per-listing report: every bookable unit's traded performance over a span.
+# Same posted-money basis as range_stats/_day_stats - folio Room charges,
+# never estimates - so the numbers reconcile to the invoices.
+# ---------------------------------------------------------------------------
+
+def _listing_rows(property: str, start, end) -> list[dict]:
+	"""One row per Room of the property: room nights sold, bookings, room
+	revenue and the derived rates. Room = the sellable listing."""
+	rows = frappe.db.sql(
+		"""
+		SELECT rm.name AS room, rm.room_number, rt.room_type_name,
+		       COUNT(DISTINCT CONCAT(fc.reservation, '|',
+		             COALESCE(fc.stay_date, fc.posting_date))) AS nights_sold,
+		       COUNT(DISTINCT fc.reservation) AS bookings,
+		       COALESCE(SUM(fc.amount), 0) AS room_revenue
+		FROM `tabFolio Charge` fc
+		JOIN `tabFolio` f ON fc.parent = f.name
+		JOIN `tabReservation` res ON fc.reservation = res.name
+		JOIN `tabRoom` rm ON res.room = rm.name
+		LEFT JOIN `tabRoom Type` rt ON res.room_type = rt.name
+		WHERE f.property = %(p)s AND fc.charge_type = 'Room'
+		  AND fc.posting_date BETWEEN %(s)s AND %(e)s
+		  AND fc.reservation IS NOT NULL AND fc.reservation != ''
+		GROUP BY rm.name, rm.room_number, rt.room_type_name
+		""",
+		{"p": property, "s": str(start), "e": str(end)}, as_dict=True)
+	# units with no traded room charge still belong on the report (zeros)
+	have = {r.room for r in rows}
+	for room in frappe.get_all(
+			"Room", filters={"property": property},
+			fields=["name", "room_number"],
+			or_filters={"name": ("not in", list(have) or ["-"])}):
+		rows.append({"room": room.name, "room_number": room.room_number,
+		             "room_type_name": "", "nights_sold": 0,
+		             "bookings": 0, "room_revenue": 0.0})
+	days = (getdate(end) - getdate(start)).days + 1
+	out = []
+	for r in rows:
+		nights = int(r["nights_sold"] or 0)
+		rev = float(r["room_revenue"] or 0)
+		out.append({
+			"room": r["room"],
+			"room_number": r["room_number"] or r["room"],
+			"room_type": r["room_type_name"] or "",
+			"nights_sold": nights,
+			"bookings": int(r["bookings"] or 0),
+			"room_revenue": round(rev, 2),
+			"adr": round(rev / nights, 0) if nights else 0,
+			# one sellable unit per Room row: occupancy = nights / span days
+			"occupancy_pct": round(100 * nights / days, 1) if days else 0,
+			"revpar": round(rev / days, 0) if days else 0,
+		})
+	out.sort(key=lambda x: -x["room_revenue"])
+	return out
+
+
+@frappe.whitelist()
+@require_roles("Revenue Manager", "Hotel Admin", "Finance",
+              "System Manager", "Administrator")
+def listing_report(property: str | None = None, from_date: str | None = None,
+                   to_date: str | None = None):
+	"""Per-listing (per-unit) trading report.
+
+	property blank -> every property the user can see, each with its units
+	and a property subtotal. Set -> just that property's units.
+	Defaults to month-to-date."""
+	from kamra.authz import assert_property_access, restricted_properties
+	from frappe.utils import get_first_day, nowdate
+
+	end = getdate(to_date or nowdate())
+	start = getdate(from_date or get_first_day(end))
+	if end < start:
+		frappe.throw(_("To date cannot be before from date."))
+	if (end - start).days > 400:
+		frappe.throw(_("Report at most 400 days at a time."))
+
+	if property:
+		assert_property_access(property)
+		props = [property]
+	else:
+		perms = restricted_properties()
+		props = sorted(perms) if perms is not None else sorted(
+			frappe.get_all("Property", pluck="name"))
+
+	listings, properties = [], []
+	for prop in props:
+		rows = _listing_rows(prop, start, end)
+		tot = {"nights_sold": sum(r["nights_sold"] for r in rows),
+		       "bookings": sum(r["bookings"] for r in rows),
+		       "room_revenue": round(sum(r["room_revenue"] for r in rows), 2)}
+		days = (end - start).days + 1
+		units = len(rows)
+		properties.append({
+			"property": prop,
+			"property_name": frappe.db.get_value("Property", prop, "property_name"),
+			"units": units,
+			"nights_sold": tot["nights_sold"],
+			"bookings": tot["bookings"],
+			"room_revenue": tot["room_revenue"],
+			"adr": round(tot["room_revenue"] / tot["nights_sold"], 0)
+			       if tot["nights_sold"] else 0,
+			"occupancy_pct": round(100 * tot["nights_sold"] / (units * days), 1)
+			                  if units and days else 0,
+		})
+		for r in rows:
+			listings.append({**r, "property": prop,
+			                 "property_name": properties[-1]["property_name"]})
+	return {
+		"from_date": str(start), "to_date": str(end),
+		"days": (end - start).days + 1,
+		"properties": properties,
+		"listings": listings,
+		"totals": {
+			"properties": len(properties),
+			"units": len(listings),
+			"nights_sold": sum(p["nights_sold"] for p in properties),
+			"bookings": sum(p["bookings"] for p in properties),
+			"room_revenue": round(sum(p["room_revenue"] for p in properties), 2),
+		},
 	}

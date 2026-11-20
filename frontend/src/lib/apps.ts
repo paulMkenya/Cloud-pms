@@ -257,6 +257,8 @@ export const APPS: AppDef[] = [
       { to: "/owner", label: "Owner view", icon: Smartphone,
         keywords: ["Phone", "Mobile", "Owner", "Flash", "MTD"] },
       { to: "/reports", label: "Reports", icon: ChartLine },
+      { to: "/listing-reports", label: "Per-listing report", icon: ChartLine,
+        keywords: ["Listing", "Unit", "ADR", "RevPAR", "occupancy by unit"] },
       { to: "/channel-manager", label: "Channel Manager", icon: Share2 },
       { to: "/ota-mappings", label: "OTA Room Mappings", icon: Network },
       { to: "/rate-calendar", label: "Rate Calendar", icon: CalendarDays,

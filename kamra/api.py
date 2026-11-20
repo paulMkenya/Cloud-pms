@@ -6372,6 +6372,47 @@ def _can_set_rate() -> bool:
 	return _is_admin() or "Revenue Manager" in frappe.get_roles()
 
 
+DEFAULT_DESK_MAX_RATE_DISCOUNT_PCT = 20
+
+
+def _assert_agreed_rate_allowed(property, room_type, check_in_date,
+                                check_out_date, adults, children, meal_plan,
+                                rate_plan, agreed_rate, check_in_time=None,
+                                check_out_time=None) -> None:
+	"""A negotiated nightly rate replaces the rate card. Rate setters
+	(Revenue Manager / Hotel Admin) may agree any rate; everyone else -
+	Front Desk, agents - only down to the desk discount cap
+	(site_config kamra_desk_max_rate_discount_pct, default 20%) below the
+	stay's average rate-card night."""
+	if _can_set_rate():
+		return
+	cap = frappe.conf.get("kamra_desk_max_rate_discount_pct")
+	cap = DEFAULT_DESK_MAX_RATE_DISCOUNT_PCT if cap is None else float(cap)
+	cap = max(0.0, min(cap, 100.0))
+	from kamra.pricing import quote
+	q = quote(property, room_type, check_in_date, check_out_date,
+	          int(adults or 1), int(children or 0), meal_plan or None,
+	          rate_plan or None, None,
+	          check_in_time=check_in_time or None,
+	          check_out_time=check_out_time or None)
+	nightly = [float(n.get("rate") or 0) for n in (q or {}).get("nightly") or []]
+	card = sum(nightly) / len(nightly) if nightly else 0.0
+	if card <= 0:
+		frappe.throw(
+			_("No rate card price for this stay to check the agreed rate "
+			  "against - a Revenue Manager or Hotel Admin must set it."),
+			title=_("Rate needs approval"))
+	floor = round(card * (100 - cap) / 100, 2)
+	if agreed_rate + 0.005 < floor:
+		frappe.throw(
+			_("An agreed rate of {0}/night is more than {1}% below the rate "
+			  "card ({2}/night). The lowest you can agree is {3}/night - a "
+			  "Revenue Manager or Hotel Admin can go lower.").format(
+				f"{agreed_rate:,.0f}", f"{cap:g}", f"{card:,.0f}",
+				f"{floor:,.0f}"),
+			title=_("Rate needs approval"))
+
+
 def _move_price(res, new_type: str | None, rate_mode: str,
                 agreed_rate: float | None) -> dict:
 	"""Price preview for a room move. Leaves res holding the move's price
@@ -7249,6 +7290,11 @@ def create_booking(property: str, room_type: str, check_in_date: str,
 	room_type = resolve_room_type(property, room_type)
 	meal_plan = resolve_meal_plan(property, meal_plan)
 	rate_plan = resolve_rate_plan(property, rate_plan)
+	if float(agreed_rate or 0) > 0 and not group_booking:
+		_assert_agreed_rate_allowed(
+			property, room_type, check_in_date, check_out_date,
+			adults, children, meal_plan, rate_plan, float(agreed_rate),
+			check_in_time=check_in_time, check_out_time=check_out_time)
 
 	# "MCP" / "Chat" while an agent tool call runs; its bookings are AI Agent
 	# bookings whichever agent surface made them

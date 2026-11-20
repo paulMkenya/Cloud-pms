@@ -22,13 +22,18 @@ the precheckin_token rides along for the payment-link endpoint.
 
 from __future__ import annotations
 
+import math
+
 import frappe
 from frappe import _
 from frappe.utils import add_to_date, get_datetime, now_datetime
 
 from kamra.authz import require_roles
 
+# pay-to-confirm: the window IS the inventory hold, keep it short
 DEFAULT_TTL_HOURS = 2
+# free-confirm (Requested): nothing is held, give the guest time to answer
+DEFAULT_REQUEST_TTL_HOURS = 72
 MAX_TTL_HOURS = 24 * 14
 
 
@@ -79,7 +84,7 @@ def _expire(res):
 
 @frappe.whitelist(methods=["POST"])
 @require_roles("Front Desk", "Kamra Agent", "Hotel Admin", "System Manager")
-def send_offer(reservation: str, expires_hours: int = DEFAULT_TTL_HOURS):
+def send_offer(reservation: str, expires_hours: int | None = None):
 	"""Turn a Requested or Pending Payment stay into a guest offer: mint
 	the token, (re)set the payment window and send the WhatsApp/SMS link
 	through the guest templates. Safe to call again - it re-sends with a
@@ -95,7 +100,9 @@ def send_offer(reservation: str, expires_hours: int = DEFAULT_TTL_HOURS):
 			title=_("Not a booking request"))
 	if not res.offer_token:
 		res.offer_token = frappe.generate_hash(length=24)
-	hours = max(1, min(int(expires_hours or DEFAULT_TTL_HOURS), MAX_TTL_HOURS))
+	default = DEFAULT_TTL_HOURS if res.status == "Pending Payment" \
+		else DEFAULT_REQUEST_TTL_HOURS
+	hours = max(1, min(int(expires_hours or default), MAX_TTL_HOURS))
 	deadline = add_to_date(now_datetime(), hours=hours)
 	res.offer_expires_on = deadline
 	if res.status == "Pending Payment":
@@ -115,17 +122,22 @@ def send_offer(reservation: str, expires_hours: int = DEFAULT_TTL_HOURS):
 			phone=guest.get("phone") or "",
 			room_type=frappe.db.get_value("Room Type", res.room_type,
 			                              "room_type_name") or res.room_type,
-			rate_part=(f" · {res.agreed_rate:,.0f}/night"
-			           if rate > 0 else ""),
-			total=f"KES {float(res.amount_after_tax or 0):,.0f}",
+			rate_part=(f" · KES {rate:,.0f}/night" if rate > 0 else ""),
+			# M-Pesa moves whole shillings and the link rounds up - quote
+			# the guest the amount they will actually be asked to pay
+			total=f"KES {math.ceil(float(res.amount_after_tax or 0) - 1e-6):,}",
 			link=_offer_url(res.offer_token),
 			expires=deadline.strftime("%d %b %Y, %H:%M"),
 		)
 		# reference=False: WhatsApp Message Log dedupes on (reference, TEXT)
 		# and the booking-request alert already used it for this reservation
+		# a Requested (free-confirm) offer holds nothing and is accepted,
+		# not paid - it must not say "pay to confirm / held until"
+		key = "booking_offer" if res.status == "Pending Payment" \
+			else "booking_offer_request"
 		frappe.enqueue(
 			"cloudtrade_hospitality.guest_templates.send", queue="short",
-			enqueue_after_commit=True, key="booking_offer", res=res.name,
+			enqueue_after_commit=True, key=key, res=res.name,
 			channels=("whatsapp", "sms"), reference=False, **ctx)
 		notified = {"queued": True}
 	except Exception:
@@ -208,6 +220,40 @@ def offer_context(token: str):
 	return out
 
 
+def _money_received(res) -> float:
+	"""What has come in against this booking: the pre-arrival advance and
+	anything posted on its guest folio."""
+	paid = float(res.get("advance_paid") or 0)
+	folio_paid = frappe.db.get_value(
+		"Folio", {"reservation": res.name, "folio_type": "Guest"},
+		"payments_total") or 0
+	return max(paid, float(folio_paid or 0))
+
+
+def _alert_decline_with_money(res, received: float) -> None:
+	frappe.log_error(
+		title=f"Offer declined with payment received - refund or rebook {res.name}",
+		message=(f"The guest tried to decline offer {res.name} ({res.guest_name}), "
+		         f"but KES {received:,.2f} has already been received. The booking "
+		         "was kept as it is. Contact the guest to cancel with a refund or "
+		         "to confirm the stay."))
+	try:
+		from cloudtrade_hospitality.director_notify import alert_director
+		alert_director(
+			"guest declined an offer after paying",
+			f"Received: KES {received:,.0f}. Booking kept as {res.status}. "
+			"Call the guest to cancel + refund, or confirm the stay.", res=res)
+	except Exception:
+		pass
+	try:
+		from kamra.savings import log_action
+		log_action("offer_decline_with_payment", "Reservation", res.name,
+		           res.property,
+		           rationale=f"Guest declined but KES {received:,.0f} received")
+	except Exception:
+		pass
+
+
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def respond_offer(token: str, accept: int):
 	"""The guest's yes/no on a free (Requested) offer. A Pending Payment
@@ -236,6 +282,18 @@ def respond_offer(token: str, accept: int):
 			frappe.db.commit()
 			return {"accepted": True, "reservation": res.name,
 			        "status": "Confirmed"}
+		# money already received (part deposit by the desk or a link) must
+		# not vanish with a no-fee cancel: keep the booking and send the
+		# guest to the property, which refunds or rebooks
+		received = _money_received(res)
+		if received > 0.005:
+			_alert_decline_with_money(res, received)
+			frappe.db.commit()
+			frappe.throw(
+				_("A payment of KES {0} is already on this booking, so it "
+				  "can't be cancelled here. Please contact the property to "
+				  "cancel and arrange your refund.").format(f"{received:,.0f}"),
+				title=_("Contact the property"))
 		# decline: release the unpaid hold, no fee - same shape expire_holds
 		# and the staff decline write
 		from frappe.model.naming import make_autoname

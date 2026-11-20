@@ -62,6 +62,7 @@ def create_payment_link(folio_name: str, amount: float | None = None,
 	folio.db_set("payment_link_id", link_id, update_modified=False)
 	folio.db_set("payment_link_url", url, update_modified=False)
 	folio.db_set("payment_link_amount", amount, update_modified=False)
+	_remember_link(folio, link_id)
 
 	from kamra.savings import log_action
 	log_action("send_payment_link", "Folio", folio.name, folio.property,
@@ -70,6 +71,37 @@ def create_payment_link(folio_name: str, amount: float | None = None,
 	           channel="API")
 	return {"url": url, "link_id": link_id, "amount": amount,
 	        "currency": currency, "test_mode": bool(settings.test_mode)}
+
+
+def _remember_link(folio, link_id: str) -> None:
+	"""Keep every link id this folio has issued. A new link replaces
+	payment_link_id, but disabling the old one at the gateway is
+	best-effort - a guest who pays the superseded link must still land on
+	this folio (see folio_for_link)."""
+	if not link_id or not folio.meta.has_field("payment_link_history"):
+		return
+	ids = [i for i in (folio.get("payment_link_history") or "").split() if i]
+	if link_id in ids:
+		return
+	ids.append(link_id)
+	folio.db_set("payment_link_history", "\n".join(ids[-200:]),
+	             update_modified=False)
+
+
+def folio_for_link(link_id: str) -> str | None:
+	"""The folio that issued a payment link - current or superseded."""
+	if not link_id:
+		return None
+	name = frappe.db.get_value("Folio", {"payment_link_id": link_id}, "name")
+	if name or not frappe.get_meta("Folio").has_field("payment_link_history"):
+		return name
+	# ids are opaque gateway tokens (cuid etc.); match a whole line
+	for cand in frappe.get_all(
+			"Folio", filters={"payment_link_history": ["like", f"%{link_id}%"]},
+			fields=["name", "payment_link_history"], limit_page_length=5):
+		if link_id in (cand.payment_link_history or "").split():
+			return cand.name
+	return None
 
 
 def settle_payment_link(folio_name: str, link_id: str, amount: float) -> bool:

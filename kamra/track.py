@@ -11,10 +11,15 @@ beacon is needed and nothing can be faked into a conversion.
 
 record() is fire-and-forget: it never raises into the booking or
 payment path. Dedupe collapses refreshes - the same property+event+
-reference inside DEDUPE_MINUTES counts once.
+reference inside DEDUPE_MINUTES counts once. Events recorded without a
+reference (page views) get a per-visitor one, so each visitor counts
+once per window rather than all anonymous visitors counting as one.
 """
 
+
 from __future__ import annotations
+
+import hashlib
 
 import json
 
@@ -34,6 +39,21 @@ EVENTS = (
 )
 
 
+def _visitor_key() -> str:
+	"""A short, non-reversible per-visitor key (client IP + user agent)."""
+	try:
+		req = getattr(frappe.local, "request", None)
+		if req is None:
+			return ""
+		ip = getattr(frappe.local, "request_ip", None) or req.remote_addr or ""
+		ua = req.headers.get("User-Agent", "") if req.headers else ""
+		if not ip and not ua:
+			return ""
+		return "v:" + hashlib.sha256(f"{ip}|{ua}".encode()).hexdigest()[:16]
+	except Exception:
+		return ""
+
+
 def record(event: str, property: str | None = None, reference: str = "",
            guest: str | None = None, reservation: str | None = None,
            channel: str = "web", meta: dict | None = None) -> None:
@@ -43,7 +63,7 @@ def record(event: str, property: str | None = None, reference: str = "",
 		if event not in EVENTS:
 			return
 		property = property or None
-		reference = (reference or "")[:140]
+		reference = (reference or _visitor_key())[:140]
 		# refresh-spam guard: same property+event+reference within the
 		# window is the same click, not a new one
 		since = add_to_date(now_datetime(), minutes=-DEDUPE_MINUTES)
@@ -88,22 +108,31 @@ def campaign_stats(property: str | None = None, days: int = 30):
 	filters = {"creation": [">=", since]}
 	if property:
 		filters["property"] = property
+
+	# counts come from the database, whole window - not from a capped page
+	where, args = "creation >= %s", [since]
+	if property:
+		where += " AND property = %s"
+		args.append(property)
+	per_prop: dict[str, dict] = {}
+	totals: dict[str, int] = {}
+	for prop_, event, n in frappe.db.sql(
+			f"SELECT property, event, COUNT(*) FROM `tabCampaign Click` "
+			f"WHERE {where} GROUP BY property, event", args):
+		p = prop_ or "(all)"
+		n = int(n or 0)
+		bucket = per_prop.setdefault(p, {})
+		bucket[event] = bucket.get(event, 0) + n
+		totals[event] = totals.get(event, 0) + n
+
 	rows = frappe.get_all(
 		"Campaign Click",
 		filters=filters,
 		fields=["property", "event", "channel", "reference", "guest",
 		        "reservation", "creation"],
 		order_by="creation desc",
-		limit_page_length=5000,
+		limit_page_length=300,
 	)
-
-	per_prop: dict[str, dict] = {}
-	totals: dict[str, int] = {}
-	for r in rows:
-		p = r.property or "(all)"
-		bucket = per_prop.setdefault(p, {})
-		bucket[r.event] = bucket.get(r.event, 0) + 1
-		totals[r.event] = totals.get(r.event, 0) + 1
 
 	props = frappe.get_all(
 		"Property", filters={"disabled": 0},
@@ -134,7 +163,8 @@ def campaign_stats(property: str | None = None, days: int = 30):
 		"property_label": prop_names.get(r.property, r.property or "-"),
 		"event": r.event,
 		"channel": r.channel or "",
-		"reference": r.reference or "",
+		# per-visitor dedupe keys mean nothing to staff
+		"reference": "" if (r.reference or "").startswith("v:") else (r.reference or ""),
 		"reservation": r.reservation or "",
 		"guest": r.guest or "",
 	} for r in rows[:300]]

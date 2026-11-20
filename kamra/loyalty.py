@@ -29,13 +29,18 @@ Defaults: spend KES 100 -> 1 point; each point = KES 5 off a future
 stay (~5% back); OTA-sourced stays earn nothing (the commission makes
 points uneconomic - the guest still earns when they rebook direct).
 
-Redemption security: the voucher code is delivered ONLY to the
-enrolled phone over WhatsApp/SMS - the API response masks it. Anyone
-who merely knows a guest's number can see a balance but cannot pull
-their points.
+Redemption security: redeeming needs a one-time code sent to the
+phone stored on the Guest profile (loyalty_request_code), and the
+voucher code is delivered ONLY to that stored phone over WhatsApp/SMS -
+never to the number the caller typed, and the API response masks it.
+Anyone who merely knows a guest's number can see a balance but cannot
+pull their points.
 """
 
+
 from __future__ import annotations
+
+import hashlib
 
 import re
 import secrets
@@ -63,6 +68,10 @@ DEFAULTS = {
 }
 
 KINDS = ("Earn", "Enrol Bonus", "Redeem", "Adjust", "Expire")
+
+OTP_TTL_SECONDS = 10 * 60
+OTP_MAX_TRIES = 5
+VOUCHER_RE = re.compile(r"\bLOY-([A-Z0-9]{2})[A-Z0-9]{2}([A-Z0-9]{2})\b")
 
 
 # ---------------------------------------------------------------------------
@@ -93,23 +102,35 @@ def _phone_key(phone: str) -> str:
 def _find_guest(phone: str):
 	"""Guest whose phone matches, preferring an enrolled profile then the
 	most recently touched one. Phone formats vary (+254/07/spaces) so the
-	match runs on the last-9-digit key in Python."""
+	match runs on the last-9-digit key - in SQL, so only the matching
+	profiles leave the database."""
 	key = _phone_key(phone)
 	if len(key) < 9:
 		return None
-	rows = frappe.get_all(
-		"Guest",
-		filters={"phone": ["!=", ""]},
-		fields=["name", "first_name", "phone", "loyalty_points",
-		        "loyalty_lifetime_points", "loyalty_enrolled_on",
-		        "loyalty_tier"],
-		order_by="modified desc",
-	)
+	rows = frappe.db.sql(
+		"""SELECT name, first_name, phone, loyalty_points,
+		          loyalty_lifetime_points, loyalty_enrolled_on, loyalty_tier
+		   FROM `tabGuest`
+		   WHERE phone LIKE %(tail)s
+		     AND RIGHT(REGEXP_REPLACE(phone, '[^0-9]', ''), 9) = %(key)s
+		   ORDER BY modified DESC
+		   LIMIT 50""",
+		{"tail": f"%{key[-1]}", "key": key}, as_dict=True)
 	matches = [g for g in rows if _phone_key(g.phone) == key]
 	if not matches:
 		return None
 	matches.sort(key=lambda g: (bool(g.loyalty_enrolled_on),), reverse=True)
 	return matches[0]
+
+
+def _guest_url(path: str) -> str:
+	"""Absolute https link for a guest message (WhatsApp/SMS) - never
+	rely on the http->https redirect."""
+	base = frappe.utils.get_url().rstrip("/")
+	if base.startswith("http://") and "localhost" not in base \
+			and "127.0.0.1" not in base:
+		base = "https://" + base[len("http://"):]
+	return base + path
 
 
 def _tier_for(lifetime: int) -> str:
@@ -167,10 +188,13 @@ def _recent_txns(guest_name: str, limit: int = 10):
 		fields=["posting_date", "kind", "points", "balance_after", "note"],
 		order_by="creation desc", limit_page_length=limit,
 	)
+	# the voucher code went only to the member's phone - a balance lookup
+	# (anyone with the number) must not reveal it
 	return [{"date": str(r.posting_date), "kind": r.kind,
 	         "points": int(r.points or 0),
 	         "balance": int(r.balance_after or 0),
-	         "note": r.note or ""} for r in rows]
+	         "note": VOUCHER_RE.sub(r"LOY-\1••\2", r.note or "")}
+	        for r in rows]
 
 
 # ---------------------------------------------------------------------------
@@ -241,21 +265,31 @@ def on_reservation_update(doc, method=None):
 		pts = int(float(doc.amount_after_tax or 0)) // divisor if divisor else 0
 		if pts <= 0:
 			return
-		balance = _credit_locked(doc.guest, pts)
-		lifetime = int(guest.loyalty_lifetime_points or 0) + pts
-		frappe.db.set_value("Guest", doc.guest,
-		                    {"loyalty_lifetime_points": lifetime,
-		                     "loyalty_tier": _tier_for(lifetime)},
-		                    update_modified=False)
-		_post(doc.guest, pts, "Earn", balance,
-		      property=doc.property, reservation=doc.name,
-		      note=f"Stay {doc.name} - KES {float(doc.amount_after_tax or 0):,.0f}")
-		from cloudtrade_hospitality import guest_templates
+		# balance, lifetime and the Earn row move together or not at all:
+		# a half-applied award (balance up, no Earn row) would pass the
+		# idempotency check above and pay out again on the next save
+		frappe.db.savepoint("loyalty_earn")
+		try:
+			balance = _credit_locked(doc.guest, pts)
+			lifetime = int(guest.loyalty_lifetime_points or 0) + pts
+			frappe.db.set_value("Guest", doc.guest,
+			                    {"loyalty_lifetime_points": lifetime,
+			                     "loyalty_tier": _tier_for(lifetime)},
+			                    update_modified=False)
+			_post(doc.guest, pts, "Earn", balance,
+			      property=doc.property, reservation=doc.name,
+			      note=f"Stay {doc.name} - KES {float(doc.amount_after_tax or 0):,.0f}")
+		except Exception:
+			frappe.db.rollback(save_point="loyalty_earn")
+			raise
 		prop_name = frappe.db.get_value(
 			"Property", doc.property, "property_name") or doc.property or ""
-		guest_templates.send(
-			"loyalty_points", doc, channels=("whatsapp", "sms"),
-			reference=False,
+		# after commit: no message for an award that rolls back, and no
+		# gateway call inside the Reservation save
+		frappe.enqueue(
+			"cloudtrade_hospitality.guest_templates.send", queue="short",
+			enqueue_after_commit=True, key="loyalty_points", res=doc.name,
+			channels=("whatsapp", "sms"), reference=False,
 			first=(doc.guest_name or "").split(" ")[0] or "there",
 			property=prop_name,
 			points_earned=f"{pts:,}",
@@ -329,16 +363,17 @@ def loyalty_enroll(phone: str = "", name: str = ""):
 		try:
 			from cloudtrade_hospitality import guest_templates
 			guest_templates.send_direct(
-				"loyalty_enrolled", phone,
+				"loyalty_enrolled", guest.phone or phone,
 				first=guest.first_name or "there",
 				points=f"{balance:,}", balance=f"{balance:,}",
 				programme=_("the loyalty programme"),
-				book_url=f"{frappe.utils.get_url().rstrip('/')}/kamra/book")
+				# "your balance and rewards" - the loyalty page itself
+				book_url=_guest_url("/kamra/loyalty"))
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "loyalty.enrol_notify")
 	from kamra.track import record as _track_click
-	_track_click("loyalty_enrolled", guest=guest.name, reference=phone,
-	             channel="web")
+	_track_click("loyalty_enrolled", guest=guest.name,
+	             reference=_phone_key(phone), channel="web")
 	frappe.db.commit()  # nosemgrep: frappe-manual-commit -- public enrolment endpoint; persists before returning to external caller; reviewed as intentional
 	guest = frappe.db.get_value(
 		"Guest", guest.name,
@@ -350,12 +385,69 @@ def loyalty_enroll(phone: str = "", name: str = ""):
 	return out
 
 
+def _otp_key(guest_name: str) -> str:
+	return f"kamra:loyalty_otp:{guest_name}"
+
+
+def _otp_hash(guest_name: str, code: str) -> str:
+	return hashlib.sha256(
+		f"{guest_name}:{(code or '').strip()}".encode()).hexdigest()
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+@rate_limit(limit=5, seconds=3600)
+def loyalty_request_code(phone: str = ""):
+	"""Send a one-time redeem code to the member's stored phone. Answers
+	the same way whether or not the number is enrolled."""
+	if not _enabled():
+		frappe.throw(_("The loyalty programme isn't running right now."))
+	guest = _find_guest((phone or "").strip())
+	if guest and guest.loyalty_enrolled_on and guest.phone:
+		code = f"{secrets.randbelow(10 ** 6):06d}"
+		frappe.cache.set_value(
+			_otp_key(guest.name),
+			{"hash": _otp_hash(guest.name, code), "tries": 0},
+			expires_in_sec=OTP_TTL_SECONDS)
+		try:
+			from cloudtrade_hospitality import guest_templates
+			guest_templates.send_direct(
+				"loyalty_otp", guest.phone,
+				first=guest.first_name or "there", code=code,
+				minutes=str(OTP_TTL_SECONDS // 60))
+		except Exception:
+			frappe.log_error(frappe.get_traceback(), "loyalty.otp_notify")
+		frappe.db.commit()  # nosemgrep: frappe-manual-commit -- flushes the enqueued message from a guest endpoint
+	return {"ok": True, "sent_to": _mask_phone(guest.phone if guest else phone),
+	        "expires_in": OTP_TTL_SECONDS}
+
+
+def _check_otp(guest_name: str, code: str) -> None:
+	key = _otp_key(guest_name)
+	entry = frappe.cache.get_value(key)
+	if not entry or not (code or "").strip():
+		frappe.throw(_("Request a code first - we'll send it to your phone."),
+		             title=_("Code needed"))
+	if int(entry.get("tries") or 0) >= OTP_MAX_TRIES:
+		frappe.cache.delete_value(key)
+		frappe.throw(_("Too many wrong codes - request a new one."),
+		             title=_("Code expired"))
+	if not secrets.compare_digest(entry.get("hash") or "",
+	                              _otp_hash(guest_name, code)):
+		entry["tries"] = int(entry.get("tries") or 0) + 1
+		frappe.cache.set_value(key, entry, expires_in_sec=OTP_TTL_SECONDS)
+		frappe.throw(_("That code isn't right - check the message and try again."),
+		             title=_("Wrong code"))
+	frappe.cache.delete_value(key)
+
+
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(limit=10, seconds=3600)
-def loyalty_redeem(phone: str = "", property: str = "", points: int = 0):
+def loyalty_redeem(phone: str = "", property: str = "", points: int = 0,
+                   code: str = ""):
 	"""Turn points into a single-use Discount Voucher for one property.
-	The code is messaged to the enrolled phone only - the response shows
-	a masked version so a stolen session can't lift the voucher."""
+	Needs the one-time code from loyalty_request_code. The voucher is
+	messaged to the member's stored phone only - the response shows a
+	masked version so a stolen session can't lift the voucher."""
 	if not _enabled():
 		frappe.throw(_("The loyalty programme isn't running right now."))
 	cfg = _cfg()
@@ -371,6 +463,8 @@ def loyalty_redeem(phone: str = "", property: str = "", points: int = 0):
 	if not frappe.db.exists("Property", property or ""):
 		frappe.throw(_("Pick a property for the voucher."))
 	prop_name = frappe.db.get_value("Property", property, "property_name") or property
+	# the code proves the caller holds the member's phone
+	_check_otp(guest.name, code)
 
 	kes_per_point = float(cfg.get("redeem_kes_per_point") or 5)
 	value_kes = round(points * kes_per_point, 2)
@@ -398,10 +492,10 @@ def loyalty_redeem(phone: str = "", property: str = "", points: int = 0):
 	      note=f"{points:,} pts -> KES {value_kes:,.0f} voucher {code}")
 	try:
 		from cloudtrade_hospitality import guest_templates
-		book_url = f"{frappe.utils.get_url().rstrip('/')}/kamra/book?property=" \
+		book_url = _guest_url("/kamra/book?property=") \
 			+ (frappe.db.get_value("Property", property, "page_slug") or "")
 		guest_templates.send_direct(
-			"loyalty_voucher", phone,
+			"loyalty_voucher", guest.phone,
 			first=guest.first_name or "there",
 			points=f"{points:,}",
 			value=f"KES {value_kes:,.0f}",
@@ -426,7 +520,7 @@ def loyalty_redeem(phone: str = "", property: str = "", points: int = 0):
 		"points_balance": balance,
 		"valid_to": str(valid_to),
 		"property": prop_name,
-		"sent_to": _mask_phone(phone),
+		"sent_to": _mask_phone(guest.phone),
 	}
 
 

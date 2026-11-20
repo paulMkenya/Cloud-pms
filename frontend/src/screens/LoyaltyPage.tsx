@@ -53,6 +53,9 @@ export default function LoyaltyPage() {
   // redeem form
   const [prop, setProp] = useState("")
   const [points, setPoints] = useState("")
+  // one-time code sent to the member's phone before a redeem
+  const [codeSentTo, setCodeSentTo] = useState<string | null>(null)
+  const [code, setCode] = useState("")
 
   useEffect(() => {
     adoptGuestLanguage()
@@ -94,14 +97,30 @@ export default function LoyaltyPage() {
     }
   }
 
+  async function requestCode() {
+    setBusy("code")
+    setError(null)
+    try {
+      const out = await callGuest<{ sent_to: string }>("kamra.loyalty.loyalty_request_code", { phone })
+      setCodeSentTo(out.sent_to)
+      setCode("")
+    } catch (e) {
+      setError(serverError(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+
   async function redeem() {
     setBusy("redeem")
     setError(null)
     try {
       const out = await callGuest<RedeemResult>("kamra.loyalty.loyalty_redeem", {
-        phone, property: prop, points: parseInt(points || "0", 10),
+        phone, property: prop, points: parseInt(points || "0", 10), code: code.trim(),
       })
       setRedeemed(out)
+      setCodeSentTo(null)
+      setCode("")
       await lookup()
     } catch (e) {
       setError(serverError(e))
@@ -315,14 +334,47 @@ export default function LoyaltyPage() {
               {status.redeem.voucher_days ? ` · ${t("valid {days} days", { days: status.redeem.voucher_days })}` : ""}
             </p>
           )}
-          <Button
-            variant="outline"
-            className="w-full justify-center"
-            disabled={busy !== null || !canRedeem}
-            onClick={redeem}
-          >
-            {busy === "redeem" ? t("Creating voucher…") : t("Get voucher")}
-          </Button>
+          {codeSentTo === null ? (
+            <Button
+              variant="outline"
+              className="w-full justify-center"
+              disabled={busy !== null || !canRedeem}
+              onClick={requestCode}
+            >
+              {busy === "code" ? t("Sending code…") : t("Send me a code")}
+            </Button>
+          ) : (
+            <>
+              <label className="block text-xs font-medium text-zinc-600">
+                {t("Code sent to {phone}", { phone: codeSentTo })}
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-center text-lg tracking-[0.4em]"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                />
+              </label>
+              <Button
+                variant="outline"
+                className="w-full justify-center"
+                disabled={busy !== null || !canRedeem || code.trim().length !== 6}
+                onClick={redeem}
+              >
+                {busy === "redeem" ? t("Creating voucher…") : t("Get voucher")}
+              </Button>
+              <button
+                type="button"
+                className="w-full text-center text-[11px] text-zinc-400 underline"
+                disabled={busy !== null}
+                onClick={requestCode}
+              >
+                {t("Send a new code")}
+              </button>
+            </>
+          )}
           <p className="text-[11px] leading-relaxed text-zinc-400">
             {t("The code is sent to your WhatsApp/SMS on this number only - enter it at checkout on the booking page.")}
           </p>
@@ -351,7 +403,7 @@ export default function LoyaltyPage() {
       <button
         type="button"
         className="w-full text-center text-xs text-zinc-400 underline"
-        onClick={() => { setStatus(null); setError(null); setRedeemed(null) }}
+        onClick={() => { setStatus(null); setError(null); setRedeemed(null); setCodeSentTo(null); setCode("") }}
       >
         {t("Use a different number")}
       </button>

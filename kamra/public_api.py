@@ -932,7 +932,8 @@ def book(property: str, room_type: str, check_in_date: str,
          email: str = "", adults: int = 2, children: int = 0,
          meal_plan: str = "", special_requests: str = "", addons=None,
          voucher_code: str = "", idempotency_key: str = "", pets: int = 0,
-         child_ages=None, marketing_consent: int = 0, pay_full: int = 0):
+         child_ages=None, marketing_consent: int = 0, pay_full: int = 0,
+         inquiry: int = 0):
 	"""Create a Website booking. An existing guest profile is reused when
 	both the phone and the full name match; staff verify at check-in.
 	The advance owed is computed from the property's
@@ -993,7 +994,12 @@ def book(property: str, room_type: str, check_in_date: str,
 	status = None
 	hold_expires_on = None
 	assign_room = 1
-	if mode == "Request to Book" or above:
+	if int(inquiry or 0):
+		# guest asked a question first: no inventory held, no payment
+		# demanded - staff quote and confirm from the Inquiry queue
+		status = "Inquiry"
+		assign_room = 0
+	elif mode == "Request to Book" or above:
 		status = "Requested"
 		assign_room = 0
 	else:

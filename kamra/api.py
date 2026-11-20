@@ -6563,6 +6563,15 @@ def _amend_dates(doc, check_in_date: str, check_out_date: str,
 	early check-out shortens a stay through it)."""
 	if doc.status not in ("Confirmed", "Checked In"):
 		frappe.throw("Only active reservations can be amended.")
+	# inside the free-cancellation window the stay is locked: the policy
+	# sells those last days on the understanding they are not given back,
+	# so dates cannot move either
+	_free_days = cint(frappe.db.get_value(
+		"Property", doc.property, "free_cancel_days") or 0)
+	if _free_days and frappe.utils.date_diff(doc.check_in_date, nowdate()) < _free_days:
+		frappe.throw(_("Dates are locked {0} days before arrival - inside "
+		               "the cancellation window the booking can only be "
+		               "cancelled.").format(_free_days))
 	old = f"{doc.check_in_date}→{doc.check_out_date}"
 	old_amount = float(doc.amount_after_tax or 0)
 	_require_price_confirmation(

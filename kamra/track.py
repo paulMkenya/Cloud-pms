@@ -20,6 +20,7 @@ once per window rather than all anonymous visitors counting as one.
 from __future__ import annotations
 
 import hashlib
+import re
 
 import json
 
@@ -37,6 +38,26 @@ EVENTS = (
 	"checkin_view", "review_view", "review_submitted",
 	"loyalty_view", "loyalty_enrolled", "loyalty_redeemed",
 )
+
+
+# page views only: link-preview fetchers, crawlers and scripted checks are
+# not visitors (actions such as bookings and payments are always counted)
+VIEW_EVENTS = {"catalog_view", "listing_view", "offer_view", "checkin_view",
+               "review_view", "loyalty_view"}
+_ROBOT = re.compile(r"(?i)bot|crawl|spider|slurp|preview|facebookexternalhit|whatsapp|"
+                    r"telegram|curl|wget|python-requests|headlesschrome|playwright")
+
+
+def _is_robot() -> bool:
+	try:
+		req = getattr(frappe.local, "request", None)
+		if req is None:
+			return False
+		ua = req.headers.get("User-Agent", "") if req.headers else ""
+		ip = getattr(frappe.local, "request_ip", None) or req.remote_addr or ""
+		return (not ua) or bool(_ROBOT.search(ua)) or ip in (frappe.conf.get("track_ignore_ips") or [])
+	except Exception:
+		return False
 
 
 def _visitor_key() -> str:
@@ -61,6 +82,8 @@ def record(event: str, property: str | None = None, reference: str = "",
 	errors - tracking must never break the flow it observes."""
 	try:
 		if event not in EVENTS:
+			return
+		if event in VIEW_EVENTS and _is_robot():
 			return
 		property = property or None
 		reference = (reference or _visitor_key())[:140]

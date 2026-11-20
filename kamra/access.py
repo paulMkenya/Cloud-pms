@@ -84,6 +84,14 @@ def release_access(reservation: str, *, force: int = 0) -> dict:
 		frappe.throw(_("Set access instructions on the Property or the booked room first."))
 	res.db_set("access_released", 1, update_modified=False)
 	res.db_set("access_released_on", now_datetime(), update_modified=False)
+	# guest gets Wi-Fi/entry/rules on WhatsApp + SMS (CloudTrade
+	# Hospitality guest_templates; a no-op on sites without the app)
+	try:
+		frappe.enqueue(
+			"cloudtrade_hospitality.guest_templates.send_access_details",
+			reservation=res.name, enqueue_after_commit=True)
+	except Exception:
+		pass
 	return {
 		"reservation": res.name,
 		"access_released": 1,

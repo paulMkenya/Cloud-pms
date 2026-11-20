@@ -13,6 +13,7 @@ import {
   FileCheck2,
   Globe,
   Landmark,
+  MessageSquareText,
   LayoutGrid,
   ListTodo,
   Palette,
@@ -50,6 +51,7 @@ import {
   ZatcaCard,
 } from "./cards"
 import { McpAccessPage } from "./McpAccessPage"
+import { GuestMessagesPage } from "./GuestMessagesPage"
 import { ModulePage, Switch, type OptionSources } from "./ModulePage"
 import { WebhooksPage } from "./WebhooksPage"
 
@@ -97,6 +99,9 @@ const CUSTOM_PAGES: CustomPage[] = [
   { id: "claude", title: "AI access (MCP)", group: "access", icon: LayoutGrid,
     description: "Who may connect Claude or another AI client, what it may do here, and the live connections.",
     keywords: "mcp claude chatgpt n8n desktop connector oauth agent ai access read manage permissions roles block tools disconnect" },
+  { id: "guest-messages", title: "Guest messages", group: "integrations", icon: MessageSquareText,
+    description: "WhatsApp and SMS texts guests receive - booking, deposit, reminders and access details.",
+    keywords: "whatsapp sms template message guest notification booking confirmation deposit reminder wifi access wording text" },
   { id: "webhooks", title: "Webhooks", group: "integrations", icon: Webhook,
     description: "Send bookings, check-ins, folio postings and the night audit to another system as signed events.",
     keywords: "webhook integration events api door lock pos crm data warehouse signature delivery log resend" },
@@ -528,6 +533,8 @@ function CustomPageBody({
           <AgentAccessCard />
         </div>
       )
+    case "guest-messages":
+      return <GuestMessagesPage />
     case "webhooks":
       return <WebhooksPage property={property} />
     case "verify":

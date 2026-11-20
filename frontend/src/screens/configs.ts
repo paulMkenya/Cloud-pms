@@ -6,6 +6,7 @@ import { lazy } from "react"
 const CompanyExtras = lazy(() => import("../components/CompanyExtras"))
 const EventLinks = lazy(() => import("../components/EventLinks"))
 const GroupControl = lazy(() => import("../components/GroupControl"))
+const RoomDuplicate = lazy(() => import("../components/RoomDuplicate"))
 const RoomTypeMedia = lazy(() => import("../components/RoomTypeMedia"))
 const OutletWaiters = lazy(() => import("../components/OutletWaiters"))
 const HkTaskMediaPanel = lazy(() =>
@@ -59,6 +60,7 @@ export const roomsConfig: ScreenConfig = {
     { field: "housekeeping_status", label: "Housekeeping status", type: "select", options: ["Clean", "Dirty", "Inspected", "Ready", "Out of Order"] },
     { field: "notes", label: "Notes", type: "data" },
   ],
+  extra: RoomDuplicate,
 }
 
 export const roomTypesConfig: ScreenConfig = {

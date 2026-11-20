@@ -116,6 +116,17 @@ def settle_payment_link(folio_name: str, link_id: str, amount: float) -> bool:
 	           rationale=f"{amount:,.0f} {'deposit ' if pre_arrival else ''}"
 	                     f"auto-posted from payment link",
 	           agent_name="Payments", channel="API")
+	try:
+		from kamra.track import record as _track_click
+		_track_click(
+			"payment_received",
+			property=(res.property if res else getattr(folio, "property", None)),
+			reservation=res.name if res else None,
+			reference=link_id, guest=res.guest if res else None,
+			channel="link",
+			meta={"amount": amount, "folio": folio.name})
+	except Exception:
+		pass
 	return True
 
 

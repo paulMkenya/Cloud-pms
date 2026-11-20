@@ -191,6 +191,12 @@ def catalog_index(property_slug: str | None = None):
 			        "showcase_description"],
 			order_by="property_name asc",
 		)
+	from kamra.track import record as _track_click
+	if property_slug:
+		_track_click("listing_view", property=properties[0].name,
+		             channel="web")
+	else:
+		_track_click("catalog_view", channel="web")
 	if len(properties) > 1:
 		rt_names = frappe.db.sql(
 			"""SELECT property, room_type_name FROM `tabRoom Type`
@@ -510,6 +516,10 @@ def precheckin_info(token: str):
 	res = _res_by_token(token)
 	if res.status not in ("Confirmed", "Checked In"):
 		frappe.throw("This booking is no longer active.")
+	from kamra.track import record as _track_click
+	_track_click("checkin_view", property=res.property,
+	             reservation=res.name, reference=res.name, guest=res.guest,
+	             channel="link")
 	prop = frappe.get_doc("Property", res.property)
 	guest = frappe.get_doc("Guest", res.guest)
 	from kamra.localization import front_desk_vocabulary, pack_for
@@ -1087,6 +1097,15 @@ def book(property: str, room_type: str, check_in_date: str,
 			set_marketing_consent(result["guest"], 1, "Booking Page", property)
 		frappe.db.commit()  # nosemgrep: frappe-manual-commit -- persists the completed operation before returning to an external/public caller; reviewed as intentional
 
+	from kamra.track import record as _track_click
+	_track_click(
+		"inquiry_sent" if int(inquiry or 0) else "booking_created",
+		property=property, reservation=result["reservation"],
+		reference=result["reservation"], guest=result.get("guest"),
+		channel="web",
+		meta={"room_type": room_type, "check_in": str(check_in_date),
+		      "check_out": str(check_out_date),
+		      "amount": result.get("amount_after_tax")})
 	final_status = frappe.db.get_value(
 		"Reservation", result["reservation"], "status")
 	return {
@@ -1174,6 +1193,10 @@ def guest_payment_link(token: str, amount: float | None = None):
 	         checkin=res.check_in_date, checkout=res.check_out_date,
 	         url=link["url"])
 	link["deposit"] = state
+	from kamra.track import record as _track_click
+	_track_click("payment_click", property=res.property,
+	             reservation=res.name, reference=res.name, guest=res.guest,
+	             channel="link", meta={"amount": amt})
 	return link
 
 

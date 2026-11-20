@@ -170,6 +170,10 @@ def offer_context(token: str):
 	"""What the guest sees on the offer page. Read-only."""
 	res = _find_by_token(token)
 	expired = _expired(res)
+	from kamra.track import record as _track_click
+	_track_click("offer_view", property=res.property,
+	             reservation=res.name, reference=res.name, guest=res.guest,
+	             channel="link")
 	prop_name = frappe.db.get_value(
 		"Property", res.property, "property_name") or res.property
 	rt_name = frappe.db.get_value("Room Type", res.room_type,
@@ -225,6 +229,10 @@ def respond_offer(token: str, accept: int):
 					  "the pay button."),
 					title=_("Payment required"))
 			_confirm_status(res)
+			from kamra.track import record as _track_click
+			_track_click("offer_accepted", property=res.property,
+			             reservation=res.name, reference=res.name,
+			             guest=res.guest, channel="link")
 			frappe.db.commit()
 			return {"accepted": True, "reservation": res.name,
 			        "status": "Confirmed"}
@@ -243,6 +251,10 @@ def respond_offer(token: str, accept: int):
 			res.save(ignore_permissions=True)
 		finally:
 			frappe.flags.kamra_cancelling = False
+		from kamra.track import record as _track_click
+		_track_click("offer_declined", property=res.property,
+		             reservation=res.name, reference=res.name,
+		             guest=res.guest, channel="link")
 		frappe.db.commit()
 		return {"accepted": False, "reservation": res.name,
 		        "status": "Cancelled"}
@@ -264,11 +276,19 @@ def respond_offer(token: str, accept: int):
 			out = _accept_request(res.name)
 		finally:
 			frappe.flags.kamra_trusted = False
+		from kamra.track import record as _track_click
+		_track_click("offer_accepted", property=res.property,
+		             reservation=res.name, reference=res.name,
+		             guest=res.guest, channel="link")
 		return {"accepted": True, "reservation": res.name,
 		        "status": "Confirmed", "room": out.get("room")}
 
 	from kamra.booking_requests import _decline_request
 	_decline_request(res.name, _("Guest declined the offer"), notify=False)
+	from kamra.track import record as _track_click
+	_track_click("offer_declined", property=res.property,
+	             reservation=res.name, reference=res.name,
+	             guest=res.guest, channel="link")
 	frappe.db.commit()
 	return {"accepted": False, "reservation": res.name,
 	        "status": "Cancelled"}

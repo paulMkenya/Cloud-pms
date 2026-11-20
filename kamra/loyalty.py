@@ -278,6 +278,8 @@ def loyalty_status(phone: str = ""):
 	enrolled=False with no personal data."""
 	if not _enabled():
 		frappe.throw(_("The loyalty programme isn't running right now."))
+	from kamra.track import record as _track_click
+	_track_click("loyalty_view", channel="web")
 	out = _status(phone=phone or "")
 	if out["enrolled"]:
 		guest = _find_guest(phone)
@@ -334,6 +336,9 @@ def loyalty_enroll(phone: str = "", name: str = ""):
 				book_url=f"{frappe.utils.get_url().rstrip('/')}/kamra/book")
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "loyalty.enrol_notify")
+	from kamra.track import record as _track_click
+	_track_click("loyalty_enrolled", guest=guest.name, reference=phone,
+	             channel="web")
 	frappe.db.commit()  # nosemgrep: frappe-manual-commit -- public enrolment endpoint; persists before returning to external caller; reviewed as intentional
 	guest = frappe.db.get_value(
 		"Guest", guest.name,
@@ -406,6 +411,10 @@ def loyalty_redeem(phone: str = "", property: str = "", points: int = 0):
 			book_url=book_url)
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "loyalty.redeem_notify")
+	from kamra.track import record as _track_click
+	_track_click("loyalty_redeemed", property=property, guest=guest.name,
+	             reference=code, channel="web",
+	             meta={"points": points, "value_kes": value_kes})
 	frappe.db.commit()  # nosemgrep: frappe-manual-commit -- persists redemption before returning to external caller; reviewed as intentional
 	masked = code[:4] + "••" + code[-2:] if len(code) > 7 else "••••"
 	return {

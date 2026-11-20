@@ -9,6 +9,7 @@ import {
   History,
   LayoutDashboard,
   MoonStar,
+  MousePointerClick,
   ScrollText,
   Smartphone,
   Timer,
@@ -75,6 +76,12 @@ const SECTIONS: { title: string; items: ReportLink[] }[] = [
       { to: "/folio-history", label: "Folio history", blurb: "Closed bills and invoices.", icon: History, app: "finance" },
       { to: "/voids-allowances", label: "Voids and allowances", blurb: "Every void and allowance, with who and why.", icon: FileX2, app: "finance", roles: MONEY_ROLES },
       { to: "/accounting-export", label: "Accounting export", blurb: "Books for your accounting software.", icon: FileSpreadsheet, app: "finance" },
+    ],
+  },
+  {
+    title: "Marketing",
+    items: [
+      { to: "/campaigns", label: "Campaign tracking", blurb: "Guest clicks per property - page views, bookings, offer and payment link opens, reviews, loyalty - and what each click led to.", icon: MousePointerClick },
     ],
   },
   {

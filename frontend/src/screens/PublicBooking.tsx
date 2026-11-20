@@ -249,23 +249,23 @@ function PropertyChooser({
   return (
     <div className="min-h-screen bg-zinc-50">
       <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
-        <div className="flex items-start justify-between gap-4">
-          <div>
+        <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-3 sm:items-center">
+          <div className="min-w-0 flex-1 basis-60">
             <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl">
               {t("Places to stay")}
             </h1>
-            <p className="mt-2 text-zinc-500">
+            <p className="mt-2 max-w-xl text-zinc-500">
               {t("Pick a property to see its rooms, prices and availability.")}
             </p>
             <Link
               to="/kamra/loyalty"
-              className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline"
+              className="mt-2.5 inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline"
             >
               <Coins className="size-4" aria-hidden />
               {t("Loyalty programme - earn points on every stay")}
             </Link>
           </div>
-          <LanguageSwitcher />
+          <LanguageSwitcher className="ms-auto sm:ms-0" />
         </div>
         {(cities.length > 1 || bedSizes.length > 0) && (
           <div className="mt-6 flex flex-wrap items-center gap-2">

@@ -68,6 +68,7 @@ interface InvoiceData {
   property: {
     name: string
     legal_name: string | null
+    company?: string | null
     logo_url: string | null
     address: string
     state: string | null
@@ -817,8 +818,14 @@ export default function FolioView() {
               )}
               <div>
                 <h1 className="text-xl font-semibold">
-                  {property.legal_name || property.name}
+                  {property.legal_name || property.company || property.name}
                 </h1>
+                {property.company &&
+                  property.company !== (property.legal_name || property.name) && (
+                    <p className="text-sm text-zinc-500">
+                      {t("Operated by {name}", { name: property.company })}
+                    </p>
+                  )}
                 {property.legal_name &&
                   property.legal_name !== property.name && (
                     <p className="text-sm text-zinc-500">{property.name}</p>

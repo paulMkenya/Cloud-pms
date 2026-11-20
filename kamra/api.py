@@ -3511,6 +3511,11 @@ def folio_invoice(folio: str):
 		},
 		"property": {
 			"name": prop.property_name, "legal_name": prop.legal_name,
+			# the tenant entity on guest documents (e.g. the management
+			# company) - falls back handled by the print layer
+			"company": (frappe.db.get_value(
+				"Company", prop.operating_company, "company_name")
+				if prop.get("operating_company") else None),
 			"logo_url": prop.get("logo_url"),
 			"address_line": prop.address_line, "city": prop.city,
 			"state": prop.state, "pincode": prop.pincode,

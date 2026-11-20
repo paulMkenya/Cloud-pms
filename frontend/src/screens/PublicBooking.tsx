@@ -213,6 +213,7 @@ interface PropertyCard {
   property_kind: string | null
   description: string | null
   from_rate: number
+  bedrooms?: number[]
 }
 
 /** /book on a site with several properties: pick one, then book it. Each
@@ -226,13 +227,19 @@ function PropertyChooser({
   stayPath: string
   query: string
 }) {
-  const { t } = useT()
+  const { t, tn } = useT()
   const [city, setCity] = useState("")
+  const [size, setSize] = useState<number | null>(null)
   useEffect(() => {
     document.title = t("Places to stay - book direct")
   }, [t])
   const cities = [...new Set(properties.map((p) => p.city).filter((c): c is string => !!c))].sort()
-  const shownProps = city ? properties.filter((p) => p.city === city) : properties
+  const bedSizes = [...new Set(properties.flatMap((p) => p.bedrooms ?? []))].sort((a, b) => a - b)
+  const shownProps = properties.filter(
+    (p) =>
+      (!city || p.city === city) &&
+      (size === null || (p.bedrooms ?? []).includes(size)),
+  )
   const linkFor = (slug: string) => {
     const qs = new URLSearchParams(query)
     qs.set("property", slug)
@@ -252,15 +259,34 @@ function PropertyChooser({
           </div>
           <LanguageSwitcher />
         </div>
-        {cities.length > 1 && (
+        {(cities.length > 1 || bedSizes.length > 0) && (
           <div className="mt-6 flex flex-wrap items-center gap-2">
-            <label htmlFor="city-filter" className="text-sm text-zinc-500">{t("Location")}</label>
-            <select id="city-filter" value={city} onChange={(e) => setCity(e.target.value)}
+            {cities.length > 1 && (
+              <>
+                <label htmlFor="city-filter" className="text-sm text-zinc-500">{t("Location")}</label>
+                <select id="city-filter" value={city} onChange={(e) => setCity(e.target.value)}
+                  className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm focus:outline-2 focus:outline-offset-1 focus:outline-brand-600">
+                  <option value="">{t("All locations")}</option>
+                  {cities.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </>
+            )}
+            <label htmlFor="size-filter" className="text-sm text-zinc-500">{t("Room size")}</label>
+            <select id="size-filter" value={size === null ? "" : String(size)}
+              onChange={(e) => setSize(e.target.value === "" ? null : Number(e.target.value))}
               className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm focus:outline-2 focus:outline-offset-1 focus:outline-brand-600">
-              <option value="">{t("All locations")}</option>
-              {cities.map((c) => <option key={c} value={c}>{c}</option>)}
+              <option value="">{t("Any size")}</option>
+              <option value="0">{t("Studio")}</option>
+              {bedSizes.filter((b) => b > 0).map((b) => (
+                <option key={b} value={b}>{tn(b, "{n} bedroom", "{n} bedrooms")}</option>
+              ))}
             </select>
           </div>
+        )}
+        {shownProps.length === 0 && (
+          <p className="mt-8 text-sm text-zinc-500">
+            {t("No properties match those filters - try widening them.")}
+          </p>
         )}
         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {shownProps.map((p) => (

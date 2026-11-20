@@ -27,6 +27,15 @@ def _room_type_filters(property: str, listing_slug: str | None = None,
 	return filters
 
 
+def _bedrooms_of(room_type_name: str) -> int | None:
+	"""Bedroom count parsed from the display name - mirrors the guest
+	page's bedroomsOf() so the catalog filter agrees with in-page filters."""
+	m = re.search(r"(\d+)\s*(?:bed|br|bedroom)", room_type_name or "", re.I)
+	if m:
+		return int(m.group(1))
+	return 0 if re.search(r"studio", room_type_name or "", re.I) else None
+
+
 def _room_type_payload(rt) -> dict:
 	return {
 		"name": rt.name,
@@ -183,7 +192,16 @@ def catalog_index(property_slug: str | None = None):
 			order_by="property_name asc",
 		)
 	if len(properties) > 1:
+		rt_names = frappe.db.sql(
+			"""SELECT property, room_type_name FROM `tabRoom Type`
+			WHERE disabled = 0""", as_dict=True)
+		sizes_by_prop = {}
+		for row in rt_names:
+			sz = _bedrooms_of(row.room_type_name)
+			if sz is not None:
+				sizes_by_prop.setdefault(row.property, set()).add(sz)
 		for p in properties:
+			p["bedrooms"] = sorted(sizes_by_prop.get(p.name, ()))
 			p["property_slug"] = p.get("page_slug") or slugify(p["property_name"])
 			p["description"] = p.pop("showcase_description", None)
 			# a card needs a "from" price and a photo even when the

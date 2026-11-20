@@ -3,13 +3,21 @@
 
 """Staff -> guest booking offers.
 
-A desk user prices a stay (usually at a negotiated rate), parks it as a
-Request-to-Book stay and sends the guest an offer link. The offer holds
-NO inventory - the room is only taken when the guest accepts, at which
-point kamra.booking_requests._accept_request re-runs every inventory rule
-under lock, exactly like a staff accept. Offers expire after a configurable
-window (default 72h, max 14 days); an expired offer can no longer be
-accepted and is lazily cancelled the next time it is touched.
+A desk user prices a stay (usually at a negotiated rate) and sends the
+guest an offer link with the full stay details. Two offer shapes:
+
+- Pay-to-confirm (the desk default): the stay is a Pending Payment
+  booking - inventory is held for the payment window (default 2h,
+  configurable to 14 days). The guest pays the deposit or the full
+  amount through a CloudPay link; the payment webhook confirms the
+  booking. Unpaid at expiry, expire_holds cancels it - "Hold / payment
+  window expired".
+- Free confirm: a Requested stay - the guest's accept runs the same
+  lock-checked _accept_request a clerk would, taking inventory only
+  then. Offer expiry cancels it lazily.
+
+The offer_token is the guest's bearer secret for /kamra/offer/<token>;
+the precheckin_token rides along for the payment-link endpoint.
 """
 
 from __future__ import annotations
@@ -20,7 +28,7 @@ from frappe.utils import add_to_date, get_datetime, now_datetime
 
 from kamra.authz import require_roles
 
-DEFAULT_TTL_HOURS = 72
+DEFAULT_TTL_HOURS = 2
 MAX_TTL_HOURS = 24 * 14
 
 
@@ -49,8 +57,10 @@ def _expired(res) -> bool:
 
 
 def _expire(res):
-	"""Lazily close an offer whose window passed: cancel the Requested
-	stay with no fee (it never held inventory) and free any room hint."""
+	"""Lazily close an unpaid Requested offer whose window passed: cancel
+	the stay with no fee (it never held inventory) and free any room hint.
+	Pending Payment offers are released by expire_holds on hold_expires_on
+	instead - the scheduler owns that cancellation."""
 	from frappe.model.naming import make_autoname
 
 	res.status = "Cancelled"
@@ -70,44 +80,54 @@ def _expire(res):
 @frappe.whitelist(methods=["POST"])
 @require_roles("Front Desk", "Kamra Agent", "Hotel Admin", "System Manager")
 def send_offer(reservation: str, expires_hours: int = DEFAULT_TTL_HOURS):
-	"""Turn a Requested stay into a guest offer: mint the token, set the
-	expiry and send the WhatsApp/SMS link through the guest templates.
-	Safe to call again - it re-sends with a fresh expiry."""
+	"""Turn a Requested or Pending Payment stay into a guest offer: mint
+	the token, (re)set the payment window and send the WhatsApp/SMS link
+	through the guest templates. Safe to call again - it re-sends with a
+	fresh window. On a Pending Payment stay the window is also the hold
+	expiry, so an unpaid offer is released automatically."""
 	from kamra.savings import log_action
 
 	res = frappe.get_doc("Reservation", reservation)
-	if res.status != "Requested":
+	if res.status not in ("Requested", "Pending Payment"):
 		frappe.throw(
-			_("{0} is {1} - an offer goes out on a pending request.").format(
-				res.name, res.status),
+			_("{0} is {1} - an offer goes out on a pending request or an "
+			  "unpaid booking.").format(res.name, res.status),
 			title=_("Not a booking request"))
 	if not res.offer_token:
 		res.offer_token = frappe.generate_hash(length=24)
 	hours = max(1, min(int(expires_hours or DEFAULT_TTL_HOURS), MAX_TTL_HOURS))
-	res.offer_expires_on = add_to_date(now_datetime(), hours=hours)
+	deadline = add_to_date(now_datetime(), hours=hours)
+	res.offer_expires_on = deadline
+	if res.status == "Pending Payment":
+		# the payment window IS the hold: unpaid offers release themselves
+		res.hold_expires_on = deadline
 	res.save(ignore_permissions=True)
 
 	notified = {"sent": False}
 	try:
 		from cloudtrade_hospitality import guest_templates
+		guest = frappe.db.get_value(
+			"Guest", res.guest, ["phone"], as_dict=True) or {}
 		rate = float(res.get("agreed_rate") or 0)
 		ctx = guest_templates.booking_ctx(
 			res,
+			guest_name=res.guest_name or "",
+			phone=guest.get("phone") or "",
 			room_type=frappe.db.get_value("Room Type", res.room_type,
 			                              "room_type_name") or res.room_type,
 			rate_part=(f" · {res.agreed_rate:,.0f}/night"
 			           if rate > 0 else ""),
 			total=f"KES {float(res.amount_after_tax or 0):,.0f}",
 			link=_offer_url(res.offer_token),
-			expires=res.offer_expires_on.strftime("%d %b %Y, %H:%M"),
+			expires=deadline.strftime("%d %b %Y, %H:%M"),
 		)
 		# reference=False: WhatsApp Message Log dedupes on (reference, TEXT)
 		# and the booking-request alert already used it for this reservation
-		notified = {"queued": True}
 		frappe.enqueue(
 			"cloudtrade_hospitality.guest_templates.send", queue="short",
 			enqueue_after_commit=True, key="booking_offer", res=res.name,
 			channels=("whatsapp", "sms"), reference=False, **ctx)
+		notified = {"queued": True}
 	except Exception:
 		frappe.log_error(frappe.get_traceback(),
 		                 f"offers.send_offer message {res.name}")
@@ -116,15 +136,33 @@ def send_offer(reservation: str, expires_hours: int = DEFAULT_TTL_HOURS):
 		"booking_offer_sent", "Reservation", res.name, res.property,
 		rationale=f"Offer sent for {res.name} ({res.guest_name}) "
 	          f"{res.check_in_date}→{res.check_out_date}, "
-	          f"expires {res.offer_expires_on}",
+	          f"expires {deadline}",
 	)
 	return {"reservation": res.name, "offer_url": _offer_url(res.offer_token),
-	        "expires_on": str(res.offer_expires_on), "notified": notified}
+	        "expires_on": str(deadline), "notified": notified}
 
 
 # ---------------------------------------------------------------------------
 # Guest-facing offer page (/kamra/offer/<token>) - the only allow_guest part
 # ---------------------------------------------------------------------------
+
+
+def _deposit_ctx(res) -> dict:
+	"""What the guest can pay to confirm: the deposit still due and the
+	full remaining balance. Read-only figures from the same deposit state
+	the desk and the payment-link endpoint use."""
+	try:
+		from kamra.api import _deposit_state
+		state = _deposit_state(res)
+		expected = float(state.get("expected") or 0)
+		paid = float(state.get("paid") or 0)
+		due = float(state.get("due") or 0)
+		remaining = max(0.0, float(res.amount_after_tax or 0) - paid)
+		return {"deposit_due": due, "deposit_expected": expected,
+		        "paid": paid, "remaining": remaining}
+	except Exception:
+		return {"deposit_due": 0.0, "deposit_expected": 0.0,
+		        "paid": 0.0, "remaining": float(res.amount_after_tax or 0)}
 
 
 @frappe.whitelist(allow_guest=True)
@@ -152,24 +190,63 @@ def offer_context(token: str):
 		"expires_on": str(res.offer_expires_on) if res.get(
 			"offer_expires_on") else None,
 		"special_requests": res.get("special_requests"),
+		# the pre-arrival bearer token guest_payment_link expects - the
+		# offer token already proves the guest may pay this booking
+		"pay_token": res.precheckin_token,
+		"cancel_note": res.get("cancellation_note")
+		if res.status == "Cancelled" else None,
 	}
 	rate = float(res.get("agreed_rate") or 0)
 	if rate > 0:
 		out["nightly_rate"] = rate
+	if res.status == "Pending Payment":
+		out.update(_deposit_ctx(res))
 	return out
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def respond_offer(token: str, accept: int):
-	"""The guest's yes/no on the offer. Accept runs the exact same
-	inventory-checked confirmation a staff accept does; decline cancels the
-	request with no fee and no guest-facing 'we declined you' message."""
+	"""The guest's yes/no on a free (Requested) offer. A Pending Payment
+	offer is confirmed by payment, not here - accept only completes it when
+	the deposit is already covered; decline releases the hold with no fee."""
 	res = _find_by_token(token)
-	if _expired(res):
+	if _expired(res) and res.status == "Requested":
 		_expire(res)
 		frappe.db.commit()
 		frappe.throw(_("This offer has expired."),
 		             title=_("Offer expired"))
+
+	if res.status == "Pending Payment":
+		if int(accept or 0):
+			from kamra.api import _confirm_status, _deposit_state
+			if _deposit_state(res)["due"] > 0.005:
+				frappe.throw(
+					_("Payment is required to confirm this offer - use "
+					  "the pay button."),
+					title=_("Payment required"))
+			_confirm_status(res)
+			frappe.db.commit()
+			return {"accepted": True, "reservation": res.name,
+			        "status": "Confirmed"}
+		# decline: release the unpaid hold, no fee - same shape expire_holds
+		# and the staff decline write
+		from frappe.model.naming import make_autoname
+		res.status = "Cancelled"
+		res.cancellation_reason = "Other"
+		res.cancellation_note = "Offer declined by guest"[:1000]
+		res.cancellation_number = make_autoname("CXL-.YYYY.-.#####")
+		res.cancellation_fee = 0
+		res.cancelled_on = now_datetime()
+		res.room = None
+		frappe.flags.kamra_cancelling = True
+		try:
+			res.save(ignore_permissions=True)
+		finally:
+			frappe.flags.kamra_cancelling = False
+		frappe.db.commit()
+		return {"accepted": False, "reservation": res.name,
+		        "status": "Cancelled"}
+
 	if res.status != "Requested":
 		# idempotent: a double-tap or a refresh after the decision lands here
 		if res.status == "Confirmed" and int(accept or 0):
@@ -192,5 +269,6 @@ def respond_offer(token: str, accept: int):
 
 	from kamra.booking_requests import _decline_request
 	_decline_request(res.name, _("Guest declined the offer"), notify=False)
+	frappe.db.commit()
 	return {"accepted": False, "reservation": res.name,
 	        "status": "Cancelled"}

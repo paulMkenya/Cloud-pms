@@ -625,10 +625,13 @@ export const createBooking = (
     /** negotiated nightly room rate (desk) + internal reason, logged */
     agreed_rate?: number
     agreed_rate_note?: string
-    /** "Requested" parks the stay as a request (holds no inventory) -
+    /** "Requested" parks the stay as a request (holds no inventory);
+     *  "Pending Payment" holds it for the payment window - both are
      *  used with sendBookingOffer for guest-confirmed offers */
     status?: string
     assign_room?: number
+    /** ISO datetime - release the hold if unpaid by then (offers) */
+    hold_expires_on?: string
     booked_via?: string
     ota_ref?: string
     ota_total?: number

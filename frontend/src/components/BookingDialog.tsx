@@ -770,10 +770,13 @@ export function BookingDialog(props: {
           .map(([experience, qty]) => ({ experience, qty })),
         agreed_rate: canNegotiate && negRateNum > 0 ? negRateNum : undefined,
         agreed_rate_note: negNote.trim() || undefined,
-        // an offer parks the stay as Requested (no room, no inventory) and
-        // the guest's accept is what books it
-        status: offerMode && canOffer ? "Requested" : undefined,
-        assign_room: offerMode && canOffer ? 0 : undefined,
+        // an offer is a Pending Payment hold: the room is held for the
+        // payment window and the guest's payment confirms it; unpaid
+        // offers are released automatically
+        status: offerMode && canOffer ? "Pending Payment" : undefined,
+        hold_expires_on: offerMode && canOffer
+          ? new Date(Date.now() + 2 * 3600_000).toISOString()
+          : undefined,
         ...slotArgs,
         blacklist_override_reason: blacklistOverride,
         credit_override_reason: creditOverride,
@@ -1073,7 +1076,7 @@ export function BookingDialog(props: {
                 </p>
                 <p className="mt-1 text-sm">
                   {done.offerUrl
-                    ? t("The guest confirms by link - the room is only blocked when they accept.")
+                    ? t("The guest pays by link to confirm - the room is held for 2 hours, then released if unpaid.")
                     : done.room
                       ? t("Room {n} assigned.", { n: done.room.split("-").pop() ?? "" })
                       : t("No room auto-assigned - pick one from Reservations.")}{" "}
@@ -2724,7 +2727,7 @@ export function BookingDialog(props: {
                             {t("Send as offer")}
                           </span>
                           <span className="mt-0.5 block text-xs leading-relaxed text-zinc-500">
-                            {t("The guest gets a WhatsApp/SMS link to confirm at this price. Nothing is blocked until they accept; the offer expires in 3 days.")}
+                            {t("The guest gets a WhatsApp/SMS link with the full price and a pay button - payment confirms the booking. The room is held for 2 hours; unpaid offers cancel automatically.")}
                           </span>
                         </span>
                       </label>

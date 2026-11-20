@@ -1684,7 +1684,9 @@ export default function PublicBooking() {
       {booking && sel && selPlan && (
         <Sheet
           wide
-          title={done ? (done.status === "Requested" ? t("Request sent") : t("Booking confirmed")) : t("Complete your booking")}
+          title={done ? (done.status === "Inquiry" ? t("Inquiry sent")
+            : done.status === "Requested" ? t("Request sent") : t("Booking confirmed"))
+            : t("Complete your booking")}
           description={done ? undefined : `${sel.room_type_name}, ${mealLabel(selPlan.meal_plan)}`}
           onClose={() => {
             setBooking(null)
@@ -1727,21 +1729,23 @@ export default function PublicBooking() {
               <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-brand-50">
                 <Check className="size-7 text-brand-700" aria-hidden />
               </div>
-              <p className="mt-4 text-sm text-zinc-500">{t("Booking number")}</p>
+              <p className="mt-4 text-sm text-zinc-500">{done.status === "Inquiry" ? t("Inquiry reference") : t("Booking number")}</p>
               <p className="text-2xl font-semibold tracking-tight text-zinc-900">{done.reservation}</p>
               <dl className="mt-6 divide-y divide-zinc-100 rounded-2xl border border-zinc-200 px-5 text-start text-sm">
                 <div className="flex justify-between gap-4 py-3"><dt className="text-zinc-500">{isStr ? t("Listing") : t("Room")}</dt><dd className="text-end font-medium text-zinc-800">{sel.room_type_name}, {mealLabel(selPlan.meal_plan)}</dd></div>
                 <div className="flex justify-between gap-4 py-3"><dt className="text-zinc-500">{t("Dates")}</dt><dd className="text-end font-medium text-zinc-800">{fmtDay(search.check_in_date)} {t("to")} {fmtDay(checkOut)}</dd></div>
                 <div className="flex justify-between gap-4 py-3"><dt className="text-zinc-500">{t("Guests")}</dt><dd className="text-end font-medium text-zinc-800">{guestsLabel}</dd></div>
+                {done.status !== "Inquiry" && (
                 <div className="flex justify-between gap-4 py-3"><dt className="text-zinc-500">{t("Total")}</dt><dd className="text-end font-semibold text-zinc-900">{money(done.amount)}</dd></div>
-                {done.advance_due > 0 && (
+                )}
+                {done.status !== "Inquiry" && done.advance_due > 0 && (
                   <div className="flex justify-between gap-4 py-3"><dt className="text-zinc-500">{t("Due now")}</dt><dd className="text-end font-semibold text-zinc-900">{money(done.advance_due)}</dd></div>
                 )}
-                {done.balance_at_hotel > 0 && (
+                {done.status !== "Inquiry" && done.balance_at_hotel > 0 && (
                   <div className="flex justify-between gap-4 py-3"><dt className="text-zinc-500">{t("Pay at the property")}</dt><dd className="text-end font-medium text-zinc-800">{money(done.balance_at_hotel)}</dd></div>
                 )}
               </dl>
-              {done.advance_due > 0 && done.token && !payLink && (
+              {done.status !== "Inquiry" && done.advance_due > 0 && done.token && !payLink && (
                 <div className="mt-5 space-y-2">
                   <Button
                     className="w-full justify-center py-2.5"
@@ -1784,7 +1788,9 @@ export default function PublicBooking() {
                 {done.status === "Pending Payment"
                   ? `${t("Your rooms are held until the advance is received.")} `
                   : ""}
-                {done.status === "Requested"
+                {done.status === "Inquiry"
+                  ? t("Thanks — your inquiry is with the property. They'll confirm availability and pricing shortly.")
+                  : done.status === "Requested"
                   ? t("Your request goes to the property to confirm.")
                   : t("We've saved your number; the front desk will reach out with payment details and before arrival.")}
               </p>

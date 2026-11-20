@@ -73,6 +73,14 @@ export default function PortfolioDashboard() {
   const [data, setData] = useState<Summary | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // agent commission (cloudtrade_hospitality): admin/finance only; the
+  // call fails or reports enabled=false everywhere else -> no cards
+  const [commission, setCommission] = useState<{
+    enabled: boolean
+    commission_mtd?: number
+    commission_earned?: number
+    host_balances_outstanding?: number
+  } | null>(null)
 
   const load = useCallback(() => {
     setLoading(true)
@@ -81,6 +89,9 @@ export default function PortfolioDashboard() {
       .then(setData)
       .catch((e) => setError(serverError(e)))
       .finally(() => setLoading(false))
+    call<{ enabled: boolean }>("cloudtrade_hospitality.agent_commission.commission_summary")
+      .then(setCommission)
+      .catch(() => setCommission(null))
   }, [])
 
   useEffect(() => {
@@ -138,6 +149,14 @@ export default function PortfolioDashboard() {
             <Kpi label={t("Collected MTD")} value={kes(tot.mtd_collections)} />
             <Kpi label={t("Guest balances")} value={kes(tot.guest_balance)}
               tone={tot.guest_balance > 0 ? "bad" : undefined} />
+            {commission?.enabled && (
+              <>
+                <Kpi label={t("Commission MTD")} value={kes(commission.commission_mtd ?? 0)}
+                  hint={t("Earned {amt}", { amt: kes(commission.commission_earned ?? 0) })} />
+                <Kpi label={t("Owed to hosts")} value={kes(commission.host_balances_outstanding ?? 0)}
+                  tone={(commission.host_balances_outstanding ?? 0) > 0 ? "warn" : undefined} />
+              </>
+            )}
           </div>
 
           {/* per-property table */}

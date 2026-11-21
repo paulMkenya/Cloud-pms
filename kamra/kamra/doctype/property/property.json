@@ -281,7 +281,7 @@
    "label": "Hold Window (minutes)"
   },
   {
-   "default": "5000",
+   "default": "0",
    "fieldname": "security_deposit_amount",
    "fieldtype": "Currency",
    "label": "Security Deposit Amount"
@@ -410,7 +410,7 @@
    "default": "7500",
    "fieldname": "gst_slab_threshold",
    "fieldtype": "Currency",
-   "label": "Slab Threshold (₹/night)"
+   "label": "Slab Threshold (\u00e2\u201a\u00b9/night)"
   },
   {
    "default": "5",
@@ -503,7 +503,7 @@
    "fieldname": "hero_image",
    "fieldtype": "Attach Image",
    "label": "Hero Image",
-   "description": "1920×1080px (16:9 landscape), JPG or WebP under 2 MB. The big photo at the top of the booking page."
+   "description": "1920\u00c3\u20141080px (16:9 landscape), JPG or WebP under 2 MB. The big photo at the top of the booking page."
   },
   {
    "fieldname": "star_category",
@@ -528,7 +528,7 @@
    "label": "Property Amenities (public)"
   },
   {
-   "description": "Square, 512×512px. PNG or SVG with a transparent background. Shown on the booking page and invoices.",
+   "description": "Square, 512\u00c3\u2014512px. PNG or SVG with a transparent background. Shown on the booking page and invoices.",
    "fieldname": "logo_url",
    "fieldtype": "Attach Image",
    "label": "Logo"
@@ -738,7 +738,7 @@
    "fieldname": "og_image",
    "fieldtype": "Attach Image",
    "label": "OG Image",
-   "description": "Exactly 1200×630px, JPG or PNG. What WhatsApp, Google and social previews show when the booking page is shared."
+   "description": "Exactly 1200\u00c3\u2014630px, JPG or PNG. What WhatsApp, Google and social previews show when the booking page is shared."
   },
   {
    "fieldname": "page_slug",

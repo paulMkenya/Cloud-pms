@@ -186,6 +186,14 @@ def record(event: str, property: str | None = None, reference: str = "",
 				f"SELECT name FROM `tabCampaign Click` WHERE {' AND '.join(conds)} LIMIT 1",
 				args):
 			return
+		# a page asks twice in the same instant: the row above is not
+		# there yet, so claim the click atomically (Redis SET NX)
+		try:
+			key = frappe.cache.make_key(f"kamra_click:{event}:{property or ''}:{reference}")
+			if not frappe.cache.set(key, 1, ex=DEDUPE_MINUTES * 60, nx=True):
+				return
+		except Exception:
+			pass  # no cache: the database check above still applies
 		meta = {**(meta or {}), **_visit_meta()}
 		frappe.get_doc({
 			"doctype": "Campaign Click",

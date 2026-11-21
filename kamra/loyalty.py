@@ -29,12 +29,13 @@ Defaults: spend KES 100 -> 1 point; each point = KES 5 off a future
 stay (~5% back); OTA-sourced stays earn nothing (the commission makes
 points uneconomic - the guest still earns when they rebook direct).
 
-Redemption security: redeeming needs a one-time code sent to the
-phone stored on the Guest profile (loyalty_request_code), and the
-voucher code is delivered ONLY to that stored phone over WhatsApp/SMS -
-never to the number the caller typed, and the API response masks it.
-Anyone who merely knows a guest's number can see a balance but cannot
-pull their points.
+Security: a phone number alone shows nothing and enrols nobody. Every
+account view, enrolment and redemption needs a one-time code
+(loyalty_request_code -> loyalty_verify): a member's code goes to the
+phone stored on their Guest profile, a new number's code to the number
+typed. A verified caller gets a 30-minute session token. The voucher
+code is delivered ONLY to the member's stored phone over WhatsApp/SMS,
+and every API response masks it.
 """
 
 
@@ -44,6 +45,7 @@ import hashlib
 
 import re
 import secrets
+import time
 
 import frappe
 from frappe import _
@@ -303,37 +305,115 @@ def on_reservation_update(doc, method=None):
 
 
 # ---------------------------------------------------------------------------
-# public API (phone is the credential - see module docstring)
+# public API - a one-time code proves the caller holds the phone
 # ---------------------------------------------------------------------------
+#
+# A phone number alone shows nothing personal and enrols nobody.
+# loyalty_request_code sends a 6-digit code - to the member's stored phone,
+# or, for a number that isn't a member yet, to the number typed (so joining
+# proves it too). loyalty_verify checks the code, enrols a new number, and
+# returns the account with a short-lived session token that loyalty_status
+# and loyalty_redeem accept.
 
-@frappe.whitelist(allow_guest=True, methods=["POST"])
-@rate_limit(limit=20, seconds=3600)
-def loyalty_status(phone: str = ""):
-	"""Balance + programme terms for a phone number. Unknown numbers get
-	enrolled=False with no personal data."""
-	if not _enabled():
-		frappe.throw(_("The loyalty programme isn't running right now."))
-	from kamra.track import record as _track_click
-	_track_click("loyalty_view", channel="web")
-	out = _status(phone=phone or "")
-	if out["enrolled"]:
-		guest = _find_guest(phone)
-		out["recent"] = _recent_txns(guest.name)
-	return out
+SESSION_TTL_SECONDS = 30 * 60
+OTP_PHONE_MAX_PER_HOUR = 3
+OTP_PHONE_MIN_GAP_SECONDS = 60
 
 
-@frappe.whitelist(allow_guest=True, methods=["POST"])
-@rate_limit(limit=10, seconds=3600)
-def loyalty_enroll(phone: str = "", name: str = ""):
-	"""Enrol a phone number. Idempotent: an already-enrolled number just
-	returns its status. Creates a minimal Guest profile when none exists
-	for the number (same as the booking flow does)."""
-	if not _enabled():
-		frappe.throw(_("The loyalty programme isn't running right now."))
+def _otp_key(pkey: str) -> str:
+	return f"kamra:loyalty_otp:{pkey}"
+
+
+def _otp_hash(pkey: str, code: str) -> str:
+	return hashlib.sha256(
+		f"{pkey}:{(code or '').strip()}".encode()).hexdigest()
+
+
+def _session_key(token: str) -> str:
+	return f"kamra:loyalty_session:{token}"
+
+
+def _valid_phone(phone: str) -> str:
 	phone = (phone or "").strip()
 	if len(_phone_key(phone)) < 9:
 		frappe.throw(_("Enter a valid phone number (e.g. 0712 345 678)."))
+	return phone
+
+
+def _may_send_code(pkey: str) -> bool:
+	"""Per-number throttle on top of the per-IP rate limit: at most
+	OTP_PHONE_MAX_PER_HOUR codes an hour, OTP_PHONE_MIN_GAP_SECONDS apart,
+	so the page can't be used to flood one number with messages."""
+	key = f"kamra:loyalty_otp_sent:{pkey}"
+	now = time.time()
+	sent = [t for t in (frappe.cache.get_value(key) or []) if now - t < 3600]
+	if len(sent) >= OTP_PHONE_MAX_PER_HOUR or (
+			sent and now - sent[-1] < OTP_PHONE_MIN_GAP_SECONDS):
+		return False
+	sent.append(now)
+	frappe.cache.set_value(key, sent, expires_in_sec=3600)
+	return True
+
+
+def _check_otp(pkey: str, code: str) -> None:
+	key = _otp_key(pkey)
+	entry = frappe.cache.get_value(key)
+	if not entry or not (code or "").strip():
+		frappe.throw(_("Request a code first - we'll send it to your phone."),
+		             title=_("Code needed"))
+	if int(entry.get("tries") or 0) >= OTP_MAX_TRIES:
+		frappe.cache.delete_value(key)
+		frappe.throw(_("Too many wrong codes - request a new one."),
+		             title=_("Code expired"))
+	if not secrets.compare_digest(entry.get("hash") or "",
+	                              _otp_hash(pkey, code)):
+		entry["tries"] = int(entry.get("tries") or 0) + 1
+		frappe.cache.set_value(key, entry, expires_in_sec=OTP_TTL_SECONDS)
+		frappe.throw(_("That code isn't right - check the message and try again."),
+		             title=_("Wrong code"))
+	frappe.cache.delete_value(key)
+
+
+def _new_session(guest_name: str) -> str:
+	token = secrets.token_urlsafe(24)
+	frappe.cache.set_value(_session_key(token), guest_name,
+	                       expires_in_sec=SESSION_TTL_SECONDS)
+	return token
+
+
+def _session_guest(session: str, phone: str):
+	"""The member a live session token was issued to, when it is the
+	member this phone resolves to - else None."""
+	if not session or len(session) > 64:
+		return None
+	owner = frappe.cache.get_value(_session_key(session))
+	if not owner:
+		return None
 	guest = _find_guest(phone)
+	if not guest or guest.name != owner or not guest.loyalty_enrolled_on:
+		return None
+	return guest
+
+
+_GUEST_FIELDS = ["name", "first_name", "phone", "loyalty_points",
+                 "loyalty_lifetime_points", "loyalty_enrolled_on",
+                 "loyalty_tier"]
+
+
+def _account(guest_name: str) -> dict:
+	"""Everything a verified member sees: balance, tier and activity."""
+	guest = frappe.db.get_value("Guest", guest_name, _GUEST_FIELDS,
+	                            as_dict=True)
+	out = _status(guest=frappe._dict(guest))
+	out["recent"] = _recent_txns(guest_name)
+	out["verified"] = True
+	return out
+
+
+def _enrol(phone: str, name: str, guest=None) -> str:
+	"""Enrol a number that has just proved itself with a code. Creates a
+	minimal Guest profile when none exists for it (same as the booking
+	flow does). Returns the Guest name."""
 	if not guest:
 		first = (name or "").strip().split(" ")[0] or "Guest"
 		last = " ".join((name or "").strip().split(" ")[1:])
@@ -345,114 +425,137 @@ def loyalty_enroll(phone: str = "", name: str = ""):
 			"marketing_consent": 0,
 		})
 		doc.insert(ignore_permissions=True)
-		guest = frappe.db.get_value(
-			"Guest", doc.name,
-			["name", "first_name", "phone", "loyalty_points",
-			 "loyalty_lifetime_points", "loyalty_enrolled_on",
-			 "loyalty_tier"], as_dict=True)
-	cfg = _cfg()
-	bonus = int(cfg.get("enrol_bonus_points") or 0)
-	if not guest.loyalty_enrolled_on:
-		balance = _credit_locked(guest.name, bonus)
-		frappe.db.set_value(
-			"Guest", guest.name,
-			{"loyalty_enrolled_on": today(),
-			 "loyalty_tier": _tier_for(int(guest.loyalty_lifetime_points or 0) + bonus)},
-			update_modified=False)
-		_post(guest.name, bonus, "Enrol Bonus", balance,
-		      note="Joined the loyalty programme")
-		try:
-			from cloudtrade_hospitality import guest_templates
-			guest_templates.send_direct(
-				"loyalty_enrolled", guest.phone or phone,
-				first=guest.first_name or "there",
-				points=f"{balance:,}", balance=f"{balance:,}",
-				programme=_("the loyalty programme"),
-				# "your balance and rewards" - the loyalty page itself
-				book_url=_guest_url("/kamra/loyalty"))
-		except Exception:
-			frappe.log_error(frappe.get_traceback(), "loyalty.enrol_notify")
+		guest = frappe._dict(frappe.db.get_value(
+			"Guest", doc.name, _GUEST_FIELDS, as_dict=True))
+	if guest.loyalty_enrolled_on:
+		return guest.name
+	bonus = int(_cfg().get("enrol_bonus_points") or 0)
+	balance = _credit_locked(guest.name, bonus)
+	frappe.db.set_value(
+		"Guest", guest.name,
+		{"loyalty_enrolled_on": today(),
+		 "loyalty_tier": _tier_for(int(guest.loyalty_lifetime_points or 0) + bonus)},
+		update_modified=False)
+	_post(guest.name, bonus, "Enrol Bonus", balance,
+	      note="Joined the loyalty programme")
+	try:
+		from cloudtrade_hospitality import guest_templates
+		guest_templates.send_direct(
+			"loyalty_enrolled", guest.phone or phone,
+			first=guest.first_name or "there",
+			points=f"{balance:,}", balance=f"{balance:,}",
+			programme=_("the loyalty programme"),
+			# "your balance and rewards" - the loyalty page itself
+			book_url=_guest_url("/kamra/loyalty"))
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "loyalty.enrol_notify")
 	from kamra.track import record as _track_click
 	_track_click("loyalty_enrolled", guest=guest.name,
 	             reference=_phone_key(phone), channel="web")
-	frappe.db.commit()  # nosemgrep: frappe-manual-commit -- public enrolment endpoint; persists before returning to external caller; reviewed as intentional
-	guest = frappe.db.get_value(
-		"Guest", guest.name,
-		["name", "first_name", "phone", "loyalty_points",
-		 "loyalty_lifetime_points", "loyalty_enrolled_on",
-		 "loyalty_tier"], as_dict=True)
-	out = _status(guest=frappe._dict(guest))
-	out["recent"] = _recent_txns(guest.name)
+	return guest.name
+
+
+def _verify(phone: str, code: str, name: str = "") -> dict:
+	if not _enabled():
+		frappe.throw(_("The loyalty programme isn't running right now."))
+	phone = _valid_phone(phone)
+	_check_otp(_phone_key(phone), code)
+	guest = _find_guest(phone)
+	if guest and guest.loyalty_enrolled_on:
+		guest_name = guest.name
+	else:
+		guest_name = _enrol(phone, name, guest)
+	frappe.db.commit()  # nosemgrep: frappe-manual-commit -- public endpoint; persists the enrolment before returning to an external caller
+	out = _account(guest_name)
+	out["session"] = _new_session(guest_name)
 	return out
 
 
-def _otp_key(guest_name: str) -> str:
-	return f"kamra:loyalty_otp:{guest_name}"
-
-
-def _otp_hash(guest_name: str, code: str) -> str:
-	return hashlib.sha256(
-		f"{guest_name}:{(code or '').strip()}".encode()).hexdigest()
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+@rate_limit(limit=20, seconds=3600)
+def loyalty_status(phone: str = "", session: str = ""):
+	"""Programme terms for anyone. The member's name, balance and activity
+	only with a live session token from loyalty_verify - a phone number on
+	its own shows nothing personal."""
+	if not _enabled():
+		frappe.throw(_("The loyalty programme isn't running right now."))
+	from kamra.track import record as _track_click
+	_track_click("loyalty_view", channel="web")
+	guest = _session_guest(session, phone)
+	if guest:
+		return _account(guest.name)
+	out = _status(guest=None)
+	out["verified"] = False
+	return out
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(limit=5, seconds=3600)
 def loyalty_request_code(phone: str = ""):
-	"""Send a one-time redeem code to the member's stored phone. Answers
-	the same way whether or not the number is enrolled."""
+	"""Send a one-time code. A member gets it on the phone stored on their
+	profile; a number that isn't a member yet gets it on the number typed,
+	so joining proves the caller holds it. The answer is the same either
+	way and whether or not a code actually went out (throttled), so it
+	never tells whether a number is enrolled."""
 	if not _enabled():
 		frappe.throw(_("The loyalty programme isn't running right now."))
-	guest = _find_guest((phone or "").strip())
-	if guest and guest.loyalty_enrolled_on and guest.phone:
+	phone = _valid_phone(phone)
+	pkey = _phone_key(phone)
+	guest = _find_guest(phone)
+	member = bool(guest and guest.loyalty_enrolled_on and guest.phone)
+	to = guest.phone if member else phone
+	if _may_send_code(pkey):
 		code = f"{secrets.randbelow(10 ** 6):06d}"
 		frappe.cache.set_value(
-			_otp_key(guest.name),
-			{"hash": _otp_hash(guest.name, code), "tries": 0},
+			_otp_key(pkey), {"hash": _otp_hash(pkey, code), "tries": 0},
 			expires_in_sec=OTP_TTL_SECONDS)
 		try:
 			from cloudtrade_hospitality import guest_templates
 			guest_templates.send_direct(
-				"loyalty_otp", guest.phone,
-				first=guest.first_name or "there", code=code,
-				minutes=str(OTP_TTL_SECONDS // 60))
+				"loyalty_otp", to,
+				first=(guest.first_name if member else "") or "there",
+				code=code, minutes=str(OTP_TTL_SECONDS // 60))
 		except Exception:
 			frappe.log_error(frappe.get_traceback(), "loyalty.otp_notify")
 		frappe.db.commit()  # nosemgrep: frappe-manual-commit -- flushes the enqueued message from a guest endpoint
-	return {"ok": True, "sent_to": _mask_phone(guest.phone if guest else phone),
+	return {"ok": True, "sent_to": _mask_phone(to),
 	        "expires_in": OTP_TTL_SECONDS}
 
 
-def _check_otp(guest_name: str, code: str) -> None:
-	key = _otp_key(guest_name)
-	entry = frappe.cache.get_value(key)
-	if not entry or not (code or "").strip():
-		frappe.throw(_("Request a code first - we'll send it to your phone."),
-		             title=_("Code needed"))
-	if int(entry.get("tries") or 0) >= OTP_MAX_TRIES:
-		frappe.cache.delete_value(key)
-		frappe.throw(_("Too many wrong codes - request a new one."),
-		             title=_("Code expired"))
-	if not secrets.compare_digest(entry.get("hash") or "",
-	                              _otp_hash(guest_name, code)):
-		entry["tries"] = int(entry.get("tries") or 0) + 1
-		frappe.cache.set_value(key, entry, expires_in_sec=OTP_TTL_SECONDS)
-		frappe.throw(_("That code isn't right - check the message and try again."),
-		             title=_("Wrong code"))
-	frappe.cache.delete_value(key)
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+@rate_limit(limit=10, seconds=3600)
+def loyalty_verify(phone: str = "", code: str = "", name: str = ""):
+	"""Check the one-time code. A member gets their account; a new number
+	is enrolled (`name` optional). The response carries a session token
+	for loyalty_status and loyalty_redeem."""
+	return _verify(phone, code, name)
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+@rate_limit(limit=10, seconds=3600)
+def loyalty_enroll(phone: str = "", name: str = "", code: str = ""):
+	"""The old enrol endpoint. Joining needs the one-time code too, so
+	this is loyalty_verify under its old name."""
+	return _verify(phone, code, name)
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 @rate_limit(limit=10, seconds=3600)
 def loyalty_redeem(phone: str = "", property: str = "", points: int = 0,
-                   code: str = ""):
+                   code: str = "", session: str = ""):
 	"""Turn points into a single-use Discount Voucher for one property.
-	Needs the one-time code from loyalty_request_code. The voucher is
-	messaged to the member's stored phone only - the response shows a
-	masked version so a stolen session can't lift the voucher."""
+	Needs a live session from loyalty_verify (or a one-time code from
+	loyalty_request_code). The voucher is messaged to the member's stored
+	phone only - the response shows a masked version so a stolen session
+	can't lift the voucher."""
 	if not _enabled():
 		frappe.throw(_("The loyalty programme isn't running right now."))
 	cfg = _cfg()
-	phone = (phone or "").strip()
+	phone = _valid_phone(phone)
+	# proof first, so nothing below answers for a number the caller
+	# can't show they hold
+	if not _session_guest(session, phone):
+		_check_otp(_phone_key(phone), code)
 	guest = _find_guest(phone)
 	if not guest or not guest.loyalty_enrolled_on:
 		frappe.throw(_("This number isn't enrolled yet - join first."))
@@ -464,8 +567,6 @@ def loyalty_redeem(phone: str = "", property: str = "", points: int = 0,
 	if not frappe.db.exists("Property", property or ""):
 		frappe.throw(_("Pick a property for the voucher."))
 	prop_name = frappe.db.get_value("Property", property, "property_name") or property
-	# the code proves the caller holds the member's phone
-	_check_otp(guest.name, code)
 
 	kes_per_point = float(cfg.get("redeem_kes_per_point") or 5)
 	value_kes = round(points * kes_per_point, 2)

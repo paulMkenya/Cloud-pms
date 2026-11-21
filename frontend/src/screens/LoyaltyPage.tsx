@@ -6,16 +6,20 @@ import { Button } from "../components/ui/button"
 import { useT, t as translate } from "../lib/i18n"
 import { adoptGuestLanguage } from "../lib/dir"
 
-/** Public loyalty page: /kamra/loyalty. Guests enrol and check their
- *  points with just a phone number - the number IS the account. Points
- *  are earned on completed stays and redeemed into single-use vouchers;
- *  the voucher code is only ever sent to the enrolled phone, never shown
- *  here in full. */
+/** Public loyalty page: /kamra/loyalty. The phone number is the account,
+ *  but a number on its own shows nothing: the guest gets a one-time code
+ *  (members on the phone they joined with, new numbers on the number
+ *  typed - the same code signs them up) and the account opens with a
+ *  short-lived session. Points are earned on completed stays and redeemed
+ *  into single-use vouchers; the voucher code is only ever sent to the
+ *  member's phone, never shown here in full. */
 
 interface LoyaltyStatus {
   ok: boolean
   enabled: boolean
   enrolled: boolean
+  verified?: boolean
+  session?: string
   name: string
   points: number
   lifetime: number
@@ -38,13 +42,19 @@ interface RedeemResult {
   sent_to: string
 }
 
+type Step = "phone" | "code" | "member"
+
 const kes = (n: number) =>
   `KES ${Number(n).toLocaleString(undefined, { maximumFractionDigits: 0 })}`
 
 export default function LoyaltyPage() {
   const { t } = useT()
+  const [step, setStep] = useState<Step>("phone")
   const [phone, setPhone] = useState("")
   const [name, setName] = useState("")
+  const [codeSentTo, setCodeSentTo] = useState("")
+  const [code, setCode] = useState("")
+  const [session, setSession] = useState("")
   const [status, setStatus] = useState<LoyaltyStatus | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
@@ -53,9 +63,6 @@ export default function LoyaltyPage() {
   // redeem form
   const [prop, setProp] = useState("")
   const [points, setPoints] = useState("")
-  // one-time code sent to the member's phone before a redeem
-  const [codeSentTo, setCodeSentTo] = useState<string | null>(null)
-  const [code, setCode] = useState("")
 
   useEffect(() => {
     adoptGuestLanguage()
@@ -67,34 +74,18 @@ export default function LoyaltyPage() {
     return Math.round(p * status.redeem.kes_per_point)
   }, [points, status])
 
-  async function lookup() {
-    setBusy("lookup")
+  function reset() {
+    setStep("phone")
+    setPhone("")
+    setName("")
+    setCode("")
+    setCodeSentTo("")
+    setSession("")
+    setStatus(null)
     setError(null)
     setRedeemed(null)
-    try {
-      const out = await callGuest<LoyaltyStatus>("kamra.loyalty.loyalty_status", { phone })
-      setStatus(out)
-      if (!out.enrolled) setName("")
-    } catch (e) {
-      setError(serverError(e))
-    } finally {
-      setBusy(null)
-    }
-  }
-
-  async function enroll() {
-    setBusy("enroll")
-    setError(null)
-    try {
-      const out = await callGuest<LoyaltyStatus>("kamra.loyalty.loyalty_enroll", {
-        phone, name,
-      })
-      setStatus(out)
-    } catch (e) {
-      setError(serverError(e))
-    } finally {
-      setBusy(null)
-    }
+    setProp("")
+    setPoints("")
   }
 
   async function requestCode() {
@@ -104,10 +95,41 @@ export default function LoyaltyPage() {
       const out = await callGuest<{ sent_to: string }>("kamra.loyalty.loyalty_request_code", { phone })
       setCodeSentTo(out.sent_to)
       setCode("")
+      setStep("code")
     } catch (e) {
       setError(serverError(e))
     } finally {
       setBusy(null)
+    }
+  }
+
+  async function verify() {
+    setBusy("verify")
+    setError(null)
+    try {
+      const out = await callGuest<LoyaltyStatus>("kamra.loyalty.loyalty_verify", {
+        phone, code: code.trim(), name,
+      })
+      setStatus(out)
+      setSession(out.session || "")
+      setCode("")
+      setStep("member")
+    } catch (e) {
+      setError(serverError(e))
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  async function refresh() {
+    const out = await callGuest<LoyaltyStatus>("kamra.loyalty.loyalty_status", { phone, session })
+    if (out.verified) {
+      setStatus(out)
+    } else {
+      // the session lapsed: back to the code step for this number
+      setSession("")
+      setStep("phone")
+      setError(t("Your session ended - send yourself a new code to continue."))
     }
   }
 
@@ -116,12 +138,11 @@ export default function LoyaltyPage() {
     setError(null)
     try {
       const out = await callGuest<RedeemResult>("kamra.loyalty.loyalty_redeem", {
-        phone, property: prop, points: parseInt(points || "0", 10), code: code.trim(),
+        phone, property: prop, points: parseInt(points || "0", 10), session,
       })
       setRedeemed(out)
-      setCodeSentTo(null)
-      setCode("")
-      await lookup()
+      setPoints("")
+      await refresh()
     } catch (e) {
       setError(serverError(e))
     } finally {
@@ -151,8 +172,14 @@ export default function LoyaltyPage() {
     </div>
   )
 
-  // phone entry
-  if (!status) {
+  const errorBox = error && (
+    <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+      {translate(error)}
+    </div>
+  )
+
+  // 1. phone entry
+  if (step === "phone") {
     return shell(
       <div className="space-y-4">
         {header}
@@ -168,24 +195,70 @@ export default function LoyaltyPage() {
             onChange={(e) => setPhone(e.target.value)}
           />
         </label>
-        {error && (
-          <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-            {translate(error)}
-          </div>
-        )}
+        {errorBox}
         <Button
           className="w-full justify-center py-2.5"
           disabled={busy !== null || phone.trim().length < 9}
-          onClick={lookup}
+          onClick={requestCode}
         >
-          {busy === "lookup" ? t("Checking…") : t("Check my points")}
+          {busy === "code" ? t("Sending code…") : t("Send me a code")}
         </Button>
-        <p className="text-center text-xs text-zinc-400">
-          {t("We use your number to find your membership - no password needed.")}
+        <p className="text-center text-xs leading-relaxed text-zinc-400">
+          {t("We'll send a 6-digit code by WhatsApp/SMS - members get it on the number they joined with. New here? The same code signs you up, free.")}
         </p>
       </div>,
     )
   }
+
+  // 2. one-time code (and a name, for a number that's joining)
+  if (step === "code") {
+    return shell(
+      <div className="space-y-4">
+        {header}
+        <label className="block text-sm font-medium text-zinc-700">
+          {t("Code sent to {phone}", { phone: codeSentTo })}
+          <input
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-center text-lg tracking-[0.4em]"
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+          />
+        </label>
+        <label className="block text-sm font-medium text-zinc-700">
+          {t("Your name (new members, optional)")}
+          <input
+            type="text"
+            autoComplete="name"
+            className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-sm"
+            placeholder={t("Jane Wanjiru")}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+        </label>
+        {errorBox}
+        <Button
+          className="w-full justify-center py-2.5"
+          disabled={busy !== null || code.trim().length !== 6}
+          onClick={verify}
+        >
+          {busy === "verify" ? t("Checking…") : t("Continue")}
+        </Button>
+        <div className="flex justify-between text-xs text-zinc-400">
+          <button type="button" className="underline" disabled={busy !== null} onClick={requestCode}>
+            {t("Send a new code")}
+          </button>
+          <button type="button" className="underline" disabled={busy !== null} onClick={reset}>
+            {t("Use a different number")}
+          </button>
+        </div>
+      </div>,
+    )
+  }
+
+  if (!status) return null
 
   if (!status.enabled)
     return shell(
@@ -197,54 +270,11 @@ export default function LoyaltyPage() {
       </div>,
     )
 
-  // not enrolled -> join
-  if (!status.enrolled)
-    return shell(
-      <div className="space-y-4">
-        {header}
-        <div className="rounded-xl bg-zinc-50 px-4 py-3 text-sm text-zinc-600">
-          <p className="font-medium text-zinc-800">{t("You're not a member yet")}</p>
-          <p className="mt-1 text-xs leading-relaxed">
-            {t("{earn}. Points never expire while the programme runs, and you can redeem them for discounts on any of our properties.", { earn: status.earn.text })}
-          </p>
-        </div>
-        <label className="block text-sm font-medium text-zinc-700">
-          {t("Your name (optional)")}
-          <input
-            type="text"
-            autoComplete="name"
-            className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-sm"
-            placeholder={t("Jane Wanjiru")}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        </label>
-        {error && (
-          <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-            {translate(error)}
-          </div>
-        )}
-        <Button
-          className="w-full justify-center py-2.5"
-          disabled={busy !== null}
-          onClick={enroll}
-        >
-          {busy === "enroll" ? t("Joining…") : t("Join free")}
-        </Button>
-        <button
-          type="button"
-          className="w-full text-center text-xs text-zinc-400 underline"
-          onClick={() => { setStatus(null); setPhone(""); setError(null) }}
-        >
-          {t("Use a different number")}
-        </button>
-      </div>,
-    )
-
-  // enrolled -> balance + redeem
+  // 3. verified member -> balance + redeem
   const minPts = status.redeem.min_points
   const maxRedeem = Math.floor((status.points || 0))
-  const canRedeem = status.points >= minPts && !!prop && parseInt(points || "0", 10) >= minPts
+  const wanted = parseInt(points || "0", 10)
+  const canRedeem = status.points >= minPts && !!prop && wanted >= minPts && wanted <= maxRedeem
 
   return shell(
     <div className="space-y-4">
@@ -297,6 +327,8 @@ export default function LoyaltyPage() {
         </p>
       </div>
 
+      {errorBox}
+
       {/* redeem */}
       {status.points > 0 && (
         <div className="space-y-3 rounded-xl border border-zinc-200 p-4">
@@ -334,49 +366,16 @@ export default function LoyaltyPage() {
               {status.redeem.voucher_days ? ` · ${t("valid {days} days", { days: status.redeem.voucher_days })}` : ""}
             </p>
           )}
-          {codeSentTo === null ? (
-            <Button
-              variant="outline"
-              className="w-full justify-center"
-              disabled={busy !== null || !canRedeem}
-              onClick={requestCode}
-            >
-              {busy === "code" ? t("Sending code…") : t("Send me a code")}
-            </Button>
-          ) : (
-            <>
-              <label className="block text-xs font-medium text-zinc-600">
-                {t("Code sent to {phone}", { phone: codeSentTo })}
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  maxLength={6}
-                  className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-center text-lg tracking-[0.4em]"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-                />
-              </label>
-              <Button
-                variant="outline"
-                className="w-full justify-center"
-                disabled={busy !== null || !canRedeem || code.trim().length !== 6}
-                onClick={redeem}
-              >
-                {busy === "redeem" ? t("Creating voucher…") : t("Get voucher")}
-              </Button>
-              <button
-                type="button"
-                className="w-full text-center text-[11px] text-zinc-400 underline"
-                disabled={busy !== null}
-                onClick={requestCode}
-              >
-                {t("Send a new code")}
-              </button>
-            </>
-          )}
+          <Button
+            variant="outline"
+            className="w-full justify-center"
+            disabled={busy !== null || !canRedeem}
+            onClick={redeem}
+          >
+            {busy === "redeem" ? t("Creating voucher…") : t("Get voucher")}
+          </Button>
           <p className="text-[11px] leading-relaxed text-zinc-400">
-            {t("The code is sent to your WhatsApp/SMS on this number only - enter it at checkout on the booking page.")}
+            {t("The voucher code is sent to your WhatsApp/SMS on this number only - enter it at checkout on the booking page.")}
           </p>
         </div>
       )}
@@ -403,9 +402,9 @@ export default function LoyaltyPage() {
       <button
         type="button"
         className="w-full text-center text-xs text-zinc-400 underline"
-        onClick={() => { setStatus(null); setError(null); setRedeemed(null); setCodeSentTo(null); setCode("") }}
+        onClick={reset}
       >
-        {t("Use a different number")}
+        {t("Sign out / use a different number")}
       </button>
     </div>,
   )

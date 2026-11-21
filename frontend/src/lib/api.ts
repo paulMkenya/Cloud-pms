@@ -285,6 +285,43 @@ export async function call<T = unknown>(
  *  token captured at page load goes stale the moment someone logs in or out
  *  in another tab, and Frappe then rejects every POST with a 400. Without
  *  the cookie there is no session, so no CSRF check and no auth redirect. */
+// Where this guest came from, captured on the first guest page of the
+// browser session (later in-app navigation must not overwrite it): the
+// referring site, campaign tags, time zone (country, no IP stored) and
+// language. Sent with guest calls as `_visit`; methods ignore it, the
+// campaign tracker reads it.
+function visitContext(): Record<string, unknown> {
+  try {
+    const KEY = "kamra_landing"
+    let landing = sessionStorage.getItem(KEY)
+    if (!landing) {
+      const q = new URLSearchParams(window.location.search)
+      let ref = ""
+      try {
+        ref = document.referrer ? new URL(document.referrer).hostname : ""
+      } catch { /* bad referrer */ }
+      if (ref === window.location.hostname) ref = ""
+      landing = JSON.stringify({
+        ref,
+        utm_source: q.get("utm_source") || "",
+        utm_medium: q.get("utm_medium") || "",
+        utm_campaign: q.get("utm_campaign") || "",
+        fbclid: q.has("fbclid") ? 1 : 0,
+        gclid: q.has("gclid") ? 1 : 0,
+      })
+      sessionStorage.setItem(KEY, landing)
+    }
+    return {
+      ...JSON.parse(landing),
+      tz: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
+      lang: navigator.language || "",
+      page: window.location.pathname.replace(/^\/kamra/, "").slice(0, 120),
+    }
+  } catch {
+    return {}
+  }
+}
+
 export async function callGuest<T = unknown>(
   method: string,
   params: Record<string, unknown> = {},
@@ -296,7 +333,7 @@ export async function callGuest<T = unknown>(
     res = await fetch(path, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(params),
+      body: JSON.stringify({ ...params, _visit: visitContext() }),
       credentials: "omit",
     })
   } catch (err) {

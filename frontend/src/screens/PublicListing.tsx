@@ -191,6 +191,9 @@ interface StayResult extends StayFit {
     cleaning_fee?: number
     pet_charge?: number
     totals?: { deposit_required?: number }
+    advance_due?: number
+    balance_at_hotel?: number
+    payment_policy?: string
   } | null
 }
 
@@ -298,6 +301,7 @@ export default function PublicListing() {
   const childAges = sizeAges(childAgesState, search.children)
   const agesMissing = search.children > 0 && !agesToSend(childAges)
   const [booking, setBooking] = useState<string | null>(null)
+  const [payFull, setPayFull] = useState(false)
   const [form, setForm] = useState({
     guest_name: "",
     phone: "",
@@ -503,6 +507,7 @@ export default function PublicListing() {
           children: search.children,
           child_ages: agesToSend(childAges),
           pets: search.pets,
+          pay_full: payFull ? 1 : 0,
           ...form,
         },
       )
@@ -553,7 +558,7 @@ export default function PublicListing() {
       ? t("Request to book")
       : p.payment_mode === "Full online"
         ? t("Confirm & pay")
-        : t("Reserve")
+        : t("Book now")
   const title = isSite
     ? resolved.location_name ?? siteMeta?.name ?? p.property_name
     : primary?.room_type_name ?? p.property_name
@@ -766,7 +771,7 @@ export default function PublicListing() {
                               )}
                               <Button
                                 disabled={!canReserve(r) || agesMissing}
-                                onClick={() => setBooking(rt.name)}
+                                onClick={() => { setPayFull(false); setBooking(rt.name) }}
                               >
                                 {t("Reserve")}
                               </Button>
@@ -984,7 +989,7 @@ export default function PublicListing() {
                   id="sticky-book"
                   className="w-full justify-center py-2.5 text-base"
                   disabled={!canReserve(results[primary.name]) || agesMissing}
-                  onClick={() => setBooking(primary.name)}
+                  onClick={() => { setPayFull(false); setBooking(primary.name) }}
                 >
                   {confirmLabel}
                 </Button>
@@ -1145,6 +1150,51 @@ export default function PublicListing() {
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                 />
               </label>
+              {(() => {
+                const q = booking ? results[booking]?.quote : null
+                const due = Number(q?.advance_due || 0)
+                const total = Number(q?.amount_after_tax || 0)
+                if (!q || due <= 0) return null
+                const balance = Number(q.balance_at_hotel ?? total - due)
+                const money = (n: number) => `${cur()}${inr(n)}`
+                return (
+                  <div className="space-y-2 sm:col-span-2">
+                    <p className="text-sm font-semibold text-zinc-800">{t("Payment")}</p>
+                    {q.payment_policy && (
+                      <p className="rounded-xl border border-zinc-200 px-3 py-2.5 text-sm text-zinc-600">{translate(q.payment_policy)}</p>
+                    )}
+                    {due < total && (
+                      <fieldset className="space-y-2">
+                        <legend className="mb-1 text-sm font-medium text-zinc-700">{t("How would you like to pay?")}</legend>
+                        <label className={"flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-sm " +
+                          (payFull ? "border-zinc-200" : "border-brand-600 bg-brand-50")}>
+                          <input type="radio" name="listing_pay_option" className="mt-0.5 size-4 accent-brand-600"
+                            checked={!payFull} onChange={() => setPayFull(false)} />
+                          <span>
+                            <span className="block font-medium text-zinc-800">
+                              {t("Pay {amount} now, balance at the property", { amount: money(due) })}
+                            </span>
+                            <span className="block text-xs text-zinc-500">
+                              {t("{amount} due during your stay", { amount: money(balance) })}
+                            </span>
+                          </span>
+                        </label>
+                        <label className={"flex cursor-pointer items-start gap-3 rounded-xl border p-3 text-sm " +
+                          (payFull ? "border-brand-600 bg-brand-50" : "border-zinc-200")}>
+                          <input type="radio" name="listing_pay_option" className="mt-0.5 size-4 accent-brand-600"
+                            checked={payFull} onChange={() => setPayFull(true)} />
+                          <span>
+                            <span className="block font-medium text-zinc-800">{t("Pay in full now")}</span>
+                            <span className="block text-xs text-zinc-500">
+                              {money(total)} · {t("one payment, nothing due at the property")}
+                            </span>
+                          </span>
+                        </label>
+                      </fieldset>
+                    )}
+                  </div>
+                )
+              })()}
               <label className="flex items-start gap-2 text-sm text-zinc-600 sm:col-span-2">
                 <input type="checkbox" className="mt-0.5 size-4 accent-brand-600"
                   checked={Boolean(form.marketing_consent)}

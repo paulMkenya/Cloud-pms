@@ -614,6 +614,30 @@ export default function FolioView() {
             <Printer className="size-4" aria-hidden />
             {folio.invoice_number ? t("Print invoice") : t("Print folio")}
           </Button>
+          {/* PDFs and WhatsApp delivery (cloudtrade_hospitality): a real
+              document for the guest instead of a screenshot */}
+          <Button variant="outline" onClick={() => window.open(
+            `/api/method/cloudtrade_hospitality.folio_documents.folio_pdf?folio=${encodeURIComponent(folio.name)}&kind=invoice`, "_blank")}>
+            {folio.invoice_number ? t("Invoice PDF") : t("Proforma PDF")}
+          </Button>
+          {folio.payments_total > 0 && (
+            <Button variant="outline" onClick={() => window.open(
+              `/api/method/cloudtrade_hospitality.folio_documents.folio_pdf?folio=${encodeURIComponent(folio.name)}&kind=receipt`, "_blank")}>
+              {t("Receipt PDF")}
+            </Button>
+          )}
+          <Button variant="outline" disabled={busy} onClick={() => {
+            const what = folio.payments_total > 0 ? t("the invoice and the receipt") : t("the invoice")
+            if (!window.confirm(t("Send {what} to the guest on WhatsApp as PDF?", { what }))) return
+            void call<{ to: string; sent: { kind: string; ok: boolean; error?: string | null }[] }>(
+              "cloudtrade_hospitality.folio_documents.send_folio_documents", { folio: folio.name })
+              .then((r) => window.alert(r.sent.every((x) => x.ok)
+                ? t("Sent to {to}: {list}", { to: r.to, list: r.sent.map((x) => x.kind).join(", ") })
+                : t("Some documents were not sent: {e}", { e: r.sent.filter((x) => !x.ok).map((x) => `${x.kind} (${x.error || "failed"})`).join(", ") })))
+              .catch((e) => window.alert(serverError(e)))
+          }}>
+            {t("Send on WhatsApp")}
+          </Button>
           {open &&
             folio.balance === 0 &&
             folio.charges.length > 0 && (

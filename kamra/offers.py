@@ -97,6 +97,9 @@ def send_offer(reservation: str, expires_hours: int | None = None,
 	from kamra.savings import log_action
 
 	res = frappe.get_doc("Reservation", reservation)
+	if res.status == "Inquiry":
+		# answering a guest inquiry with an offer turns it into a request
+		res.status = "Requested"
 	if res.status not in ("Requested", "Pending Payment"):
 		frappe.throw(
 			_("{0} is {1} - an offer goes out on a pending request or an "

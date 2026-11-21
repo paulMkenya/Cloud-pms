@@ -38,6 +38,7 @@ type BookingRequest = {
   blocker?: string | null
   offer_pending?: boolean
   offer_expires_on?: string | null
+  status?: string
 }
 
 type InboxData = { holds_inventory: boolean; count: number; requests: BookingRequest[] }
@@ -141,6 +142,9 @@ export default function BookingRequests({
                     <Badge tone={r.source === "OTA" ? "indigo" : "zinc"}>
                       {r.source === "OTA" ? r.channel || t("OTA") : t(r.source)}
                     </Badge>
+                    {r.status === "Inquiry" && (
+                      <Badge tone="amber">{t("Inquiry")}</Badge>
+                    )}
                     {r.offer_pending && (
                       <Badge tone="sky" title={r.offer_expires_on ?? undefined}>
                         {t("Offer sent")}
@@ -221,7 +225,7 @@ export default function BookingRequests({
                       setReason("")
                     }}
                   >
-                    {t("Decline")}
+                    {r.offer_pending ? t("Withdraw offer") : t("Decline")}
                   </Button>
                 </div>
               </div>
@@ -235,7 +239,9 @@ export default function BookingRequests({
                       r.name,
                       () =>
                         declineBookingRequest(r.name, reason.trim()),
-                      t("Declined {name}.", { name: r.name }),
+                      r.offer_pending
+                        ? t("Offer {name} withdrawn.", { name: r.name })
+                        : t("Declined {name}.", { name: r.name }),
                     )
                   }}
                 >
@@ -251,7 +257,7 @@ export default function BookingRequests({
                     variant="outline"
                     disabled={!reason.trim() || busy === r.name}
                   >
-                    {t("Decline request")}
+                    {r.offer_pending ? t("Withdraw offer") : t("Decline request")}
                   </Button>
                 </form>
               )}

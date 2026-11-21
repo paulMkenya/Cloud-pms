@@ -63,8 +63,8 @@ def booking_requests(property: str):
 	until accepted - rooms_free is live availability, not a reservation."""
 	rows = frappe.get_all(
 		"Reservation",
-		filters={"property": property, "status": "Requested"},
-		fields=["name", "property", "guest", "guest_name", "room_type",
+		filters={"property": property, "status": ["in", ["Requested", "Inquiry"]]},
+		fields=["name", "status", "property", "guest", "guest_name", "room_type",
 		        "check_in_date",
 		        "check_out_date", "nights", "adults", "children", "source",
 		        "channel", "ota_ref", "amount_after_tax", "special_requests",
@@ -93,7 +93,8 @@ def booking_requests(property: str):
 
 def _load_request(reservation: str):
 	res = frappe.get_doc("Reservation", reservation)
-	if res.status != "Requested":
+	# a guest Inquiry is handled like a request: accept, offer or decline
+	if res.status not in ("Requested", "Inquiry"):
 		frappe.throw(
 			_("{0} is {1}, not a pending request.").format(res.name, res.status),
 			title=_("Not a booking request"))

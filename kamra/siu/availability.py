@@ -65,7 +65,8 @@ def availability(
 	group_state = _competition_state(units, bookings, nights)
 	# Villa <-> room lockout per night, whether or not the units share a
 	# competition group (the same rule validate_villa_lockout enforces).
-	villa_lock = _villa_lockout_state(bookings, nights)
+	from kamra.kamra.doctype.reservation.reservation import is_whole_house
+	villa_lock = _villa_lockout_state(bookings, nights, is_whole_house(property))
 
 	out = []
 	for unit in units:
@@ -388,17 +389,22 @@ def _competition_state(
 	return state
 
 
-def _villa_lockout_state(bookings: list[dict], nights: list[str]) -> dict:
+def _villa_lockout_state(bookings: list[dict], nights: list[str],
+                         whole_house: bool = False) -> dict:
 	"""night -> {"villa": reservation or None, "rooms": reservation or None}:
 	the live whole-villa / member-room booking covering that night. Uses
 	is_entire_place, the test the write-time villa lockout uses."""
 	from kamra.kamra.doctype.reservation.reservation import is_entire_place
-	state = {n: {"villa": None, "rooms": None} for n in nights}
+	state = {n: {"villa": None, "rooms": None, "house": None} for n in nights}
 	for b in bookings:
 		side = "villa" if is_entire_place(b.get("room_type")) else "rooms"
 		for n in nights:
-			if state[n][side] is None and _covers(b, n):
-				state[n][side] = b["name"]
+			if _covers(b, n):
+				if state[n][side] is None:
+					state[n][side] = b["name"]
+				# whole house: any booking that night locks every unit
+				if whole_house and state[n]["house"] is None:
+					state[n]["house"] = b["name"]
 	return state
 
 
@@ -492,7 +498,8 @@ def _unit_availability(
 						}
 					)
 
-		lock = (villa_lock or {}).get(night, {}).get(lock_side)
+		vl = (villa_lock or {}).get(night, {})
+		lock = vl.get(lock_side) or vl.get("house")
 		if lock:
 			free = 0
 			reasons.append(

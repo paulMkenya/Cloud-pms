@@ -393,6 +393,9 @@ MODULES: tuple[Module, ...] = (
 			Section("inventory", "Overbooking", "", (
 				S("overbooking_pct", "Overbooking allowance", "number", 0, P, min=0, max=50, unit="%",
 				  hint="0 never oversells. A room type can override this."),
+				S("whole_house_lockout", "One booking at a time (whole house)", "check", 0,
+				  hint="The property is one house: once any unit is booked for a night, "
+				       "every other unit is blocked for that night too."),
 			)),
 		),
 	),

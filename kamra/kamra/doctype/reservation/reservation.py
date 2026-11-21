@@ -49,6 +49,18 @@ def is_entire_place(room_type: str | None) -> bool:
 		"Room Type", room_type, "room_category") == "Villa"
 
 
+def is_whole_house(property: str | None) -> bool:
+	"""Kv setting whole_house_lockout: the property is one house sold by
+	bedroom count, so one booking at a time across all of its units."""
+	if not property:
+		return False
+	try:
+		from kamra.settings import get_setting
+		return bool(get_setting(property, "whole_house_lockout"))
+	except Exception:
+		return False
+
+
 def uses_member_rooms(property: str, room_type: str | None) -> bool:
 	"""True when a whole-villa stay has no Room of its own to assign and
 	instead takes the property's member rooms (the hybrid estate). A villa
@@ -109,8 +121,11 @@ def villa_lockout_bookings(property: str, room_type: str | None, check_in,
 	A property with no villa type never matches (the join finds nothing)."""
 	if not room_type:
 		return []
-	side = NON_VILLA_SQL if is_entire_place(room_type) \
-		else "rt.room_category = 'Villa'"
+	if is_whole_house(property):
+		side = "1=1"  # one house: any other live booking locks it out
+	else:
+		side = NON_VILLA_SQL if is_entire_place(room_type) \
+			else "rt.room_category = 'Villa'"
 	return frappe.db.sql(  # nosemgrep: frappe-sql-format-injection -- interpolated text is module constants (_LIVE_SQL, NON_VILLA_SQL) or a fixed clause; every value is bound
 		f"""
 		SELECT r.name, r.check_in_date, r.check_out_date FROM `tabReservation` r
@@ -987,6 +1002,14 @@ class Reservation(Document):
 			self.check_out_date, exclude=self.name, for_update=True)
 		if not conflict:
 			return
+		if is_whole_house(self.property):
+			frappe.throw(
+				_("{0} is one house and is already booked for these dates under Reservation {1}.").format(
+					self.property, conflict
+				),
+				title=_("Double Booking Blocked"),
+				exc=InventoryRefused,
+			)
 		if is_entire_place(self.room_type):
 			frappe.throw(
 				_("This property cannot be booked as an Entire Villa for these dates because an individual room is already booked at {0} under Reservation {1}.").format(

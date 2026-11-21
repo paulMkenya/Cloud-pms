@@ -1803,14 +1803,6 @@ export default function PublicBooking() {
                 <PrivacyNotice propertyName={p.property_name} contact={p.privacy_contact}
                   retentionMonths={p.guest_retention_months} />
                 <Button
-                  variant="outline"
-                  className="w-full justify-center py-2.5"
-                  disabled={busy || !form.guest_name.trim() || !form.phone.trim()}
-                  onClick={() => submitBooking(true)}
-                >
-                  {t("Send inquiry instead")}
-                </Button>
-                <Button
                   className="w-full justify-center py-2.5 text-base"
                   disabled={busy || !form.guest_name.trim() || !form.phone.trim()}
                   onClick={() => submitBooking(false)}

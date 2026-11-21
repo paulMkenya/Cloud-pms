@@ -487,6 +487,7 @@ export default function PublicListing() {
     if (!booking || !resolved) return
     setBusy(true)
     setError(null)
+    let leaving = false
     try {
       const res = await callGuest<{
         reservation: string
@@ -512,6 +513,22 @@ export default function PublicListing() {
         },
       )
       setPayLink(null)
+      // straight to the secure CloudPay page (M-Pesa or card) for the
+      // amount the guest chose; the confirmation screen is the fallback
+      if (Number(res.advance_due || 0) > 0 && res.precheckin_token &&
+          (res.status === "Pending Payment" || res.pay_to_confirm)) {
+        try {
+          const link = await callGuest<{ url: string }>("kamra.public_api.guest_payment_link",
+            { token: res.precheckin_token })
+          if (link?.url) {
+            leaving = true  // keep "Booking…" until CloudPay opens - no flash
+            window.location.assign(link.url)
+            return
+          }
+        } catch {
+          /* stay on the confirmation screen: M-Pesa prompt + link button */
+        }
+      }
       setDone({
         reservation: res.reservation,
         amount: res.amount_after_tax,
@@ -523,25 +540,10 @@ export default function PublicListing() {
         payToConfirm: Boolean(res.pay_to_confirm),
         payWithin: Number(res.pay_within_minutes || 0),
       })
-      // straight to the secure CloudPay page (M-Pesa or card) for the
-      // amount the guest chose; the confirmation screen is the fallback
-      if (Number(res.advance_due || 0) > 0 && res.precheckin_token &&
-          (res.status === "Pending Payment" || res.pay_to_confirm)) {
-        try {
-          const link = await callGuest<{ url: string }>("kamra.public_api.guest_payment_link",
-            { token: res.precheckin_token })
-          if (link?.url) {
-            window.location.assign(link.url)
-            return
-          }
-        } catch {
-          /* stay on the confirmation screen: M-Pesa prompt + link button */
-        }
-      }
     } catch (e) {
       setError(serverError(e))
     } finally {
-      setBusy(false)
+      if (!leaving) setBusy(false)
     }
   }
 

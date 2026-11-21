@@ -156,7 +156,8 @@ def _alert_paid_cancelled(res, amount: float, link_id: str) -> None:
 		pass
 
 
-def settle_payment_link(folio_name: str, link_id: str, amount: float) -> bool:
+def settle_payment_link(folio_name: str, link_id: str, amount: float,
+                        mode: str = "Payment Link") -> bool:
 	"""Post money received through a link, once per link payment. Money that
 	arrives before the guest does is an Advance on the booking: it counts
 	toward the deposit and confirms a held booking."""
@@ -170,7 +171,7 @@ def settle_payment_link(folio_name: str, link_id: str, amount: float) -> bool:
 	folio.append("payments", {
 		"posting_date": nowdate(),
 		"payment_kind": "Advance" if pre_arrival else "Payment",
-		"mode": "Payment Link",
+		"mode": mode,
 		"amount": amount,
 		"reference": link_id,
 	})

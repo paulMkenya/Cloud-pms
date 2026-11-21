@@ -404,6 +404,29 @@ export default function AppShell() {
       setBuild(versionLabel(info))
       setBrand({ name: info.brand_name ?? null, logo: info.brand_logo ?? null })
       document.title = info.brand_name ? `${info.brand_name} · Cloud PMS` : "Cloud PMS"
+      // "Add to Home Screen" on a phone: the business's own name and icon,
+      // opening full screen on the page it was added from
+      const meta = (name: string, content: string) => {
+        let m = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)
+        if (!m) {
+          m = document.createElement("meta")
+          m.name = name
+          document.head.appendChild(m)
+        }
+        m.content = content
+      }
+      meta("apple-mobile-web-app-capable", "yes")
+      meta("mobile-web-app-capable", "yes")
+      if (info.brand_name) meta("apple-mobile-web-app-title", info.brand_name)
+      if (info.brand_logo) {
+        let icon = document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]')
+        if (!icon) {
+          icon = document.createElement("link")
+          icon.rel = "apple-touch-icon"
+          document.head.appendChild(icon)
+        }
+        icon.href = info.brand_logo
+      }
     })
   }, [])
 

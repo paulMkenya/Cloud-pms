@@ -28,6 +28,8 @@ import frappe
 from frappe import _
 from frappe.utils import add_to_date, now_datetime
 
+from kamra.authz import require_roles, restricted_properties
+
 DEDUPE_MINUTES = 30
 
 EVENTS = (
@@ -121,22 +123,29 @@ def record(event: str, property: str | None = None, reference: str = "",
 # staff report
 # ---------------------------------------------------------------------------
 
+@frappe.whitelist()
+@require_roles("Hotel Admin", "Front Desk", "Kamra Agent")
 def campaign_stats(property: str | None = None, days: int = 30):
-	"""Funnel + recent clicks for the Campaigns screen. days capped at 180."""
-	from kamra.authz import require_roles
-	require_roles("Hotel Admin", "Front Desk", "Kamra Agent", "System Manager")
+	"""Funnel + recent clicks for the Campaigns screen. days capped at 180.
+	A property-restricted user sees only their properties (require_roles
+	checks an explicit `property`; this covers the all-properties view)."""
 	days = max(1, min(int(days or 30), 180))
 	since = add_to_date(now_datetime(), days=-days)
 
 	filters = {"creation": [">=", since]}
-	if property:
-		filters["property"] = property
-
 	# counts come from the database, whole window - not from a capped page
 	where, args = "creation >= %s", [since]
 	if property:
+		filters["property"] = property
 		where += " AND property = %s"
 		args.append(property)
+	else:
+		allowed = restricted_properties()
+		if allowed is not None:
+			allowed = sorted(allowed) or ["__none__"]
+			filters["property"] = ["in", allowed]
+			where += " AND property IN ({})".format(", ".join(["%s"] * len(allowed)))
+			args.extend(allowed)
 	per_prop: dict[str, dict] = {}
 	totals: dict[str, int] = {}
 	for prop_, event, n in frappe.db.sql(

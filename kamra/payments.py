@@ -129,6 +129,29 @@ def _confirm_paid_offer(res, amount: float) -> None:
 		frappe.flags.kamra_trusted = False
 
 
+def _alert_paid_cancelled(res, amount: float, link_id: str) -> None:
+	"""A link the guest opened before the booking was cancelled (declined,
+	expired, cancelled by staff) can still be paid. The money stays posted
+	on the folio; someone must refund or reinstate. Never raises."""
+	try:
+		frappe.log_error(
+			title=f"Payment received on a cancelled booking - refund or rebook {res.name}",
+			message=(f"KES {amount:,.2f} arrived through payment link {link_id} "
+			         f"after {res.name} ({res.guest_name}) was cancelled "
+			         f"({res.get('cancellation_note') or 'no note'}). It is posted "
+			         "on the guest folio. Refund the guest or reinstate the booking."))
+	except Exception:
+		pass
+	try:
+		from cloudtrade_hospitality.director_notify import alert_director
+		alert_director(
+			"payment received on a cancelled booking",
+			f"Received: KES {amount:,.0f}. {res.name} is Cancelled - refund the "
+			"guest or rebook them.", res=res)
+	except Exception:
+		pass
+
+
 def settle_payment_link(folio_name: str, link_id: str, amount: float) -> bool:
 	"""Post money received through a link, once per link payment. Money that
 	arrives before the guest does is an Advance on the booking: it counts
@@ -174,6 +197,8 @@ def settle_payment_link(folio_name: str, link_id: str, amount: float) -> bool:
 			from kamra.api import _deposit_state
 			if _deposit_state(res)["due"] <= 0.005:
 				_confirm_paid_offer(res, amount)
+	elif res and res.status == "Cancelled":
+		_alert_paid_cancelled(res, amount, link_id)
 	from kamra.savings import log_action
 	log_action("payment_received", "Folio", folio.name, folio.property,
 	           minutes_saved=3,

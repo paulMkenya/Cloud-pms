@@ -189,11 +189,12 @@ def _recent_txns(guest_name: str, limit: int = 10):
 		order_by="creation desc", limit_page_length=limit,
 	)
 	# the voucher code went only to the member's phone - a balance lookup
-	# (anyone with the number) must not reveal it
+	# (anyone with the number) must not reveal it. Show the last 2 chars
+	# only: leaking 4 of 6 left 961 guesses against check_voucher
 	return [{"date": str(r.posting_date), "kind": r.kind,
 	         "points": int(r.points or 0),
 	         "balance": int(r.balance_after or 0),
-	         "note": VOUCHER_RE.sub(r"LOY-\1••\2", r.note or "")}
+	         "note": VOUCHER_RE.sub(r"LOY-••••\2", r.note or "")}
 	        for r in rows]
 
 

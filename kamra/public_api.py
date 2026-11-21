@@ -1212,6 +1212,7 @@ def guest_payment_link(token: str, amount: float | None = None):
 
 
 @frappe.whitelist(allow_guest=True)
+@rate_limit(limit=30, seconds=3600)
 def check_voucher(property: str, code: str, nights: int = 1):
 	"""Live promo-code feedback on the booking page. Never throws - returns
 	{ok, message, discount_type, value} so the guest sees a friendly note."""

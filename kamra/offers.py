@@ -326,17 +326,21 @@ def _money_received(res) -> float:
 	return max(paid, float(folio_paid or 0))
 
 
-def _alert_decline_with_money(res, received: float) -> None:
+def _alert_decline_with_money(res, received: float,
+                              expired: bool = False) -> None:
+	what = "answered an expired offer" if expired else "tried to decline offer"
 	frappe.log_error(
-		title=f"Offer declined with payment received - refund or rebook {res.name}",
-		message=(f"The guest tried to decline offer {res.name} ({res.guest_name}), "
+		title=(f"Offer {'expired' if expired else 'declined'} with payment "
+		       f"received - refund or rebook {res.name}"),
+		message=(f"The guest {what} {res.name} ({res.guest_name}), "
 		         f"but KES {received:,.2f} has already been received. The booking "
 		         "was kept as it is. Contact the guest to cancel with a refund or "
 		         "to confirm the stay."))
 	try:
 		from cloudtrade_hospitality.director_notify import alert_director
 		alert_director(
-			"guest declined an offer after paying",
+			"guest answered an expired offer after paying" if expired
+			else "guest declined an offer after paying",
 			f"Received: KES {received:,.0f}. Booking kept as {res.status}. "
 			"Call the guest to cancel + refund, or confirm the stay.", res=res)
 	except Exception:
@@ -357,6 +361,17 @@ def respond_offer(token: str, accept: int):
 	the deposit is already covered; decline releases the hold with no fee."""
 	res = _find_by_token(token)
 	if _expired(res) and res.status == "Requested":
+		# money already in (a paid offer whose accept was refused for lack
+		# of a room, or a desk deposit) must not vanish with a no-fee cancel
+		received = _money_received(res)
+		if received > 0.005:
+			_alert_decline_with_money(res, received, expired=True)
+			frappe.db.commit()
+			frappe.throw(
+				_("This offer has expired, but a payment of KES {0} is already "
+				  "on this booking. Please contact the property to confirm your "
+				  "stay or arrange your refund.").format(f"{received:,.0f}"),
+				title=_("Contact the property"))
 		_expire(res)
 		frappe.db.commit()
 		frappe.throw(_("This offer has expired."),

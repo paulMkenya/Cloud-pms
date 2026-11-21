@@ -29,6 +29,7 @@ import { googleMapsEmbed } from "../lib/utils"
 import { serverError } from "../lib/resource"
 import { accentVars } from "../lib/accents"
 import { Badge } from "../components/ui/badge"
+import MpesaPay from "../components/MpesaPay"
 import { Button } from "../components/ui/button"
 import { Sheet } from "../components/ui/sheet"
 import { cur, locale, moneyLocale, adoptUiLocale } from "../lib/money"
@@ -515,6 +516,8 @@ export default function PublicBooking() {
     balance_at_hotel: number
     status: string
     token: string
+    phone: string
+    paid?: number
   } | null>(null)
   const [payLink, setPayLink] = useState<{ url: string; message: string } | null>(null)
   const [payFull, setPayFull] = useState(false)
@@ -758,6 +761,7 @@ export default function PublicBooking() {
         balance_at_hotel: Number(res.balance_at_hotel ?? res.amount_after_tax ?? 0),
         status: res.status,
         token: res.precheckin_token || "",
+        phone: form.phone,
       })
     } catch (e) {
       setError(serverError(e))
@@ -1818,8 +1822,20 @@ export default function PublicBooking() {
                 )}
               </dl>
               {done.status !== "Inquiry" && done.advance_due > 0 && done.token && !payLink && (
-                <div className="mt-5 space-y-2">
+                <MpesaPay
+                  token={done.token}
+                  defaultPhone={done.phone}
+                  deposit={done.balance_at_hotel > 0 ? done.advance_due : 0}
+                  full={done.amount}
+                  money={money}
+                  onPaid={(s) => setDone((d) => d && ({ ...d, status: s.booking_status, paid: s.amount }))}
+                />
+              )}
+              {done.status !== "Inquiry" && done.advance_due > 0 && done.token && !payLink && !done.paid && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs text-zinc-500">{t("Or pay by card / payment page:")}</p>
                   <Button
+                    variant="outline"
                     className="w-full justify-center py-2.5"
                     disabled={busy}
                     onClick={() => payDeposit()}
@@ -1857,14 +1873,16 @@ export default function PublicBooking() {
                 </div>
               )}
               <p className="mt-5 text-sm leading-relaxed text-zinc-600">
-                {done.status === "Pending Payment"
+                {done.status === "Pending Payment" && !done.paid
                   ? `${t("Your rooms are held until the advance is received.")} `
                   : ""}
                 {done.status === "Inquiry"
                   ? t("Thanks — your inquiry is with the property. They'll confirm availability and pricing shortly.")
                   : done.status === "Requested"
                   ? t("Your request goes to the property to confirm.")
-                  : t("We've saved your number; the front desk will reach out with payment details and before arrival.")}
+                  : done.paid
+                  ? t("Your confirmation and receipt are on their way to your WhatsApp.")
+                  : t("We've saved your number; your booking details and payment link are on their way to your WhatsApp.")}
               </p>
             </div>
           ) : (

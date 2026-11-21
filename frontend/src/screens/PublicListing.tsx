@@ -315,6 +315,8 @@ export default function PublicListing() {
     token: string
     phone: string
     paid?: number
+    payToConfirm?: boolean
+    payWithin?: number
   } | null>(null)
   const [payLink, setPayLink] = useState<{ url: string; message: string } | null>(null)
   const [linkBusy, setLinkBusy] = useState(false)
@@ -489,6 +491,8 @@ export default function PublicListing() {
         advance_due?: number
         balance_at_hotel?: number
         precheckin_token?: string
+        pay_to_confirm?: boolean
+        pay_within_minutes?: number
       }>("kamra.public_api.book",
         {
           property: resolved.property,
@@ -511,7 +515,24 @@ export default function PublicListing() {
         balance_at_hotel: Number(res.balance_at_hotel ?? 0),
         token: res.precheckin_token || "",
         phone: form.phone,
+        payToConfirm: Boolean(res.pay_to_confirm),
+        payWithin: Number(res.pay_within_minutes || 0),
       })
+      // straight to the secure CloudPay page (M-Pesa or card) for the
+      // amount the guest chose; the confirmation screen is the fallback
+      if (Number(res.advance_due || 0) > 0 && res.precheckin_token &&
+          (res.status === "Pending Payment" || res.pay_to_confirm)) {
+        try {
+          const link = await callGuest<{ url: string }>("kamra.public_api.guest_payment_link",
+            { token: res.precheckin_token })
+          if (link?.url) {
+            window.location.assign(link.url)
+            return
+          }
+        } catch {
+          /* stay on the confirmation screen: M-Pesa prompt + link button */
+        }
+      }
     } catch (e) {
       setError(serverError(e))
     } finally {
@@ -1000,9 +1021,9 @@ export default function PublicListing() {
         <Sheet
           wide
           title={(done
-            ? (done.status === "Requested" ? t("Request sent")
+            ? (done.status === "Requested" && !done.payToConfirm ? t("Request sent")
               : done.status === "Inquiry" ? t("Inquiry sent")
-              : done.status === "Pending Payment" && !done.paid ? t("Booking held: pay to confirm")
+              : (done.status === "Pending Payment" || done.payToConfirm) && !done.paid ? t("Pay to confirm your booking")
               : t("Booking confirmed"))
             : t("Complete your booking"))}
           description={
@@ -1051,7 +1072,7 @@ export default function PublicListing() {
                   )}
                 </dl>
               </div>
-              {done.advance_due > 0 && done.token && (done.status === "Pending Payment" || done.status === "Held" || done.status === "Confirmed") && (
+              {done.advance_due > 0 && done.token && (done.status === "Pending Payment" || done.status === "Held" || done.status === "Confirmed" || done.payToConfirm) && (
                 <MpesaPay
                   token={done.token}
                   defaultPhone={done.phone}
@@ -1080,6 +1101,8 @@ export default function PublicListing() {
               <p className="mt-4 text-sm leading-relaxed text-zinc-600">
                 {done.paid
                   ? t("Your confirmation and receipt are on their way to your WhatsApp.")
+                  : done.payToConfirm
+                  ? t("Pay within {time} to confirm - your dates are secured once payment is received. Your payment link is also on its way to your WhatsApp.", { time: done.payWithin && done.payWithin % 60 === 0 ? `${done.payWithin / 60} h` : `${done.payWithin || 120} min` })
                   : done.status === "Pending Payment"
                   ? t("Your stay is held until the deposit is received. Your booking details and payment link are also on their way to your WhatsApp.")
                   : done.status === "Requested" || done.status === "Inquiry"

@@ -203,6 +203,10 @@ MODULES: tuple[Module, ...] = (
 			)),
 			Section("holds", "Holds & selling", "", (
 				S("hold_minutes", "Hold unconfirmed bookings for", "number", 120, P, min=5, max=10080, unit="min"),
+				S("unpaid_bookings_hold", "Unpaid online bookings block the calendar", "check", 1,
+				  hint="Off: a website / WhatsApp booking holds nothing until its deposit is paid - "
+				       "the first guest to pay gets the dates, and an unpaid booking lapses after "
+				       "the hold time above (pay-to-confirm, like a desk offer)."),
 				S("sell_message", "Sell message", "textarea", store=P,
 				  hint="Shown in the booking dialog and used by the AI agent as its upsell prompt."),
 			)),

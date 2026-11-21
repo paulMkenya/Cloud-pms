@@ -940,6 +940,34 @@ def _payment_split(prop, total: float, rules: dict | None = None) -> dict:
 	}
 
 
+def _unpaid_bookings_hold(property: str) -> bool:
+	"""kv setting unpaid_bookings_hold (default on = Pending Payment holds)."""
+	try:
+		from kamra.settings import get_setting
+		return bool(get_setting(property, "unpaid_bookings_hold"))
+	except Exception:
+		return True
+
+
+def _assert_dates_free(property, room_type, check_in_date, check_out_date):
+	"""A pay-to-confirm booking takes nothing, so check the dates are not
+	already sold (confirmed / paid stays) before accepting it."""
+	from kamra.api import available_rooms
+	from kamra.kamra.doctype.reservation.reservation import (
+		uses_member_rooms, villa_lockout_conflict)
+	prev = frappe.flags.kamra_trusted
+	frappe.flags.kamra_trusted = True
+	try:
+		taken = bool(villa_lockout_conflict(property, room_type, check_in_date, check_out_date)) or (
+			not uses_member_rooms(property, room_type)
+			and not available_rooms(property, room_type, check_in_date, check_out_date))
+	finally:
+		frappe.flags.kamra_trusted = prev
+	if taken:
+		frappe.throw(_("Sorry - these dates were just booked. Please pick other dates."),
+		             title=_("Not available"))
+
+
 def _guest_advance_terms(prop, total: float, rules: dict | None,
                          pay_full: int) -> tuple[float, str]:
 	"""The guest's chosen split: the property's policy by default, or the
@@ -1034,7 +1062,16 @@ def book(property: str, room_type: str, check_in_date: str,
 		status, hold_expires_on = resolve_instant_status(
 			advance_due=advance_due, hold_minutes=hold_minutes,
 		)
+	pay_to_confirm = False
+	if status == "Pending Payment" and not _unpaid_bookings_hold(property):
+		# pay-to-confirm (the desk offer path): the booking holds nothing
+		# until the deposit lands; that payment confirms it only if the
+		# dates are still free. Never take one for dates already sold.
+		_assert_dates_free(property, room_type, check_in_date, check_out_date)
+		status, hold_expires_on, assign_room = "Requested", None, 0
+		pay_to_confirm = True
 
+	frappe.flags.kamra_pay_to_confirm = pay_to_confirm
 	with act_as(GUEST_AGENT):
 		result = create_booking(
 			property=property,
@@ -1074,6 +1111,10 @@ def book(property: str, room_type: str, check_in_date: str,
 			"payment_policy": policy,
 			"is_pay_at_hotel": 1 if advance_due < total else 0,
 		}
+		if pay_to_confirm and not result.get("idempotent_replay"):
+			from frappe.utils import add_to_date, now_datetime
+			updates["offer_pay_to_confirm"] = 1
+			updates["offer_expires_on"] = add_to_date(now_datetime(), minutes=hold_minutes)
 		if special_requests:
 			updates["special_requests"] = special_requests
 		# Instant + pay-at-hotel: if pre-insert peek overestimated advance,
@@ -1119,6 +1160,9 @@ def book(property: str, room_type: str, check_in_date: str,
 		"payment_policy": policy,
 		"pay_at_hotel": advance_due <= 0,
 		"status": final_status,
+		"pay_to_confirm": bool(frappe.db.get_value(
+			"Reservation", result["reservation"], "offer_pay_to_confirm")) and final_status == "Requested",
+		"pay_within_minutes": hold_minutes,
 		"needs_confirmation": bool(above),
 		"confirmation_reason": _over_capacity_note(above) if above else None,
 		"is_holiday": bool(q.get("is_holiday")),

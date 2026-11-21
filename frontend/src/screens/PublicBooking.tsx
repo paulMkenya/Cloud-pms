@@ -518,6 +518,8 @@ export default function PublicBooking() {
     token: string
     phone: string
     paid?: number
+    payToConfirm?: boolean
+    payWithin?: number
   } | null>(null)
   const [payLink, setPayLink] = useState<{ url: string; message: string } | null>(null)
   const [payFull, setPayFull] = useState(false)
@@ -734,6 +736,8 @@ export default function PublicBooking() {
         balance_at_hotel: number
         status: string
         precheckin_token?: string
+        pay_to_confirm?: boolean
+        pay_within_minutes?: number
       }>("kamra.public_api.book",
         {
           property,
@@ -762,7 +766,24 @@ export default function PublicBooking() {
         status: res.status,
         token: res.precheckin_token || "",
         phone: form.phone,
+        payToConfirm: Boolean(res.pay_to_confirm),
+        payWithin: Number(res.pay_within_minutes || 0),
       })
+      // straight to the secure CloudPay page (M-Pesa or card) for the
+      // amount the guest chose; the confirmation screen is the fallback
+      if (Number(res.advance_due || 0) > 0 && res.precheckin_token &&
+          (res.status === "Pending Payment" || res.pay_to_confirm)) {
+        try {
+          const link = await callGuest<{ url: string }>("kamra.public_api.guest_payment_link",
+            { token: res.precheckin_token })
+          if (link?.url) {
+            window.location.assign(link.url)
+            return
+          }
+        } catch {
+          /* stay on the confirmation screen: M-Pesa prompt + link button */
+        }
+      }
     } catch (e) {
       setError(serverError(e))
     } finally {
@@ -1873,12 +1894,14 @@ export default function PublicBooking() {
                 </div>
               )}
               <p className="mt-5 text-sm leading-relaxed text-zinc-600">
-                {done.status === "Pending Payment" && !done.paid
+                {done.payToConfirm && !done.paid
+                  ? `${t("Pay within {time} to confirm - your dates are secured once payment is received.", { time: done.payWithin && done.payWithin % 60 === 0 ? tn(done.payWithin / 60, "{n} hour", "{n} hours", { n: String(done.payWithin / 60) }) : t("{n} minutes", { n: String(done.payWithin || 120) }) })} `
+                  : done.status === "Pending Payment" && !done.paid
                   ? `${t("Your rooms are held until the advance is received.")} `
                   : ""}
                 {done.status === "Inquiry"
                   ? t("Thanks — your inquiry is with the property. They'll confirm availability and pricing shortly.")
-                  : done.status === "Requested"
+                  : done.status === "Requested" && !done.payToConfirm
                   ? t("Your request goes to the property to confirm.")
                   : done.paid
                   ? t("Your confirmation and receipt are on their way to your WhatsApp.")

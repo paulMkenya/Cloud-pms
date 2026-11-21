@@ -18,6 +18,7 @@ import { accentVars } from "../lib/accents"
 import { Badge } from "../components/ui/badge"
 import { Button } from "../components/ui/button"
 import { Sheet } from "../components/ui/sheet"
+import MpesaPay from "../components/MpesaPay"
 import { cur, moneyLocale, adoptUiLocale } from "../lib/money"
 import { formatPhoneDisplay, formatPhoneTel } from "../lib/phone"
 import { petChargeBasis } from "../lib/pets"
@@ -305,7 +306,18 @@ export default function PublicListing() {
     special_requests: "",
     marketing_consent: 0,
   })
-  const [done, setDone] = useState<{ reservation: string; amount: number; status?: string } | null>(null)
+  const [done, setDone] = useState<{
+    reservation: string
+    amount: number
+    status?: string
+    advance_due: number
+    balance_at_hotel: number
+    token: string
+    phone: string
+    paid?: number
+  } | null>(null)
+  const [payLink, setPayLink] = useState<{ url: string; message: string } | null>(null)
+  const [linkBusy, setLinkBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [lightbox, setLightbox] = useState<{ photos: Photo[]; start: number; title: string } | null>(null)
@@ -451,12 +463,33 @@ export default function PublicListing() {
     }
   }, [data, resolved, isSite, primary, t])
 
+  async function getPayLink() {
+    if (!done?.token) return
+    setLinkBusy(true)
+    setError(null)
+    try {
+      setPayLink(await callGuest<{ url: string; message: string }>(
+        "kamra.public_api.guest_payment_link", { token: done.token }))
+    } catch (e) {
+      setError(serverError(e))
+    } finally {
+      setLinkBusy(false)
+    }
+  }
+
   async function submitBooking() {
     if (!booking || !resolved) return
     setBusy(true)
     setError(null)
     try {
-      const res = await callGuest<{ reservation: string; amount_after_tax: number; status?: string }>("kamra.public_api.book",
+      const res = await callGuest<{
+        reservation: string
+        amount_after_tax: number
+        status?: string
+        advance_due?: number
+        balance_at_hotel?: number
+        precheckin_token?: string
+      }>("kamra.public_api.book",
         {
           property: resolved.property,
           room_type: booking,
@@ -469,7 +502,16 @@ export default function PublicListing() {
           ...form,
         },
       )
-      setDone({ reservation: res.reservation, amount: res.amount_after_tax, status: res.status })
+      setPayLink(null)
+      setDone({
+        reservation: res.reservation,
+        amount: res.amount_after_tax,
+        status: res.status,
+        advance_due: Number(res.advance_due || 0),
+        balance_at_hotel: Number(res.balance_at_hotel ?? 0),
+        token: res.precheckin_token || "",
+        phone: form.phone,
+      })
     } catch (e) {
       setError(serverError(e))
     } finally {
@@ -957,7 +999,12 @@ export default function PublicListing() {
       {booking && (
         <Sheet
           wide
-          title={(done ? (done.status === "Requested" ? t("Request sent") : t("Booking confirmed")) : t("Complete your booking"))}
+          title={(done
+            ? (done.status === "Requested" ? t("Request sent")
+              : done.status === "Inquiry" ? t("Inquiry sent")
+              : done.status === "Pending Payment" && !done.paid ? t("Booking held: pay to confirm")
+              : t("Booking confirmed"))
+            : t("Complete your booking"))}
           description={
             translate(done
               ? undefined
@@ -990,10 +1037,54 @@ export default function PublicListing() {
           }
         >
           {done ? (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4 text-emerald-800">
-              <p className="text-lg font-semibold">{done.reservation}</p>
-              <p className="mt-1 text-sm">
-                {t("Total {amount}", { amount: `${cur()}${inr(done.amount)}` })}
+            <div>
+              <div className="rounded-xl border border-zinc-200 px-4 py-4">
+                <p className="text-xs text-zinc-500">{t("Booking number")}</p>
+                <p className="text-lg font-semibold text-zinc-900">{done.reservation}</p>
+                <dl className="mt-2 space-y-1 text-sm">
+                  <div className="flex justify-between gap-4"><dt className="text-zinc-500">{t("Total")}</dt><dd className="font-semibold text-zinc-900">{`${cur()}${inr(done.amount)}`}</dd></div>
+                  {done.advance_due > 0 && !done.paid && (
+                    <div className="flex justify-between gap-4"><dt className="text-zinc-500">{t("Due now")}</dt><dd className="font-semibold text-zinc-900">{`${cur()}${inr(done.advance_due)}`}</dd></div>
+                  )}
+                  {done.balance_at_hotel > 0 && !done.paid && (
+                    <div className="flex justify-between gap-4"><dt className="text-zinc-500">{t("Pay at the property")}</dt><dd className="text-zinc-800">{`${cur()}${inr(done.balance_at_hotel)}`}</dd></div>
+                  )}
+                </dl>
+              </div>
+              {done.advance_due > 0 && done.token && (done.status === "Pending Payment" || done.status === "Held" || done.status === "Confirmed") && (
+                <MpesaPay
+                  token={done.token}
+                  defaultPhone={done.phone}
+                  deposit={done.balance_at_hotel > 0 ? done.advance_due : 0}
+                  full={done.amount}
+                  money={(n) => `${cur()}${inr(n)}`}
+                  onPaid={(s) => setDone((d) => d && ({ ...d, status: s.booking_status, paid: s.amount }))}
+                />
+              )}
+              {done.advance_due > 0 && done.token && !done.paid && !payLink && (
+                <div className="mt-3">
+                  <p className="mb-1 text-xs text-zinc-500">{t("Or pay by card / payment page:")}</p>
+                  <Button variant="outline" className="w-full justify-center py-2.5" disabled={linkBusy}
+                    onClick={() => void getPayLink()}>
+                    {linkBusy ? t("Preparing payment…") : t("Get payment page")}
+                  </Button>
+                </div>
+              )}
+              {payLink && !done.paid && (
+                <a href={payLink.url} target="_blank" rel="noreferrer"
+                  className="mt-3 inline-flex w-full items-center justify-center rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">
+                  {t("Open secure payment page")}
+                </a>
+              )}
+              {error && <p className="mt-2 text-sm text-rose-600">{translate(error)}</p>}
+              <p className="mt-4 text-sm leading-relaxed text-zinc-600">
+                {done.paid
+                  ? t("Your confirmation and receipt are on their way to your WhatsApp.")
+                  : done.status === "Pending Payment"
+                  ? t("Your stay is held until the deposit is received. Your booking details and payment link are also on their way to your WhatsApp.")
+                  : done.status === "Requested" || done.status === "Inquiry"
+                  ? t("The property will confirm shortly on WhatsApp.")
+                  : t("Your booking details are on their way to your WhatsApp.")}
               </p>
             </div>
           ) : (

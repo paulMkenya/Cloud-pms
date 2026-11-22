@@ -8,6 +8,7 @@
 
 import {
   BadgePercent,
+  MousePointerClick,
   Share2,
   Network,
   MessageCircle,
@@ -142,6 +143,9 @@ export const APPS: AppDef[] = [
       { to: "/hosts-commission", label: "Hosts & Commission", icon: Handshake,
         keywords: ["Commission", "Hosts", "Owners", "Payout", "Units"],
         roles: ["Hotel Admin", "Finance", "System Manager", "Administrator"] },
+      { to: "/campaigns", label: "Campaign tracking", icon: MousePointerClick,
+        keywords: ["Campaigns", "Clicks", "Visitors", "Links", "Marketing", "UTM", "Traffic"],
+        roles: ["Hotel Admin", "Front Desk", "System Manager", "Administrator"] },
       { to: "/end-of-day", label: "Night Audit", icon: MoonStar,
         keywords: EOD_KEYWORDS },
       { to: "/calendar", label: "Calendar", icon: CalendarDays },
@@ -263,6 +267,9 @@ export const APPS: AppDef[] = [
       { to: "/reports", label: "Reports", icon: ChartLine },
       { to: "/listing-reports", label: "Per-listing report", icon: ChartLine,
         keywords: ["Listing", "Unit", "ADR", "RevPAR", "occupancy by unit"] },
+      { to: "/campaigns", label: "Campaign tracking", icon: MousePointerClick,
+        keywords: ["Campaigns", "Clicks", "Visitors", "Links", "Marketing", "UTM", "Traffic"],
+        roles: ["Hotel Admin", "Front Desk", "System Manager", "Administrator"] },
       { to: "/channel-manager", label: "Channel Manager", icon: Share2 },
       { to: "/ota-mappings", label: "OTA Room Mappings", icon: Network },
       { to: "/rate-calendar", label: "Rate Calendar", icon: CalendarDays,

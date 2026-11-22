@@ -110,7 +110,7 @@ export function WhatsAppStayButton({ choice, compact = false }: { choice: StayCh
         {t("Book on WhatsApp instead")}
       </a>
       <p className="mt-1.5 text-center text-xs text-zinc-500">
-        {t("Your dates go with you - just add your name and pay.")}
+        {t("Your dates go with you – just add your name and confirm.")}
       </p>
     </div>
   )

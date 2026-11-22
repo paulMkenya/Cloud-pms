@@ -23,7 +23,16 @@ interface Unit {
   model: Model
   host: string
   net_rate: number
+  basis: Basis
+  percent: number
+  monthly_rent: number
 }
+type Basis = "Fixed price per night" | "Percentage" | "Monthly rent"
+const BASES: { v: Basis; label: string; hint: string }[] = [
+  { v: "Fixed price per night", label: "Fixed price", hint: "Host gets an agreed price per night, you keep what you sell above it" },
+  { v: "Percentage", label: "Percentage", hint: "You keep a % of what the guest pays" },
+  { v: "Monthly rent", label: "Monthly rent", hint: "Host gets a fixed amount every month, you keep all booking income" },
+]
 interface Host {
   name: string
   host_name: string
@@ -46,6 +55,7 @@ interface CommRow {
   property_label: string
   unit_label: string
   host_label: string
+  basis?: string
   check_in: string
   check_out: string
   nights: number
@@ -170,7 +180,7 @@ function UnitsTab({ data, onSaved, onAddHost }: {
   return (
     <div className="space-y-4">
       <p className="text-sm text-zinc-600">
-        {t("For each unit choose Mine (your own) or Managed (you manage it for a host). For managed units pick the host and the price per night you agreed to pay them.")}
+        {t("For each unit choose Mine (your own) or Managed (you manage it for a host). For a managed unit pick the host and how you split the money: a fixed price per night to the host, a percentage for you, or a fixed monthly rent to the host.")}
       </p>
       {activeHosts.length === 0 && (
         <p className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
@@ -185,9 +195,15 @@ function UnitsTab({ data, onSaved, onAddHost }: {
           <div className="border-b border-zinc-100 px-4 py-2.5 text-sm font-semibold text-zinc-800">{label}</div>
           <div className="divide-y divide-zinc-100">
             {units.map((u) => {
-              const diff = u.model === "Managed" && u.net_rate > 0 ? u.rate_card - u.net_rate : null
+              const managed = u.model === "Managed"
+              const basis = u.basis || "Fixed price per night"
+              const keep =
+                !managed ? null
+                : basis === "Fixed price per night" ? (u.net_rate > 0 ? u.rate_card - u.net_rate : null)
+                : basis === "Percentage" ? (u.percent > 0 ? (u.rate_card * u.percent) / 100 : null)
+                : null
               return (
-                <div key={u.room_type} className="grid gap-3 px-4 py-3 sm:grid-cols-[1.2fr_1.4fr_1.4fr_1fr] sm:items-center">
+                <div key={u.room_type} className="grid gap-3 px-4 py-3 sm:grid-cols-[1.1fr_1.3fr_1.3fr_1.3fr] sm:items-start">
                   <div>
                     <div className="text-sm font-medium text-zinc-900">{u.unit_label}</div>
                     <div className="text-xs text-zinc-500">{t("Your price")}: {money(u.rate_card)} / {t("night")}</div>
@@ -207,38 +223,56 @@ function UnitsTab({ data, onSaved, onAddHost }: {
                       </button>
                     ))}
                   </div>
-                  {u.model === "Managed" ? (
-                    <select
-                      className={inputCls}
-                      value={u.host}
-                      disabled={!data.can_edit}
-                      onChange={(e) => set(u, { host: e.target.value })}
-                    >
-                      <option value="">{t("Choose host…")}</option>
-                      {activeHosts.map((h) => (
-                        <option key={h.name} value={h.name}>{h.host_name}</option>
-                      ))}
-                    </select>
+                  {managed ? (
+                    <div className="space-y-2">
+                      <select
+                        className={inputCls}
+                        value={u.host}
+                        disabled={!data.can_edit}
+                        onChange={(e) => set(u, { host: e.target.value })}
+                      >
+                        <option value="">{t("Choose host…")}</option>
+                        {activeHosts.map((h) => (
+                          <option key={h.name} value={h.name}>{h.host_name}</option>
+                        ))}
+                      </select>
+                      <select
+                        className={inputCls}
+                        value={basis}
+                        disabled={!data.can_edit}
+                        title={t(BASES.find((b) => b.v === basis)?.hint || "")}
+                        onChange={(e) => set(u, { basis: e.target.value as Basis })}
+                      >
+                        {BASES.map((b) => <option key={b.v} value={b.v}>{t(b.label)}</option>)}
+                      </select>
+                    </div>
                   ) : (
                     <div className="hidden sm:block" />
                   )}
-                  {u.model === "Managed" ? (
+                  {managed ? (
                     <div>
+                      <label className="mb-1 block text-xs text-zinc-500">
+                        {basis === "Percentage" ? t("Your commission %")
+                          : basis === "Monthly rent" ? t("Rent to host per month")
+                          : t("Host price per night")}
+                      </label>
                       <input
                         className={inputCls}
                         inputMode="numeric"
-                        placeholder={t("Host price / night")}
-                        value={u.net_rate || ""}
+                        value={(basis === "Percentage" ? u.percent : basis === "Monthly rent" ? u.monthly_rent : u.net_rate) || ""}
                         disabled={!data.can_edit}
-                        onChange={(e) => set(u, { net_rate: Number(e.target.value.replace(/[^0-9.]/g, "")) || 0 })}
+                        onChange={(e) => {
+                          const v = Number(e.target.value.replace(/[^0-9.]/g, "")) || 0
+                          set(u, basis === "Percentage" ? { percent: v } : basis === "Monthly rent" ? { monthly_rent: v } : { net_rate: v })
+                        }}
                       />
-                      {diff !== null && (
-                        <div className={"mt-1 text-xs " + (diff > 0 ? "text-emerald-700" : "text-rose-700")}>
-                          {diff > 0
-                            ? t("You keep about {amount} / night", { amount: money(diff) })
-                            : t("Host price is above your price")}
-                        </div>
-                      )}
+                      <div className={"mt-1 text-xs " + (keep !== null && keep <= 0 ? "text-rose-700" : "text-emerald-700")}>
+                        {basis === "Monthly rent"
+                          ? (u.monthly_rent > 0 ? t("You keep all booking income and owe the host {amount} every month", { amount: money(u.monthly_rent) }) : "")
+                          : keep === null ? ""
+                          : keep > 0 ? t("You keep about {amount} / night at your price", { amount: money(keep) })
+                          : t("Host price is above your price")}
+                      </div>
                     </div>
                   ) : (
                     <div className="hidden sm:block" />
@@ -546,6 +580,7 @@ function CommissionTab() {
           [t("Hosts' share"), tot.host_share, "text-zinc-900"],
           [t("Guests paid (managed units)"), tot.guest_total, "text-zinc-900"],
           [t("Your own units"), tot.own_revenue, "text-zinc-900"],
+          ...((tot.rent_due || 0) > 0 ? [[t("Rent owed to hosts this month"), tot.rent_due, "text-amber-700"]] : []),
         ].map(([label, v, cls]) => (
           <div key={String(label)} className="rounded-xl border border-zinc-200 bg-white p-3">
             <div className="text-xs text-zinc-500">{label}</div>
@@ -572,7 +607,7 @@ function CommissionTab() {
               <tr key={r.reservation}>
                 <td className="px-3 py-2">
                   <div className="font-medium text-zinc-900">{r.property_label}</div>
-                  <div className="text-xs text-zinc-500">{r.unit_label} · {r.check_in} → {r.check_out}{r.host_label ? ` · ${r.host_label}` : ""}</div>
+                  <div className="text-xs text-zinc-500">{r.unit_label} · {r.check_in} → {r.check_out}{r.host_label ? ` · ${r.host_label}` : ""}{r.basis && r.basis !== "Fixed price per night" ? ` · ${t(r.basis)}` : ""}</div>
                 </td>
                 <td className="px-3 py-2">
                   <div>{r.guest}</div>

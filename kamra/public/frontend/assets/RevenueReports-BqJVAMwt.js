@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:kamra/public/frontend/assets/RevenueReports-BqJVAMwt.js
 import{j as e,r as c}from"./vendor-BxPw79l1.js";import{o as I,n as S,t,d as k,s as w,B as N,aa as z,e as B,g as R,m as L}from"./index-pZLzl5hP.js";import{C as T,a as E,b as A,c as P}from"./card-D8hjjNnx.js";import{C as O}from"./chevron-left-CZ2y-HhU.js";import{C as $}from"./chevron-right-DQTpd9kL.js";/**
+========
+import{j as e,r as c}from"./vendor-B7XwBC7W.js";import{o as I,n as S,t,d as k,s as w,B as N,aa as z,e as B,g as R,m as L}from"./index-DUcwpva4.js";import{C as T,a as E,b as A,c as P}from"./card-Dlip6jam.js";import{C as O}from"./chevron-left-CTzp66Ds.js";import{C as $}from"./chevron-right-G0_VyMYd.js";/**
+>>>>>>>> v2.8.0:kamra/public/frontend/assets/RevenueReports-NTkxrBis.js
  * @license lucide-react v0.525.0 - ISC
  *
  * This source code is licensed under the ISC license.

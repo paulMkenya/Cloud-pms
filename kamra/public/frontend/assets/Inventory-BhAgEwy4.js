@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:kamra/public/frontend/assets/Inventory-BhAgEwy4.js
 import{r as a,j as e}from"./vendor-BxPw79l1.js";import{o as B,n as z,a as G,d as _,g as S,t,a4 as D,B as y,ay as F,a5 as H,j as w,aL as P,h as $,X as Q}from"./index-FRICaNlM.js";import{T as U}from"./trash-2-ne5Rb3KA.js";import{T as W}from"./triangle-alert-BBamACPG.js";import{B as K}from"./ban-CXTyBUwj.js";/**
+========
+import{r as a,j as e}from"./vendor-B7XwBC7W.js";import{o as B,n as z,a as G,d as _,g as S,t,a4 as D,B as y,ay as F,a5 as H,j as w,aL as P,h as $,X as Q}from"./index-DUcwpva4.js";import{T as U}from"./trash-2-BPEOjTKg.js";import{T as W}from"./triangle-alert-By4ktq4A.js";import{B as K}from"./ban-ClVorf68.js";/**
+>>>>>>>> v2.8.0:kamra/public/frontend/assets/Inventory-BjmBlFQQ.js
  * @license lucide-react v0.525.0 - ISC
  *
  * This source code is licensed under the ISC license.

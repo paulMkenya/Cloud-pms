@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:kamra/public/frontend/assets/wrench-CmhTbWAF.js
 import{o as a}from"./index-FRICaNlM.js";/**
+========
+import{o as a}from"./index-DUcwpva4.js";/**
+>>>>>>>> v2.8.0:kamra/public/frontend/assets/wrench-BtbKprlc.js
  * @license lucide-react v0.525.0 - ISC
  *
  * This source code is licensed under the ISC license.

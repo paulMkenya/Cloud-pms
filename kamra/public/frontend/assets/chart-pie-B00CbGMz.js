@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:kamra/public/frontend/assets/chart-pie-B00CbGMz.js
 import{o as a}from"./index-DcV_vTqc.js";/**
+========
+import{o as a}from"./index-DUcwpva4.js";/**
+>>>>>>>> v2.8.0:kamra/public/frontend/assets/chart-pie-DW7W8tDY.js
  * @license lucide-react v0.525.0 - ISC
  *
  * This source code is licensed under the ISC license.

@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:kamra/public/frontend/assets/Kitchen-CIdnMZey.js
 import{r as d,u as Me,j as e}from"./vendor-BxPw79l1.js";import{o as Z,a3 as ce,d as E,u as O,bd as Le,bb as Ae,g as B,be as Ie,bf as De,j as p,h as oe,bc as Pe,t as h,bg as Fe,bh as Re,$ as Be,a5 as Ke,y as $e,an as de,B as w,e as Ge,X as Ue}from"./index-DLLcFsmX.js";import{b as He,k as qe,p as Ve,j as We}from"./thermal-tANXvYoh.js";import{C as me}from"./chef-hat-D2Ff8oUJ.js";import{F as Ye,a as Je,M as Ze}from"./minimize-2-D6J6ptPS.js";import{T as L}from"./triangle-alert-0mRRq6ro.js";import{F as P}from"./flame-DBc43xzN.js";import{C as G}from"./check-CC4KQQ8S.js";import{U as Xe}from"./undo-2-QWF7-xxP.js";import{I as Qe}from"./inbox-qUyZ3kqh.js";import{C as et}from"./cooking-pot-B324-DWk.js";/**
+========
+import{r as d,u as Me,j as e}from"./vendor-B7XwBC7W.js";import{o as Z,a3 as ce,d as E,u as O,be as Le,bc as Ae,g as B,bf as Ie,bg as De,j as p,h as oe,bd as Pe,t as h,bh as Fe,bi as Re,$ as Be,a5 as Ke,y as $e,an as de,B as w,e as Ge,X as Ue}from"./index-DUcwpva4.js";import{b as He,k as qe,p as Ve,j as We}from"./thermal-v9IPKzNY.js";import{C as me}from"./chef-hat-DelFjGGx.js";import{F as Ye,a as Je,M as Ze}from"./minimize-2-BFpnDMmv.js";import{T as L}from"./triangle-alert-By4ktq4A.js";import{F as P}from"./flame-C2jP_BiV.js";import{C as G}from"./check-BjJsgWxt.js";import{U as Xe}from"./undo-2-CEoiwTlQ.js";import{I as Qe}from"./inbox-Dcmoot64.js";import{C as et}from"./cooking-pot-D0RZyDtk.js";/**
+>>>>>>>> v2.8.0:kamra/public/frontend/assets/Kitchen-BfbXdqRA.js
  * @license lucide-react v0.525.0 - ISC
  *
  * This source code is licensed under the ISC license.

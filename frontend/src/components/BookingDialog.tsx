@@ -22,6 +22,7 @@ import { Button } from "./ui/button"
 import { cur, moneyLocale, useLocale } from "../lib/money"
 import { isPhoneComplete } from "../lib/phone"
 import { nightsBetween, parseDate, shiftDate } from "../lib/stay"
+import { typedNights, type NightPrice } from "../lib/nightPrices"
 import PhoneInput from "./PhoneInput"
 import { clampGuests, sleeps } from "../lib/occupancy"
 import { useT, t as translate, useUILanguage } from "../lib/i18n"
@@ -56,6 +57,8 @@ interface ExtraRoom {
   guest_name: string
   /** rooms of this kind ("Deluxe × 5") */
   count: number
+  /** nights the desk priced by hand for this room (its own, not the main room's) */
+  night_prices?: NightPrice[]
 }
 
 const inputCls =
@@ -434,6 +437,27 @@ export function BookingDialog(props: {
   // rooms free per type for the chosen dates, shown in the picker so the
   // desk sees what is full before choosing (not at confirm)
   const [typeFree, setTypeFree] = useState<Record<string, number> | null>(null)
+
+  // Nights the desk priced by hand (date -> price, in the basis the rates
+  // screen shows). Only a Revenue Manager / Hotel Admin may; an OTA total
+  // already sets the price, and a day-use stay is priced by its slot.
+  const [nightPrices, setNightPrices] = useState<Record<string, number>>({})
+  const canSetPrice = !!options?.can_set_rate && otaTotal <= 0 && !dayUse
+  const stayNights = badDate || dayUse
+    ? []
+    : Array.from({ length: Math.max(1, form.nights) }, (_, i) => shiftDate(form.check_in_date, i))
+  const nightPricesArg = canSetPrice ? typedNights(nightPrices, stayNights) : []
+  // a night that is no longer in the stay is dropped with the date change
+  const stayKey = stayNights.join(",")
+  useEffect(() => {
+    if (!stayKey) return // a date still being typed: keep what was entered
+    setNightPrices((p) => {
+      const keep = Object.fromEntries(Object.entries(p).filter(([d]) => stayKey.split(",").includes(d)))
+      return Object.keys(keep).length === Object.keys(p).length ? p : keep
+    })
+  }, [stayKey])
+  const nightPricesParam = nightPricesArg.length ? { night_prices: nightPricesArg } : {}
+
   useEffect(() => {
     if (!options?.room_types.length || badDate) {
       setTypeFree(null)
@@ -520,6 +544,7 @@ export function BookingDialog(props: {
         over_capacity_charge: extraCharge || undefined,
         pets: form.pets || undefined,
         agreed_rate: canNegotiate && negRateNum > 0 ? negRateNum : undefined,
+        ...(canNegotiate && negRateNum > 0 ? {} : nightPricesParam),
       })
         .then((q) => {
           setQuote(q)
@@ -551,6 +576,8 @@ export function BookingDialog(props: {
     canNegotiate,
     negRateNum,
     checkOut,
+    // a typed price re-quotes: the totals, tax and advance follow it
+    JSON.stringify(nightPricesArg),
   ])
 
   // quotes for the additional rooms
@@ -572,13 +599,14 @@ export function BookingDialog(props: {
                 meal_plan: r.meal_plan || undefined,
                 rate_plan: form.rate_plan || undefined,
                 company: form.company || undefined,
+                ...(r.night_prices?.length && canSetPrice ? { night_prices: r.night_prices } : {}),
               }).catch(() => null)
             : Promise.resolve(null),
         ),
       ).then(setMoreQuotes)
     }, 300)
     return () => clearTimeout(t)
-  }, [moreRooms, form.check_in_date, checkOut, form.rate_plan, form.company])
+  }, [moreRooms, form.check_in_date, checkOut, form.rate_plan, form.company, canSetPrice])
 
   // walk-in: the actual rooms free tonight, clean ones first
   useEffect(() => {
@@ -666,6 +694,7 @@ export function BookingDialog(props: {
           assign_room: inquiry ? 0 : undefined,
           agreed_rate: canNegotiate && negRateNum > 0 ? negRateNum : undefined,
           agreed_rate_note: negNote.trim() || undefined,
+          ...(canNegotiate && negRateNum > 0 ? {} : nightPricesParam),
           ...slotArgs,
           blacklist_override_reason: blacklistOverride,
         })
@@ -682,6 +711,8 @@ export function BookingDialog(props: {
             adults: form.adults,
             children: form.children,
             meal_plan: form.meal_plan || undefined,
+            // the main room's own nights; each extra room carries its own below
+            ...(canNegotiate && negRateNum > 0 ? {} : nightPricesParam),
           },
           ...moreRooms.map((r) => ({
             room_type: r.room_type,
@@ -690,6 +721,7 @@ export function BookingDialog(props: {
             children: r.children,
             meal_plan: r.meal_plan || undefined,
             guest_name: (r.count === 1 && r.guest_name.trim()) || undefined,
+            night_prices: (canSetPrice && r.night_prices?.length ? r.night_prices : undefined),
           })),
         ]
         const roomCount = rooms.reduce((s, r) => s + r.count, 0)
@@ -784,6 +816,7 @@ export function BookingDialog(props: {
         credit_override_reason: creditOverride,
         ...viaArgs,
         marketing_consent: offers ? 1 : undefined,
+        ...(canNegotiate && negRateNum > 0 ? {} : nightPricesParam),
       })
       await addOthers(res.reservation)
       let offer: { offerUrl?: string; offerExpires?: string } = {}
@@ -852,6 +885,7 @@ export function BookingDialog(props: {
         ...slotArgs,
         blacklist_override_reason: blacklistOverride,
         ...viaArgs,
+        ...(canNegotiate && negRateNum > 0 ? {} : nightPricesParam),
         // book, assign and take the money now; the guided check-in
         // (property's required steps) finishes it right after
         defer_check_in: 1,
@@ -1106,94 +1140,62 @@ export function BookingDialog(props: {
               </div>
             )}
 
-            {/* Confirmation snapshot so desk staff can read the stay back
-                without reopening the reservation (Fares). */}
-            <div className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-              <dl className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <dt className="text-xs font-medium text-zinc-400">{t("Guest name")}</dt>
-                  <dd className="mt-1 font-semibold text-zinc-900">
-                    {form.guest_name || "-"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-zinc-400">{t("Phone")}</dt>
-                  <dd className="mt-1 font-semibold text-zinc-900">
-                    {form.phone || "-"}
-                  </dd>
-                </div>
-
-                <div
-                  className={
-                    "sm:col-span-2 rounded-xl border p-4 " +
-                    (done.room
-                      ? "border-brand-200 bg-brand-50"
-                      : "border-zinc-200 bg-zinc-50")
-                  }
-                >
-                  <dt
-                    className={
-                      "text-xs font-semibold " +
-                      (done.room ? "text-brand-700" : "text-zinc-500")
-                    }
-                  >
-                    {t("Room")}
-                  </dt>
-                  <dd
-                    className={
-                      "mt-1 text-2xl font-bold " +
-                      (done.room ? "text-brand-900" : "text-zinc-700")
-                    }
-                  >
-                    {done.room
-                      ? (done.room.split("-").pop() ?? done.room)
-                      : t("Unassigned")}
-                  </dd>
-                  <dd
-                    className={
-                      "mt-1 text-sm " +
-                      (done.room ? "text-brand-700" : "text-zinc-500")
-                    }
-                  >
+            {/* Stay receipt for the desk: guest, room and dates in one place
+                so staff can confirm without opening the reservation. */}
+            <div className="space-y-3 border-t border-zinc-100 pt-4 text-sm text-zinc-800">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="text-zinc-500">{t("Guest name")}</span>
+                <span className="font-medium">{form.guest_name || "-"}</span>
+              </div>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="text-zinc-500">{t("Phone")}</span>
+                <span className="font-medium">{form.phone || "-"}</span>
+              </div>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="text-zinc-500">{t("Room")}</span>
+                <span className="text-right font-medium">
+                  {done.room
+                    ? (done.room.split("-").pop() ?? done.room)
+                    : t("Unassigned")}
+                  <span className="mt-0.5 block text-xs font-normal text-zinc-500">
                     {roomTypeName || form.room_type}
                     {moreRooms.length > 0
                       ? ` · ${1 + moreRooms.reduce((s, r) => s + r.count, 0)} ${t("Rooms")}`
                       : ""}
-                  </dd>
-                </div>
-
-                <div>
-                  <dt className="text-xs font-medium text-zinc-400">{t("Check-in")}</dt>
-                  <dd className="mt-1 font-semibold text-zinc-900">
-                    {form.check_in_date}
-                    {!dayUse && !walkIn && stayIn ? ` · ${stayIn}` : ""}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-zinc-400">{t("Check-out")}</dt>
-                  <dd className="mt-1 font-semibold text-zinc-900">
-                    {checkOut}
-                    {!dayUse && !walkIn && stayOut ? ` · ${stayOut}` : ""}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-zinc-400">
-                    {dayUse ? t("Day use") : t("Nights")}
-                  </dt>
-                  <dd className="mt-1 font-semibold text-zinc-900">
-                    {dayUse ? `${slot.from}-${slot.to}` : form.nights}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs font-medium text-zinc-400">{t("Guests")}</dt>
-                  <dd className="mt-1 font-semibold text-zinc-900">
-                    {form.adults} {t("Adults")}
-                    {form.children > 0
-                      ? ` · ${form.children} ${t("Children")}`
-                      : ""}
-                  </dd>
-                </div>
-              </dl>
+                  </span>
+                </span>
+              </div>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="text-zinc-500">{t("Check-in")}</span>
+                <span className="font-medium">
+                  {form.check_in_date}
+                  {!dayUse && !walkIn && stayIn ? ` · ${stayIn}` : ""}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="text-zinc-500">{t("Check-out")}</span>
+                <span className="font-medium">
+                  {checkOut}
+                  {!dayUse && !walkIn && stayOut ? ` · ${stayOut}` : ""}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="text-zinc-500">
+                  {dayUse ? t("Day use") : t("Nights")}
+                </span>
+                <span className="font-medium">
+                  {dayUse ? `${slot.from}-${slot.to}` : form.nights}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="text-zinc-500">{t("Guests")}</span>
+                <span className="font-medium">
+                  {form.adults} {t("Adults")}
+                  {form.children > 0
+                    ? ` · ${form.children} ${t("Children")}`
+                    : ""}
+                </span>
+              </div>
             </div>
 
             {done.deposit && !done.walkIn && !done.waitlist && !done.offerUrl && (
@@ -1947,6 +1949,14 @@ export function BookingDialog(props: {
                     voucher={form.voucher_code || undefined}
                     ratePlan={form.rate_plan}
                     onPickPlan={(p) => set("rate_plan", p)}
+                    nightPrices={nightPrices}
+                    onNightPrices={setNightPrices}
+                    canSetPrice={canSetPrice && !(canNegotiate && negRateNum > 0)}
+                    lockedNote={
+                      options?.can_set_rate && otaTotal > 0
+                        ? t("The OTA total sets the price, so nights cannot be priced one by one.")
+                        : undefined
+                    }
                   />
                 )}
 

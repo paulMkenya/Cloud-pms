@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:kamra/public/frontend/assets/chef-hat-B2Nshy4b.js
 import{o as a}from"./index-B3DV6GN8.js";/**
+========
+import{o as a}from"./index-DUcwpva4.js";/**
+>>>>>>>> v2.8.0:kamra/public/frontend/assets/chef-hat-DelFjGGx.js
  * @license lucide-react v0.525.0 - ISC
  *
  * This source code is licensed under the ISC license.

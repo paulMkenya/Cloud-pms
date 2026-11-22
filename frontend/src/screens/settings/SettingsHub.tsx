@@ -14,6 +14,7 @@ import {
   Globe,
   Landmark,
   MessageSquareText,
+  Languages,
   LayoutGrid,
   ListTodo,
   Palette,
@@ -51,6 +52,7 @@ import {
   TIMEZONES,
   ZatcaCard,
 } from "./cards"
+import { LanguagesPage } from "./LanguagesPage"
 import { McpAccessPage } from "./McpAccessPage"
 import { GuestMessagesPage } from "./GuestMessagesPage"
 import { ChannelsPage } from "./ChannelsPage"
@@ -80,12 +82,15 @@ interface CustomPage {
   id: string
   title: string
   description: string
-  group: "access" | "integrations" | "personal"
+  group: "organisation" | "access" | "integrations" | "personal"
   icon: LucideIcon
   keywords: string
 }
 
 const CUSTOM_PAGES: CustomPage[] = [
+  { id: "languages", title: "Languages", group: "organisation", icon: Languages,
+    description: "Which languages sign-in, the staff app and guest pages offer.",
+    keywords: "language idioma español arabic portuguese rtl enable disable locale translation" },
   { id: "staff", title: "Staff & access", group: "access", icon: Users,
     description: "Who can sign in, what each person can do and which properties they reach.",
     keywords: "users people invite roles permissions deactivate cashier pin reset team employees matrix rights" },
@@ -548,6 +553,8 @@ function CustomPageBody({
       return <KamraVerifyCard />
     case "zatca":
       return <ZatcaCard property={property} />
+    case "languages":
+      return <LanguagesPage />
     case "appearance":
       return <AppearanceCard />
     default:

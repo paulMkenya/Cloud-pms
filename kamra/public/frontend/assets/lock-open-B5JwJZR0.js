@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:kamra/public/frontend/assets/lock-open-B5JwJZR0.js
 import{p as e}from"./index-DGRJwVHK.js";/**
+========
+import{o as e}from"./index-DUcwpva4.js";/**
+>>>>>>>> v2.8.0:kamra/public/frontend/assets/lock-open-BfPk4T23.js
  * @license lucide-react v0.525.0 - ISC
  *
  * This source code is licensed under the ISC license.

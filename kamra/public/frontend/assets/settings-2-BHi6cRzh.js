@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:kamra/public/frontend/assets/settings-2-BHi6cRzh.js
 import{o as c}from"./index-Cnf5r1en.js";/**
+========
+import{o as c}from"./index-DUcwpva4.js";/**
+>>>>>>>> v2.8.0:kamra/public/frontend/assets/settings-2-D29-HH-N.js
  * @license lucide-react v0.525.0 - ISC
  *
  * This source code is licensed under the ISC license.

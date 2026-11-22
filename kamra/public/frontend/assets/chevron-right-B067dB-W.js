@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:kamra/public/frontend/assets/chevron-right-B067dB-W.js
 import{o}from"./index-FRICaNlM.js";/**
+========
+import{o}from"./index-DUcwpva4.js";/**
+>>>>>>>> v2.8.0:kamra/public/frontend/assets/chevron-right-G0_VyMYd.js
  * @license lucide-react v0.525.0 - ISC
  *
  * This source code is licensed under the ISC license.

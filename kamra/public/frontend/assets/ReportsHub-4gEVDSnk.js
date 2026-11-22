@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:kamra/public/frontend/assets/ReportsHub-4gEVDSnk.js
 import{e as m,j as e,L as h}from"./vendor-BxPw79l1.js";import{o as x,u as g,a as y,a_ as f,ay as l,b3 as c,b4 as v,b5 as k,M as w,az as p,b6 as N,aI as R,am as j,b7 as S,aL as O}from"./index-DLLcFsmX.js";import{F}from"./file-x-2-ifNdYjvF.js";/**
+========
+import{d as m,j as e,L as h}from"./vendor-B7XwBC7W.js";import{o as x,u as g,a as y,a_ as f,ay as l,b4 as c,b5 as v,b6 as k,M as w,az as p,b7 as N,aI as R,am as j,b8 as S,aL as O}from"./index-DUcwpva4.js";import{F}from"./file-x-2-Bo_8OQjs.js";/**
+>>>>>>>> v2.8.0:kamra/public/frontend/assets/ReportsHub-435sBy3k.js
  * @license lucide-react v0.525.0 - ISC
  *
  * This source code is licensed under the ISC license.

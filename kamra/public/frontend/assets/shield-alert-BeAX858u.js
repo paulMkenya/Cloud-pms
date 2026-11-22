@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:kamra/public/frontend/assets/shield-alert-BeAX858u.js
 import{o as e}from"./index-DLLcFsmX.js";/**
+========
+import{o as e}from"./index-DUcwpva4.js";/**
+>>>>>>>> v2.8.0:kamra/public/frontend/assets/shield-alert-C6wEIbvI.js
  * @license lucide-react v0.525.0 - ISC
  *
  * This source code is licensed under the ISC license.

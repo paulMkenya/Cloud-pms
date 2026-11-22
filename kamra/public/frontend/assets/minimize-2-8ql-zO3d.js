@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:kamra/public/frontend/assets/minimize-2-8ql-zO3d.js
 import{p as a}from"./index-BrQbvkHa.js";/**
+========
+import{o as a}from"./index-DUcwpva4.js";/**
+>>>>>>>> v2.8.0:kamra/public/frontend/assets/minimize-2-BFpnDMmv.js
  * @license lucide-react v0.525.0 - ISC
  *
  * This source code is licensed under the ISC license.

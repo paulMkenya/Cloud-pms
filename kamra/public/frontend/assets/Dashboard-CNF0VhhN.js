@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:kamra/public/frontend/assets/Dashboard-CNF0VhhN.js
 import{r as u,j as e,L as T}from"./vendor-BxPw79l1.js";import{o as A,u as R,d as $,g as L,s as z,aZ as D,t as _,aI as P,e as i,am as I,b9 as k,W as w,af as C,aA as E,z as B,U as F,n as S,m as M}from"./index-FRICaNlM.js";import{C as b,a as g,b as f,c as v}from"./card-CrdYz4on.js";import{S as U}from"./stat-card-BfVtvPhN.js";import{C as H}from"./chart-pie-BdLLUMaA.js";import{L as W}from"./log-in-BBBon-YN.js";import"./arrow-up-right-DoOLPSEb.js";/**
+========
+import{r as u,j as e,L as T}from"./vendor-B7XwBC7W.js";import{o as A,u as R,d as $,g as L,s as z,aZ as D,t as _,aI as P,e as i,am as I,ba as k,W as w,af as C,aA as E,z as B,U as F,n as S,m as M}from"./index-DUcwpva4.js";import{C as b,a as g,b as f,c as v}from"./card-Dlip6jam.js";import{S as U}from"./stat-card-DveuVD-p.js";import{C as H}from"./chart-pie-DW7W8tDY.js";import{L as W}from"./log-in-C3f97AoC.js";import"./arrow-up-right-cvYI7HEa.js";/**
+>>>>>>>> v2.8.0:kamra/public/frontend/assets/Dashboard-CO5YXxGO.js
  * @license lucide-react v0.525.0 - ISC
  *
  * This source code is licensed under the ISC license.

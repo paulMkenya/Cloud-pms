@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:kamra/public/frontend/assets/thermal-2RG-0K7B.js
 import{t as e,i as o,m as c,f as m}from"./index-MDmOLkOR.js";const p=`
+========
+import{t as e,h as o,m as c,e as m}from"./index-DUcwpva4.js";const p=`
+>>>>>>>> v2.8.0:kamra/public/frontend/assets/thermal-v9IPKzNY.js
   @page { size: 80mm auto; margin: 0 }
   * { margin: 0; padding: 0; box-sizing: border-box }
   html, body { background: #fff; color: #000 }

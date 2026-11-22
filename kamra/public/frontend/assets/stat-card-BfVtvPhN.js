@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:kamra/public/frontend/assets/stat-card-BfVtvPhN.js
 import{j as s,L as $}from"./vendor-BxPw79l1.js";import{o as k,n as z,t as N,j as v}from"./index-FRICaNlM.js";import{A as M}from"./arrow-up-right-DoOLPSEb.js";/**
+========
+import{j as s,L as $}from"./vendor-B7XwBC7W.js";import{o as k,n as z,t as N,j as v}from"./index-DUcwpva4.js";import{A as M}from"./arrow-up-right-cvYI7HEa.js";/**
+>>>>>>>> v2.8.0:kamra/public/frontend/assets/stat-card-DveuVD-p.js
  * @license lucide-react v0.525.0 - ISC
  *
  * This source code is licensed under the ISC license.

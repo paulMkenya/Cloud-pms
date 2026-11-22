@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:kamra/public/frontend/assets/CommandPalette-C1NrSdTF.js
 import{r,u as X,j as n}from"./vendor-BxPw79l1.js";import{o as B,u as Y,a as Z,d as x,g as j,S as ee,a_ as D,aB as te,$ as _,e as se,m as oe,k as ne,t as N,j as ae}from"./index-pZLzl5hP.js";import{S as re}from"./settings-2-DFxr_F2N.js";import{C as ie}from"./circle-user-round-CAvxJhRr.js";import{F as le}from"./file-text-D-zNUr-R.js";import{L as ce}from"./loader-circle-CA4-T--t.js";import{A as de}from"./arrow-right-RQl17QTO.js";/**
+========
+import{r,u as X,j as n}from"./vendor-B7XwBC7W.js";import{o as B,u as Y,a as Z,d as x,g as j,S as ee,a_ as D,aB as te,$ as _,e as se,m as oe,k as ne,t as N,j as ae}from"./index-DUcwpva4.js";import{S as re}from"./settings-2-D29-HH-N.js";import{C as ie}from"./circle-user-round-BXmPETMp.js";import{F as le}from"./file-text--6WyPbw0.js";import{L as ce}from"./loader-circle-CegxNvrj.js";import{A as de}from"./arrow-right-CIO_kLeT.js";/**
+>>>>>>>> v2.8.0:kamra/public/frontend/assets/CommandPalette-BgCYozI1.js
  * @license lucide-react v0.525.0 - ISC
  *
  * This source code is licensed under the ISC license.

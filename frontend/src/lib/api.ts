@@ -7,6 +7,7 @@
 // session; guests and the dev server (ignore_csrf) don't need it.
 import { htmlToText } from "./utils"
 import { t as translate } from "./i18n"
+import type { NightPrice } from "./nightPrices"
 
 function csrfToken(): string | undefined {
   const t = (window as unknown as { csrf_token?: string }).csrf_token
@@ -470,6 +471,8 @@ export interface BookingOptions {
   ota_channels?: string[]
   /** each OTA's default commission % (its Travel Agent record of type OTA) */
   ota_commission?: Record<string, number>
+  /** may type a night's price (Revenue Manager / Hotel Admin) */
+  can_set_rate?: boolean
   experiences: {
     name: string
     experience_name: string
@@ -497,7 +500,7 @@ export interface Quote {
   nights: number
   /** same-day stay: nights is 0 and one date is billed */
   day_use?: boolean
-  nightly: { date: string; rate: number }[]
+  nightly: { date: string; rate: number; hand_set?: boolean }[]
   room_total: number
   meal_total: number
   /** the rate plan the price is on - picked, or the company's negotiated one */
@@ -593,6 +596,8 @@ export interface QuoteParams {
   pets?: number
   /** desk-negotiated nightly room rate - replaces the rate card */
   agreed_rate?: number
+  /** nights the desk priced by hand; the rest are priced by Kamra */
+  night_prices?: NightPrice[]
 }
 
 export const getQuote = (params: QuoteParams) =>

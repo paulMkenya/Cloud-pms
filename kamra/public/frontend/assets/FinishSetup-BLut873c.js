@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:kamra/public/frontend/assets/FinishSetup-BLut873c.js
 import{r as a,j as e,L as l}from"./vendor-BxPw79l1.js";import{o,u as m,d as x,g as h,s as u,t as p,j as i}from"./index-B3DV6GN8.js";import{C as j,a as f,b as N,c as b}from"./card-Cpz7m-An.js";import{I as y}from"./InfoTip-BHVCsPWW.js";import{C as g}from"./check-Duf1lH5_.js";import"./info-D4A7pAOY.js";/**
+========
+import{r as a,j as e,L as l}from"./vendor-B7XwBC7W.js";import{o,u as m,d as x,g as h,s as u,t as p,j as i}from"./index-DUcwpva4.js";import{C as j,a as f,b as N,c as b}from"./card-Dlip6jam.js";import{I as y}from"./InfoTip-DraeHsVh.js";import{C as g}from"./check-BjJsgWxt.js";import"./info-Cc1OLx8B.js";/**
+>>>>>>>> v2.8.0:kamra/public/frontend/assets/FinishSetup-ByuSnJPa.js
  * @license lucide-react v0.525.0 - ISC
  *
  * This source code is licensed under the ISC license.

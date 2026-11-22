@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:kamra/public/frontend/assets/CheckOutDialog-Bo6CYXpP.js
 import{r as i,j as e}from"./vendor-BxPw79l1.js";import{o as St,d as g,u as st,H as Rt,i as Ot,s as H,I as oe,B as j,t as E,O as Je,j as q,E as Lt,P as At,Q as Et,aj as Tt,n as Pt}from"./index-DLLcFsmX.js";import{S as $t}from"./sheet-DTGWUWXG.js";import{u as Bt,S as Dt,a as Ft,T as Ze}from"./CheckInDialog-ClQnqXOX.js";import{C as et,F as Mt}from"./FolioDiscount-D_SyTxvM.js";import{L as It}from"./loader-circle-DONuYzLb.js";import{C as ve}from"./check-CC4KQQ8S.js";import{T as Gt}from"./triangle-alert-0mRRq6ro.js";/**
+========
+import{r as i,j as e}from"./vendor-B7XwBC7W.js";import{o as St,d as g,u as st,H as Rt,i as Ot,s as H,I as oe,B as j,t as E,O as Je,j as q,E as Lt,P as At,Q as Et,aj as Tt,n as Pt}from"./index-DUcwpva4.js";import{S as $t}from"./sheet-Cdiln8u1.js";import{u as Bt,S as Dt,a as Ft,T as Ze}from"./CheckInDialog-DQsX3CKv.js";import{C as et,F as Mt}from"./FolioDiscount-BAMD6l4e.js";import{L as It}from"./loader-circle-CegxNvrj.js";import{C as ve}from"./check-BjJsgWxt.js";import{T as Gt}from"./triangle-alert-By4ktq4A.js";/**
+>>>>>>>> v2.8.0:kamra/public/frontend/assets/CheckOutDialog-DcoU8BPU.js
  * @license lucide-react v0.525.0 - ISC
  *
  * This source code is licensed under the ISC license.

@@ -1,4 +1,8 @@
+<<<<<<<< HEAD:kamra/public/frontend/assets/send--shu9958.js
 import{p as a}from"./index-DTxWf9HG.js";/**
+========
+import{o as a}from"./index-DUcwpva4.js";/**
+>>>>>>>> v2.8.0:kamra/public/frontend/assets/send-00Dq03oi.js
  * @license lucide-react v0.525.0 - ISC
  *
  * This source code is licensed under the ISC license.

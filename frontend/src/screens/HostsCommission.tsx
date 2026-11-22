@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { ChevronLeft, ChevronRight, Download, FileText, Plus, Send, Wallet } from "lucide-react"
+import { ChevronLeft, ChevronRight, Download, FileText, History, Plus, Send, Undo2, Wallet } from "lucide-react"
 
 import { call, serverError } from "../lib/api"
 import { useT } from "../lib/i18n"
@@ -306,6 +306,7 @@ function HostsTab({ hosts, canEdit, onChanged }: {
   const [edit, setEdit] = useState<Partial<Host> & { payout_account?: string } | null>(null)
   const [pay, setPay] = useState<Host | null>(null)
   const [stmt, setStmt] = useState<Host | null>(null)
+  const [hist, setHist] = useState<Host | null>(null)
   const owedTotal = hosts.reduce((s, h) => s + Math.max(0, h.balance), 0)
 
   return (
@@ -348,6 +349,9 @@ function HostsTab({ hosts, canEdit, onChanged }: {
                   <Wallet className="size-4" aria-hidden /> {t("Record payout")}
                 </Button>
               )}
+              <Button variant="outline" onClick={() => setHist(h)}>
+                <History className="size-4" aria-hidden /> {t("History")}
+              </Button>
               <Button variant="outline" onClick={() => setStmt(h)}>
                 <FileText className="size-4" aria-hidden /> {t("Statement")}
               </Button>
@@ -361,6 +365,7 @@ function HostsTab({ hosts, canEdit, onChanged }: {
       {edit && <HostForm host={edit} onClose={() => setEdit(null)} onSaved={(hs) => { onChanged(hs); setEdit(null) }} />}
       {pay && <PayoutForm host={pay} onClose={() => setPay(null)} onSaved={(hs) => { onChanged(hs); setPay(null) }} />}
       {stmt && <StatementPanel host={stmt} canEdit={canEdit} onClose={() => setStmt(null)} />}
+      {hist && <PayoutHistory host={hist} canEdit={canEdit} onClose={() => setHist(null)} onChanged={onChanged} />}
     </div>
   )
 }
@@ -625,5 +630,102 @@ function CommissionTab() {
         </table>
       </div>
     </div>
+  )
+}
+
+
+interface Payout {
+  name: string
+  date: string
+  amount: number
+  method: string
+  reference: string
+  notes: string
+  undone: boolean
+  undo_reason: string
+  by: string
+}
+
+function PayoutHistory({ host, canEdit, onClose, onChanged }: {
+  host: Host
+  canEdit: boolean
+  onClose: () => void
+  onChanged: (h: Host[]) => void
+}) {
+  const { t } = useT()
+  const [rows, setRows] = useState<Payout[] | null>(null)
+  const [undoing, setUndoing] = useState<string | null>(null)
+  const [reason, setReason] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  useEffect(() => {
+    call<Payout[]>("cloudtrade_hospitality.commission_api.payouts", { host: host.name })
+      .then(setRows)
+      .catch((e) => setErr(serverError(e)))
+  }, [host.name])
+  const total = (rows || []).filter((p) => !p.undone).reduce((a, p) => a + p.amount, 0)
+
+  async function undo(p: Payout) {
+    setBusy(true)
+    setErr(null)
+    try {
+      const out = await call<{ payouts: Payout[]; hosts: Host[] }>(
+        "cloudtrade_hospitality.commission_api.undo_payout", { payout: p.name, reason })
+      setRows(out.payouts)
+      onChanged(out.hosts)
+      setUndoing(null)
+      setReason("")
+    } catch (e) {
+      setErr(serverError(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Sheet title={t("Payout history")} description={`${host.host_name} · ${t("paid in total")} ${money(total)}`} onClose={onClose}>
+      {err && <p className="mb-3 text-sm text-rose-700">{err}</p>}
+      {!rows ? (
+        <p className="py-6 text-center text-sm text-zinc-400">{t("Loading…")}</p>
+      ) : rows.length === 0 ? (
+        <p className="py-6 text-center text-sm text-zinc-500">{t("No payouts yet.")}</p>
+      ) : (
+        <ul className="divide-y divide-zinc-100">
+          {rows.map((p) => (
+            <li key={p.name} className="py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className={p.undone ? "text-zinc-400" : ""}>
+                  <div className={"font-semibold " + (p.undone ? "line-through" : "text-zinc-900")}>{money(p.amount)}</div>
+                  <div className="text-xs text-zinc-500">
+                    {[p.date, t(p.method || ""), p.reference, p.by ? t("by {name}", { name: p.by }) : ""].filter(Boolean).join(" · ")}
+                  </div>
+                  {p.undone && (
+                    <div className="mt-1 text-xs text-rose-700">{t("Undone")}: {p.undo_reason}</div>
+                  )}
+                </div>
+                {canEdit && !p.undone && undoing !== p.name && (
+                  <Button variant="outline" onClick={() => { setUndoing(p.name); setReason("") }}>
+                    <Undo2 className="size-4" aria-hidden /> {t("Undo")}
+                  </Button>
+                )}
+              </div>
+              {undoing === p.name && (
+                <div className="mt-2 space-y-2 rounded-lg border border-rose-200 bg-rose-50 p-3">
+                  <p className="text-sm text-rose-800">
+                    {t("Undo this payout of {amount}? It stays in the history, crossed out, and the host's balance goes back up.", { amount: money(p.amount) })}
+                  </p>
+                  <input className={inputCls} autoFocus placeholder={t("Why? e.g. entered twice")} value={reason}
+                    onChange={(e) => setReason(e.target.value)} />
+                  <div className="flex gap-2">
+                    <Button disabled={busy || !reason.trim()} onClick={() => void undo(p)}>{busy ? t("Undoing…") : t("Undo payout")}</Button>
+                    <Button variant="outline" onClick={() => setUndoing(null)}>{t("Keep it")}</Button>
+                  </div>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </Sheet>
   )
 }

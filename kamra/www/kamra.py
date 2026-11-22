@@ -52,29 +52,91 @@ def get_context(context):
 _GUEST = re.compile(r"^/(?:$|(?:kamra/)?book(?:/|$)|(?:kamra/)?stay/([^/]+))")
 
 
+def _abs(path_or_url: str) -> str:
+	"""An absolute https URL for share tags: previews (WhatsApp, Facebook)
+	skip plain-http images, and behind the proxy get_url() can say http."""
+	url = get_url(path_or_url) if path_or_url.startswith("/") else path_or_url
+	host = url.split("/")[2] if url.startswith("http://") and url.count("/") >= 2 else ""
+	if url.startswith("http://") and host.split(":")[0] not in ("localhost", "127.0.0.1") \
+			and not host.endswith(".local"):
+		url = "https://" + url[len("http://"):]
+	return url
+
+
+def _share_card() -> dict:
+	"""The site's link-preview card (site_config "share_card": {image, title,
+	description, site_name, width, height}). When it has an image, every
+	shared link - booking site, listings, offer / payment / check-in links -
+	previews with it, so WhatsApp and social shares always look the same."""
+	card = frappe.conf.get("share_card")
+	return card if isinstance(card, dict) else {}
+
+
+def _image_tags(card: dict, image: str | None) -> list[str]:
+	if not image:
+		return []
+	url = escape(_abs(image))
+	tags = [f'<meta property="og:image" content="{url}" />',
+	        f'<meta property="og:image:secure_url" content="{url}" />',
+	        '<meta name="twitter:card" content="summary_large_image" />',
+	        f'<meta name="twitter:image" content="{url}" />']
+	if card.get("image") and image == card["image"]:
+		tags += [f'<meta property="og:image:width" content="{int(card.get("width") or 1200)}" />',
+		         f'<meta property="og:image:height" content="{int(card.get("height") or 630)}" />',
+		         '<meta property="og:image:type" content="image/jpeg" />']
+		if card.get("alt"):
+			tags.append(f'<meta property="og:image:alt" content="{escape(card["alt"])}" />')
+	return tags
+
+
+def _card_tags(card: dict, path: str, title: str, description: str) -> list[str]:
+	tags = [f'<meta property="og:title" content="{escape(title)}" />',
+	        f'<meta property="og:description" content="{escape(description)}" />',
+	        f'<meta property="og:url" content="{escape(_abs(path))}" />',
+	        '<meta property="og:type" content="website" />',
+	        f'<meta name="twitter:title" content="{escape(title)}" />',
+	        f'<meta name="twitter:description" content="{escape(description)}" />']
+	if card.get("site_name"):
+		tags.append(f'<meta property="og:site_name" content="{escape(card["site_name"])}" />')
+	return tags
+
+
 def _with_meta(html: str, path: str) -> str:
+	card = _share_card()
 	match = _GUEST.match(path or "/")
 	if not match:
-		return html.replace("</head>", '<meta name="robots" content="noindex" /></head>', 1)
+		extra = '<meta name="robots" content="noindex" />'
+		if card.get("site_name"):
+			# the brand, not the software, in the tab and in any preview that
+			# falls back to the page title
+			html = re.sub(r"<title>.*?</title>", f"<title>{escape(card['site_name'])}</title>",
+			              html, count=1, flags=re.S)
+		if card.get("description"):
+			html = re.sub(r'<meta\s+name="description"[^>]*>',
+			              f'<meta name="description" content="{escape(card["description"])}" />',
+			              html, count=1, flags=re.S)
+		if card.get("image") and card.get("title"):
+			# offer, payment, check-in and review links are shared on WhatsApp
+			# too: same card, still kept out of search
+			extra += "".join(_card_tags(card, path, card["title"], card.get("description") or "")
+			                 + _image_tags(card, card["image"]))
+		return html.replace("</head>", extra + "</head>", 1)
 	meta = _guest_meta(match.group(1))
 	if not meta:  # several hotels and none picked: the page lists them
-		return html
+		if not (card.get("title") and card.get("image")):
+			return html
+		meta = {"title": card["title"], "description": card.get("description") or "",
+		        "image": card["image"]}
+	if card.get("image"):
+		meta["image"] = card["image"]
 	if meta.get("lang"):
 		html = re.sub(r'<html lang="[^"]*"', f'<html lang="{escape(meta["lang"])}"', html, count=1)
 	html = re.sub(r"<title>.*?</title>", f"<title>{escape(meta['title'])}</title>", html, count=1, flags=re.S)
 	html = re.sub(r'<meta\s+name="description"[^>]*>', "", html, count=1, flags=re.S)
-	tags = [
-		f'<meta name="description" content="{escape(meta["description"])}" />',
-		f'<meta property="og:title" content="{escape(meta["title"])}" />',
-		f'<meta property="og:description" content="{escape(meta["description"])}" />',
-		f'<meta property="og:url" content="{escape(get_url(path))}" />',
-		'<meta property="og:type" content="website" />',
-		f'<link rel="canonical" href="{escape(get_url(path))}" />',
-	]
-	if meta.get("image"):
-		image = escape(get_url(meta["image"]) if meta["image"].startswith("/") else meta["image"])
-		tags += [f'<meta property="og:image" content="{image}" />',
-		         '<meta name="twitter:card" content="summary_large_image" />']
+	tags = [f'<meta name="description" content="{escape(meta["description"])}" />',
+	        f'<link rel="canonical" href="{escape(_abs(path))}" />']
+	tags += _card_tags(card, path, meta["title"], meta["description"])
+	tags += _image_tags(card, meta.get("image"))
 	return html.replace("</head>", "".join(tags) + "</head>", 1)
 
 

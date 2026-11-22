@@ -100,7 +100,7 @@ export default function Campaigns() {
   const navigate = useNavigate()
   const [stats, setStats] = useState<Stats | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [preset, setPreset] = useState("30")
+  const [preset, setPreset] = useState("today")
   const [from, setFrom] = useState("")
   const [to, setTo] = useState("")
   const [prop, setProp] = useState("")

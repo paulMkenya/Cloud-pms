@@ -49,7 +49,7 @@ def get_context(context):
 # Link previews and most crawlers never run the SPA, so the guest pages get
 # their title, description and image in the HTML itself. Staff screens and
 # tokenized check-in links are kept out of search.
-_GUEST = re.compile(r"^/(?:$|(?:kamra/)?book(?:/|$)|(?:kamra/)?stay/([^/]+))")
+_GUEST = re.compile(r"^/(?:$|(?:kamra/)?book/([^/]+)/?$|(?:kamra/)?book(?:/|$)|(?:kamra/)?stay/([^/]+))")
 
 
 def _abs(path_or_url: str) -> str:
@@ -121,7 +121,12 @@ def _with_meta(html: str, path: str) -> str:
 			extra += "".join(_card_tags(card, path, card["title"], card.get("description") or "")
 			                 + _image_tags(card, card["image"]))
 		return html.replace("</head>", extra + "</head>", 1)
-	meta = _guest_meta(match.group(1))
+	# /book/<property-slug> and /stay/<listing-slug> name the page
+	try:
+		meta = _guest_meta(match.group(1) or match.group(2))
+	except Exception:  # a preview must never break the page
+		frappe.clear_last_message()
+		meta = None
 	if not meta:  # several hotels and none picked: the page lists them
 		if not (card.get("title") and card.get("image")):
 			return html

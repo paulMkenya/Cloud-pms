@@ -44,44 +44,81 @@ export function WhatsAppLogo({ className = "size-5" }: { className?: string }) {
   )
 }
 
-/** A full-width card on phones, a single row from tablet width up. */
-export function WhatsAppBookCard({ propertyName, slug }: { propertyName: string; slug?: string | null }) {
+export interface StayChoice {
+  propertyName: string
+  slug?: string | null
+  unitName?: string | null
+  unitSlug?: string | null
+  checkIn: string
+  checkOut: string
+  adults: number
+  children?: number
+}
+
+const dayLabel = (iso: string) => {
+  const d = new Date(`${iso}T00:00:00`)
+  return Number.isNaN(d.getTime()) ? iso
+    : d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })
+}
+
+/** The guest's choice as a WhatsApp message: readable for the guest, and a
+ *  Ref the bot reads (property, dates, guests, unit) so it skips straight to
+ *  the name and payment. */
+function stayMessage(cfg: WaConfig, c: StayChoice, t: ReturnType<typeof useT>["t"]) {
+  const hello = cfg.brand ? t("Hi {brand},", { brand: cfg.brand }) : t("Hi,")
+  const what = c.unitName ? `${c.propertyName} - ${c.unitName}` : c.propertyName
+  const kids = c.children ? `, ${c.children} ${c.children === 1 ? t("child") : t("children")}` : ""
+  const people = `${c.adults} ${c.adults === 1 ? t("adult") : t("adults")}${kids}`
+  const ref = c.slug
+    ? ` Ref: ${c.slug} ${c.checkIn} ${c.checkOut} ${c.adults}+${c.children || 0}${c.unitSlug ? ` ${c.unitSlug}` : ""}`
+    : ""
+  return `${hello} ${t("I'd like to book {what}, {from} to {to}, {people}.", {
+    what, from: dayLabel(c.checkIn), to: dayLabel(c.checkOut), people,
+  })}${ref}`
+}
+
+/** Under the booking button, in the property's own accent: the same stay,
+ *  finished on WhatsApp. `compact` is the icon-only version for the phone
+ *  bottom bar. */
+export function WhatsAppStayButton({ choice, compact = false }: { choice: StayChoice; compact?: boolean }) {
   const { t } = useT()
   const cfg = useWaConfig()
   if (!cfg?.enabled || !cfg.on_property || !cfg.number) return null
-  const hello = cfg.brand ? t("Hi {brand},", { brand: cfg.brand }) : t("Hi,")
-  const text = `${hello} ${t("I'd like to book {property}.", { property: propertyName })}${slug ? ` Ref: ${slug}` : ""}`
-  return (
-    <section
-      aria-label={t("Book via WhatsApp")}
-      className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-4 sm:flex sm:items-center sm:gap-5 sm:p-5"
-    >
-      <div className="flex items-start gap-3 sm:flex-1">
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-[#25D366] text-white shadow-sm">
-          <WhatsAppLogo className="size-6" />
-        </span>
-        <div className="min-w-0">
-          <p className="font-semibold text-zinc-900">{t("Prefer to chat?")}</p>
-          <p className="mt-0.5 text-sm leading-snug text-zinc-600">
-            {t("Book {property} on WhatsApp: pick your dates, see the price and pay by M-Pesa, all in the chat.", { property: propertyName })}
-          </p>
-        </div>
-      </div>
+  const href = waLink(cfg.number, stayMessage(cfg, choice, t))
+  if (compact)
+    return (
       <a
-        href={waLink(cfg.number, text)}
+        href={href}
         target="_blank"
         rel="noopener noreferrer"
-        className="mt-3 flex min-h-12 w-full items-center justify-center gap-2.5 rounded-xl bg-[#128C7E] px-5 text-base font-semibold text-white shadow-sm transition hover:bg-[#0E7A6E] active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#128C7E] sm:mt-0 sm:w-auto sm:shrink-0"
+        aria-label={t("Book on WhatsApp instead")}
+        title={t("Book on WhatsApp instead")}
+        className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-brand-100 bg-brand-50 text-brand-700 transition hover:bg-brand-100 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
       >
         <WhatsAppLogo className="size-5" />
-        {t("Book via WhatsApp")}
       </a>
-    </section>
+    )
+  return (
+    <div>
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-brand-100 bg-brand-50 px-4 text-sm font-semibold text-brand-700 transition hover:bg-brand-100 active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600"
+      >
+        <WhatsAppLogo className="size-[18px]" />
+        {t("Book on WhatsApp instead")}
+      </a>
+      <p className="mt-1.5 text-center text-xs text-zinc-500">
+        {t("Your dates go with you - just add your name and pay.")}
+      </p>
+    </div>
   )
 }
 
-/** The homepage's floating button: a round icon on phones (clear of the home
- *  bar), a labelled pill on wider screens. Opens the bot's main menu. */
+/** The homepage's floating button, in the site accent: a round icon on phones
+ *  (clear of the home bar), a labelled pill on wider screens. Opens the bot's
+ *  main menu. */
 export function WhatsAppFab() {
   const { t } = useT()
   const cfg = useWaConfig()
@@ -97,9 +134,9 @@ export function WhatsAppFab() {
         target="_blank"
         rel="noopener noreferrer"
         aria-label={t("Book on WhatsApp")}
-        className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] end-4 z-40 flex size-14 items-center justify-center gap-2 rounded-full bg-[#25D366] text-white shadow-lg shadow-emerald-900/25 ring-4 ring-white/70 transition hover:scale-105 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#128C7E] sm:bottom-6 sm:end-6 sm:size-auto sm:px-5 sm:py-3.5"
+        className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] end-4 z-40 flex size-13 items-center justify-center gap-2 rounded-full bg-brand-600 text-white shadow-md shadow-black/15 transition hover:bg-brand-700 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 sm:bottom-6 sm:end-6 sm:size-auto sm:px-5 sm:py-3"
       >
-        <WhatsAppLogo className="size-7 sm:size-6" />
+        <WhatsAppLogo className="size-6 sm:size-5" />
         <span className="hidden text-sm font-semibold sm:inline">{t("Book on WhatsApp")}</span>
       </a>
     </>

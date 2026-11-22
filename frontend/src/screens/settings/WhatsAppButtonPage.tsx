@@ -64,7 +64,7 @@ export function WhatsAppButtonPage() {
           <div>
             <CardTitle>{t("WhatsApp booking button")}</CardTitle>
             <p className="mt-1 text-sm text-zinc-500">
-              {t("A \"Book via WhatsApp\" button on each property page starts the booking bot already on that property. A small button on the homepage opens the bot menu.")}
+              {t("Under the booking button, \"Book on WhatsApp instead\" carries the guest's chosen unit, dates and guests into the chat - the bot only asks for the name and payment. A small button on the homepage opens the bot menu.")}
             </p>
           </div>
         </div>
@@ -94,10 +94,10 @@ export function WhatsAppButtonPage() {
         <div className="divide-y divide-zinc-100 rounded-xl border border-zinc-200">
           <div className="flex items-center justify-between gap-4 p-3">
             <div>
-              <p className="text-sm font-medium text-zinc-900">{t("On each property page")}</p>
-              <p className="text-xs text-zinc-500">{t("Starts the bot on that property, at the dates question.")}</p>
+              <p className="text-sm font-medium text-zinc-900">{t("Under the booking button")}</p>
+              <p className="text-xs text-zinc-500">{t("Shows once the dates are available, in your booking page colour.")}</p>
             </div>
-            <Switch on={!!cfg.on_property} disabled={locked} label={t("On each property page")}
+            <Switch on={!!cfg.on_property} disabled={locked} label={t("Under the booking button")}
               onToggle={() => save({ on_property: cfg.on_property ? 0 : 1 })} />
           </div>
           <div className="flex items-center justify-between gap-4 p-3">

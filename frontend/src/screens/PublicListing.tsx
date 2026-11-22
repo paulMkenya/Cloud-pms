@@ -22,7 +22,7 @@ import MpesaPay from "../components/MpesaPay"
 import { cur, moneyLocale, adoptUiLocale } from "../lib/money"
 import { formatPhoneDisplay, formatPhoneTel } from "../lib/phone"
 import { petChargeBasis } from "../lib/pets"
-import { WhatsAppBookCard } from "../components/WhatsAppBook"
+import { WhatsAppStayButton } from "../components/WhatsAppBook"
 import { useT, t as translate } from "../lib/i18n"
 import { adoptGuestLanguage } from "../lib/dir"
 import { LanguageSwitcher } from "../components/LanguageSwitcher"
@@ -788,9 +788,6 @@ export default function PublicListing() {
               </section>
             )}
 
-            <WhatsAppBookCard propertyName={p.property_name}
-              slug={(p as { page_slug?: string | null }).page_slug || resolved?.property_slug} />
-
             <MapBlock address={address} mapsUrl={mapsUrl} lat={lat} lng={lng} />
 
             <HostBlock
@@ -1001,6 +998,16 @@ export default function PublicListing() {
                 </Button>
               )}
               {!isSite && primary && <StayNotice row={results[primary.name]} />}
+              {!isSite && primary && canReserve(results[primary.name]) && (
+                <WhatsAppStayButton choice={{
+                  propertyName: p.property_name,
+                  slug: (p as { page_slug?: string | null }).page_slug || resolved?.property_slug,
+                  unitName: primary.room_type_name,
+                  unitSlug: (primary as { listing_slug?: string | null }).listing_slug,
+                  checkIn: search.check_in_date, checkOut: search.check_out_date,
+                  adults: search.adults, children: search.children,
+                }} />
+              )}
 
               {isSite && (
                 <p className="text-center text-sm text-zinc-500">

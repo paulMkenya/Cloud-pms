@@ -35,7 +35,7 @@ import { Sheet } from "../components/ui/sheet"
 import { cur, locale, moneyLocale, adoptUiLocale } from "../lib/money"
 import { formatPhoneDisplay, formatPhoneTel } from "../lib/phone"
 import { petChargeBasis } from "../lib/pets"
-import { WhatsAppBookCard, WhatsAppFab } from "../components/WhatsAppBook"
+import { WhatsAppFab, WhatsAppStayButton, type StayChoice } from "../components/WhatsAppBook"
 import { useT, t as translate } from "../lib/i18n"
 import { adoptGuestLanguage } from "../lib/dir"
 import { LanguageSwitcher } from "../components/LanguageSwitcher"
@@ -944,6 +944,13 @@ export default function PublicBooking() {
   })
   const bedChoices = [...new Set(data.room_types.map(bedroomsOf).filter((b): b is number => b !== null))].sort((a, b) => a - b)
 
+  // the chosen stay, carried into WhatsApp by "Book on WhatsApp instead"
+  const waChoice = (rt: { room_type_name: string; listing_slug?: string | null }): StayChoice => ({
+    propertyName: p.property_name, slug: p.page_slug || propertySlug,
+    unitName: rt.room_type_name, unitSlug: rt.listing_slug,
+    checkIn: search.check_in_date, checkOut, adults: search.adults, children: search.children,
+  })
+
   const summary = (compact: boolean) => sel && selPlan ? (
     <>
       {!compact && (
@@ -1198,8 +1205,6 @@ export default function PublicBooking() {
             <span className="text-5xl font-semibold tracking-tight text-white/90">{initials(p.property_name)}</span>
           </div>
         )}
-
-        <WhatsAppBookCard propertyName={p.property_name} slug={p.page_slug || propertySlug} />
 
         <div className="mt-6 lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-10">
           <div className="min-w-0">
@@ -1753,6 +1758,7 @@ export default function PublicBooking() {
                     <Button className="mt-5 w-full justify-center py-2.5 text-base" onClick={() => setBooking(sel.name)}>
                       {t("Continue")}
                     </Button>
+                    <div className="mt-3"><WhatsAppStayButton choice={waChoice(sel)} /></div>
                   </div>
                 ) : (
                   <div className="mt-3 text-sm text-zinc-500">
@@ -1772,6 +1778,7 @@ export default function PublicBooking() {
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200 bg-white/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_16px_rgba(0,0,0,0.06)] backdrop-blur lg:hidden">
           <div className="mx-auto flex max-w-6xl items-center gap-4">
             <div className="min-w-0 flex-1">{summary(true)}</div>
+            <WhatsAppStayButton choice={waChoice(sel)} compact />
             <Button className="shrink-0 px-6 py-2.5 text-base" onClick={() => setBooking(sel.name)}>
               {t("Continue")}
             </Button>

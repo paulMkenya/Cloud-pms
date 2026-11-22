@@ -73,6 +73,7 @@ import {
   HandCoins,
   CalendarClock,
   Scale,
+  Handshake,
 } from "lucide-react"
 import { useEffect, useState } from "react"
 
@@ -138,6 +139,9 @@ export const APPS: AppDef[] = [
         keywords: ["Guests", "Guest profiles", "Past guests"] },
       { to: "/billing", label: "Billing", icon: Receipt,
         keywords: ["Folios", "Bills", "Invoices"] },
+      { to: "/hosts-commission", label: "Hosts & Commission", icon: Handshake,
+        keywords: ["Commission", "Hosts", "Owners", "Payout", "Units"],
+        roles: ["Hotel Admin", "Finance", "System Manager", "Administrator"] },
       { to: "/end-of-day", label: "Night Audit", icon: MoonStar,
         keywords: EOD_KEYWORDS },
       { to: "/calendar", label: "Calendar", icon: CalendarDays },
@@ -308,6 +312,8 @@ export const APPS: AppDef[] = [
         keywords: ["Phone", "Mobile", "Owner", "Flash", "MTD"],
         roles: ["Finance", "Night Auditor", "Hotel Admin", "System Manager", "Administrator"] },
       { to: "/billing", label: "Billing", icon: Receipt, group: "Billing" },
+      { to: "/hosts-commission", label: "Hosts & Commission", icon: Handshake, group: "Billing",
+        roles: ["Hotel Admin", "Finance", "System Manager", "Administrator"] },
       { to: "/folio-history", label: "Folio History", icon: History, group: "Billing" },
       { to: "/allowances", label: "Allowances to approve", icon: ListChecks, group: "Billing",
         keywords: ["Allowance approval", "Write-off", "Manager approval"] },

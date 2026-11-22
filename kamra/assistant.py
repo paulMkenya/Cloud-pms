@@ -801,9 +801,16 @@ def assistant_status(property: str):
 	}
 
 
-# Presets for Settings → AI assistant. All speak OpenAI Chat Completions.
-# Claude Desktop is a different path (MCP) — not an Anthropic key here.
+# Presets for Settings → AI assistant. Claude runs natively through
+# kamra.llm_anthropic; the rest speak OpenAI Chat Completions.
 AI_PROVIDER_PRESETS = (
+	{
+		"id": "anthropic",
+		"label": "Anthropic (Claude)",
+		"base_url": "https://api.anthropic.com",
+		"model": "claude-opus-5-5",
+		"hint": "Paste an sk-ant-… key from platform.claude.com",
+	},
 	{
 		"id": "openai",
 		"label": "OpenAI",
@@ -881,14 +888,13 @@ def test_connection(property: str, base_url: str | None = None,
 		s.get_password("api_key", raise_exception=False) if s else None)
 	if not key:
 		frappe.throw("No API key — paste one, or save Settings first.")
-	if key.lower().startswith("sk-ant-"):
-		frappe.throw(
-			"That looks like an Anthropic / Claude API key. This chat uses "
-			"OpenAI-compatible Chat Completions only. Use Connect Claude "
-			"(MCP) on Kamra Agent, or put Claude behind OpenRouter.")
-
 	base = (base_url or (s.base_url if s else None)
 	        or "https://api.openai.com/v1").rstrip("/")
+	from kamra import llm_anthropic
+	if key.lower().startswith("sk-ant-") and not llm_anthropic.is_anthropic(base):
+		frappe.throw(
+			"That looks like an Anthropic / Claude API key. Choose the "
+			"Anthropic (Claude) provider for it.")
 	mdl = model or (s.model if s else None) or "gpt-4o-mini"
 	headers = {"Authorization": f"Bearer {key}",
 	           "Content-Type": "application/json"}
@@ -900,8 +906,7 @@ def test_connection(property: str, base_url: str | None = None,
 	# No tools — simplest possible probe.
 	t0 = time.monotonic()
 	try:
-		resp = requests.post(f"{base}/chat/completions", headers=headers,
-		                     json=body, timeout=30)
+		resp = _post_chat(base, headers, body)
 	except requests.RequestException as e:
 		return {"ok": False, "error": f"Could not reach {base}: {e}",
 		        "base_url": base, "model": mdl}
@@ -995,6 +1000,9 @@ def _post_chat(base: str, headers: dict, body: dict, *, stream: bool = False):
 	``reasoning_effort`` is ``none`` (#23). Compatible hosts that already
 	accept the first body are unchanged.
 	"""
+	from kamra import llm_anthropic
+	if llm_anthropic.is_anthropic(base):
+		return llm_anthropic.post_chat(headers, body, stream=stream)
 	url = f"{base}/chat/completions"
 	resp = requests.post(url, headers=headers, json=body,
 	                     timeout=TIMEOUT, stream=stream)

@@ -36,3 +36,14 @@ open items.
 * **`AppShell.tsx`:** the "Add to Home Screen" name and icon come from Website
   Settings `app_name` / `app_logo`.
 * **Hold time setting:** `settings.py` has `unpaid_bookings_hold` (under "Holds & selling").
+
+## Kamra Agent on Claude (2026-11-22)
+
+`kamra/llm_anthropic.py` is a native Anthropic Messages API transport (official SDK).
+`assistant._post_chat` hands the OpenAI-shaped body to it when the base URL is
+api.anthropic.com and gets back a requests-like object, so `ask`, `ask_stream`,
+`help_ask`, `_retry_text` and `test_connection` work unchanged. Claude's content blocks
+(thinking/tool_use/fallback) ride on the assistant message as `_anthropic_content` and
+are replayed verbatim within the tool loop. Model default `claude-opus-5-5`, effort
+medium, server-side refusal fallback (`fallbacks: "default"`). New preset
+"Anthropic (Claude)" in Settings → AI assistant; sk-ant keys are accepted there.

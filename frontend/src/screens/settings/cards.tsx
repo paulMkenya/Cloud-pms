@@ -607,7 +607,7 @@ function AiAssistantCard({
           <CardTitle>{t("AI assistant (bring your own key)")}</CardTitle>
           <p className="mt-0.5 text-xs text-zinc-400">
             {t(
-              "Kamra Agent for staff. Pick a provider, paste the key, Test. Claude Desktop is MCP (Kamra Agent → Connect your AI) - not an Anthropic key in this form.",
+              "Kamra Agent for staff. Pick a provider, paste the key, Test.",
             )}
           </p>
         </div>
@@ -753,7 +753,7 @@ function AiAssistantCard({
           <a href="/kamra/assistant" className="font-medium text-brand-700 hover:underline">
             {t("Kamra Agent → Connect your AI")}
           </a>
-          . {t("Want Claude the model in this chat? Use the OpenRouter preset.")}
+          . {t("Want Claude the model in this chat? Use the Anthropic (Claude) preset.")}
         </p>
       </CardContent>
     </Card>

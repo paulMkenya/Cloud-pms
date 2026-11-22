@@ -104,6 +104,11 @@ def processor_disclosure(base_url: str | None) -> str:
 			"Groq: messages and tool results are processed under your Groq account "
 			"(United States — cross-border transfer may apply)."
 		)
+	if on("anthropic.com"):
+		return (
+			"Anthropic (Claude): messages and tool results are processed under your "
+			"Anthropic account (United States - cross-border transfer may apply)."
+		)
 	if on("openrouter.ai"):
 		return (
 			"OpenRouter: routes to the model you selected; that upstream provider "

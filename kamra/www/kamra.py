@@ -80,11 +80,11 @@ def _image_tags(card: dict, image: str | None) -> list[str]:
 	        f'<meta property="og:image:secure_url" content="{url}" />',
 	        '<meta name="twitter:card" content="summary_large_image" />',
 	        f'<meta name="twitter:image" content="{url}" />']
-	if card.get("image") and image == card["image"]:
+	if (card.get("image") and image == card["image"]) or "/files/share-" in image:
 		tags += [f'<meta property="og:image:width" content="{int(card.get("width") or 1200)}" />',
 		         f'<meta property="og:image:height" content="{int(card.get("height") or 630)}" />',
 		         '<meta property="og:image:type" content="image/jpeg" />']
-		if card.get("alt"):
+		if card.get("alt") and image == card.get("image"):
 			tags.append(f'<meta property="og:image:alt" content="{escape(card["alt"])}" />')
 	return tags
 
@@ -101,6 +101,45 @@ def _card_tags(card: dict, path: str, title: str, description: str) -> list[str]
 	return tags
 
 
+_TOKEN_LINK = re.compile(r"^/(?:kamra/)?(offer|checkin|review)/([^/?#]+)")
+
+
+def _token_meta(path: str) -> dict | None:
+	"""Offer, check-in and review links preview with the booking's property
+	- its own photo and name - never the guest's name or the price."""
+	m = _TOKEN_LINK.match(path or "")
+	if not m:
+		return None
+	kind, token = m.group(1), m.group(2)
+	field = "offer_token" if kind == "offer" else "precheckin_token"
+	if len(token) < 16:
+		return None
+	row = frappe.db.get_value("Reservation", {field: token},
+	                          ["property", "check_in_date", "check_out_date"], as_dict=True)
+	if not row:
+		return None
+	prop = frappe.get_cached_doc("Property", row.property)
+	name = prop.property_name or row.property
+	stay = ""
+	try:
+		from frappe.utils import getdate
+		ci, co = getdate(row.check_in_date), getdate(row.check_out_date)
+		stay = f"{ci.strftime('%a %-d %b')} → {co.strftime('%a %-d %b')}"
+	except Exception:
+		pass
+	if kind == "offer":
+		title = f"Your stay offer · {name}"
+		description = ((stay + " · ") if stay else "") + "See the price and pay a deposit or in full to confirm."
+	elif kind == "checkin":
+		title = f"Online check-in · {name}"
+		description = ((stay + " · ") if stay else "") + "Check in online before you arrive."
+	else:
+		title = f"How was your stay at {name}?"
+		description = "Leave a quick review - it takes a minute."
+	return {"title": title, "description": description,
+	        "image": prop.get("og_image") or prop.get("hero_image")}
+
+
 def _with_meta(html: str, path: str) -> str:
 	card = _share_card()
 	match = _GUEST.match(path or "/")
@@ -115,9 +154,16 @@ def _with_meta(html: str, path: str) -> str:
 			html = re.sub(r'<meta\s+name="description"[^>]*>',
 			              f'<meta name="description" content="{escape(card["description"])}" />',
 			              html, count=1, flags=re.S)
-		if card.get("image") and card.get("title"):
-			# offer, payment, check-in and review links are shared on WhatsApp
-			# too: same card, still kept out of search
+		try:
+			tok = _token_meta(path)
+		except Exception:  # a preview must never break the page
+			tok = None
+		if tok:
+			# offer / check-in / review links: that property's photo and name,
+			# still kept out of search
+			extra += "".join(_card_tags(card, path, tok["title"], tok["description"])
+			                 + _image_tags(card, tok["image"] or card.get("image")))
+		elif card.get("image") and card.get("title"):
 			extra += "".join(_card_tags(card, path, card["title"], card.get("description") or "")
 			                 + _image_tags(card, card["image"]))
 		return html.replace("</head>", extra + "</head>", 1)
@@ -132,8 +178,6 @@ def _with_meta(html: str, path: str) -> str:
 			return html
 		meta = {"title": card["title"], "description": card.get("description") or "",
 		        "image": card["image"]}
-	if card.get("image"):
-		meta["image"] = card["image"]
 	if meta.get("lang"):
 		html = re.sub(r'<html lang="[^"]*"', f'<html lang="{escape(meta["lang"])}"', html, count=1)
 	html = re.sub(r"<title>.*?</title>", f"<title>{escape(meta['title'])}</title>", html, count=1, flags=re.S)
@@ -189,5 +233,5 @@ def _guest_meta(slug: str | None) -> dict | None:
 	from kamra.languages import public_booking_language
 	return {"title": title, "description": " ".join(description.split())[:160],
 	        "lang": public_booking_language(prop.get("booking_language")),
-	        "image": (listing_image or prop.get("og_image")
+	        "image": (prop.get("og_image") or listing_image
 		          or prop.get("hero_image") or prop.get("logo_url"))}

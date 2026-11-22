@@ -788,7 +788,8 @@ export default function PublicListing() {
               </section>
             )}
 
-            <WhatsAppBookCard propertyName={p.property_name} slug={resolved?.property_slug} />
+            <WhatsAppBookCard propertyName={p.property_name}
+              slug={(p as { page_slug?: string | null }).page_slug || resolved?.property_slug} />
 
             <MapBlock address={address} mapsUrl={mapsUrl} lat={lat} lng={lng} />
 

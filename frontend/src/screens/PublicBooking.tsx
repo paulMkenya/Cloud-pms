@@ -35,6 +35,7 @@ import { Sheet } from "../components/ui/sheet"
 import { cur, locale, moneyLocale, adoptUiLocale } from "../lib/money"
 import { formatPhoneDisplay, formatPhoneTel } from "../lib/phone"
 import { petChargeBasis } from "../lib/pets"
+import { WhatsAppBookCard, WhatsAppFab } from "../components/WhatsAppBook"
 import { useT, t as translate } from "../lib/i18n"
 import { adoptGuestLanguage } from "../lib/dir"
 import { LanguageSwitcher } from "../components/LanguageSwitcher"
@@ -362,6 +363,7 @@ function PropertyChooser({
           ))}
         </div>
       </div>
+      <WhatsAppFab />
     </div>
   )
 }
@@ -1196,6 +1198,8 @@ export default function PublicBooking() {
             <span className="text-5xl font-semibold tracking-tight text-white/90">{initials(p.property_name)}</span>
           </div>
         )}
+
+        <WhatsAppBookCard propertyName={p.property_name} slug={p.page_slug || propertySlug} />
 
         <div className="mt-6 lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-10">
           <div className="min-w-0">

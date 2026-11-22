@@ -55,6 +55,7 @@ import {
 import { LanguagesPage } from "./LanguagesPage"
 import { McpAccessPage } from "./McpAccessPage"
 import { GuestMessagesPage } from "./GuestMessagesPage"
+import { WhatsAppButtonPage } from "./WhatsAppButtonPage"
 import { ChannelsPage } from "./ChannelsPage"
 import { ModulePage, Switch, type OptionSources } from "./ModulePage"
 import { WebhooksPage } from "./WebhooksPage"
@@ -112,6 +113,9 @@ const CUSTOM_PAGES: CustomPage[] = [
   { id: "guest-messages", title: "Guest messages", group: "integrations", icon: MessageSquareText,
     description: "WhatsApp and SMS texts guests receive - booking, deposit, reminders and access details.",
     keywords: "whatsapp sms template message guest notification booking confirmation deposit reminder wifi access wording text" },
+  { id: "whatsapp-button", title: "WhatsApp booking button", group: "integrations", icon: MessageSquareText,
+    description: "Show a Book via WhatsApp button on property pages and the homepage, and set the business number.",
+    keywords: "whatsapp book button chat bot homepage property floating number wa.me" },
   { id: "webhooks", title: "Webhooks", group: "integrations", icon: Webhook,
     description: "Send bookings, check-ins, folio postings and the night audit to another system as signed events.",
     keywords: "webhook integration events api door lock pos crm data warehouse signature delivery log resend" },
@@ -545,6 +549,8 @@ function CustomPageBody({
       )
     case "guest-messages":
       return <GuestMessagesPage />
+    case "whatsapp-button":
+      return <WhatsAppButtonPage />
     case "channels":
       return <ChannelsPage />
     case "webhooks":

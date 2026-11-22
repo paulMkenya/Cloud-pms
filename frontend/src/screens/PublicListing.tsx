@@ -22,6 +22,7 @@ import MpesaPay from "../components/MpesaPay"
 import { cur, moneyLocale, adoptUiLocale } from "../lib/money"
 import { formatPhoneDisplay, formatPhoneTel } from "../lib/phone"
 import { petChargeBasis } from "../lib/pets"
+import { WhatsAppBookCard } from "../components/WhatsAppBook"
 import { useT, t as translate } from "../lib/i18n"
 import { adoptGuestLanguage } from "../lib/dir"
 import { LanguageSwitcher } from "../components/LanguageSwitcher"
@@ -786,6 +787,8 @@ export default function PublicListing() {
                 </div>
               </section>
             )}
+
+            <WhatsAppBookCard propertyName={p.property_name} slug={resolved?.property_slug} />
 
             <MapBlock address={address} mapsUrl={mapsUrl} lat={lat} lng={lng} />
 

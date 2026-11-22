@@ -193,7 +193,7 @@ export default function OfferPage() {
         </h1>
         <p className="mt-2 text-sm text-zinc-500">
           {offer.cancel_note === "Hold / payment window expired"
-            ? t("Payment wasn't completed in time, so the room was released. Ask {property} to send a new offer.", { property: offer.property })
+            ? t("Payment wasn't completed in time, so the dates were released. Ask {property} to send a new offer.", { property: offer.property })
             : t("No booking was made. Contact {property} if you'd like to talk about other dates.", { property: offer.property })}
         </p>
       </div>,
@@ -235,7 +235,7 @@ export default function OfferPage() {
         {busy === "dates" ? t("Checking…") : t("Check availability and update")}
       </Button>
       <p className="text-xs text-zinc-400">
-        {t("Same room type and rate - the price is worked out for the new nights.")}
+        {t("Same apartment and rate - the price is worked out for the new nights.")}
       </p>
     </div>
   )
@@ -297,7 +297,7 @@ export default function OfferPage() {
             {t("These dates are no longer available")}
           </p>
           <p className="mt-1 text-xs leading-relaxed text-rose-800">
-            {t("Someone booked the room for these dates after this offer was sent. Pick other dates below - your offer rate still applies.")}
+            {t("Someone booked these dates after this offer was sent. Pick other dates below - your offer rate still applies.")}
           </p>
         </div>
       ) : awaitingPayment && (
@@ -307,8 +307,8 @@ export default function OfferPage() {
           </p>
           <p className="mt-1 text-xs leading-relaxed text-amber-800">
             {offer.status === "Pending Payment"
-              ? t("The room is held until the offer expires. Pay the deposit to confirm, or settle the full amount - balance is then nothing at the property.")
-              : t("Available now. The room isn't reserved until you pay - pay the deposit or the full amount to secure these dates.")}
+              ? t("Your dates are held until the offer expires. Pay the deposit to confirm, or pay the full amount so nothing is due on arrival.")
+              : t("Available now. The dates aren't reserved until you pay - pay the deposit or the full amount to secure these dates.")}
           </p>
         </div>
       )}
@@ -403,9 +403,9 @@ export default function OfferPage() {
       <p className="mt-3 text-center text-xs text-zinc-400">
         {awaitingPayment
           ? offer.status === "Pending Payment"
-            ? t("Payment confirms the booking instantly. If the window closes unpaid, the room is released.")
-            : t("Payment confirms the booking instantly if the room is still free.")
-          : t("Confirming blocks the room at this price. Nothing is reserved until you confirm.")}
+            ? t("Payment confirms the booking instantly. If the window closes unpaid, the dates are released.")
+            : t("Payment confirms the booking instantly if the dates are still free.")
+          : t("Confirming books the dates at this price. Nothing is reserved until you confirm.")}
       </p>
     </div>,
   )

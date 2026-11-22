@@ -919,13 +919,13 @@ def _advance_terms(prop, total: float, rules: dict | None = None) -> tuple[float
 	if mode == "Advance percent" or (season_pct and mode != "Pay at hotel"):
 		pct = season_pct or float(prop.get("advance_percent") or 0)
 		due = round(total * pct / 100, 2)
-		return due, f"{pct:g}% advance ({sym}{due:,.0f}) now, rest at the hotel"
+		return due, f"{pct:g}% advance ({sym}{due:,.0f}) now, balance on arrival"
 	if mode == "Registration fee":
 		due = min(float(prop.get("registration_fee") or 0), total)
-		return due, f"{sym}{due:,.0f} registration fee now, rest at the hotel"
+		return due, f"{sym}{due:,.0f} registration fee now, balance on arrival"
 	if mode == "Full online":
 		return total, "Full amount paid online"
-	return 0.0, "Pay at the hotel"
+	return 0.0, "Pay on arrival"
 
 
 def _payment_split(prop, total: float, rules: dict | None = None) -> dict:

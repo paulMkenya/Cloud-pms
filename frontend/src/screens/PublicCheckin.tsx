@@ -273,7 +273,7 @@ export default function PublicCheckin() {
         })))
         if (i.stay.status === "Submitted") setDone(true)
       })
-      .catch(() => setError(t("This check-in link isn't valid. Please contact the hotel.")))
+      .catch(() => setError(t("This check-in link isn't valid. Please contact your host.")))
   }, [token])
 
   async function submit() {
@@ -331,7 +331,7 @@ export default function PublicCheckin() {
 
         <div className="mb-5 rounded-xl border border-zinc-200 bg-white p-4 text-sm shadow-sm">
           <p className="font-medium">
-            {guest.full_name} · {t("{type} room", { type: stay.room_type })}
+            {guest.full_name} · {t("{type}", { type: stay.room_type })}
           </p>
           <p className="mt-1 flex items-center gap-2 text-zinc-500">
             <CalendarDays className="size-4" aria-hidden />
@@ -342,7 +342,7 @@ export default function PublicCheckin() {
           </p>
           <p className="mt-1 flex items-center gap-2 text-zinc-500">
             <Clock className="size-4" aria-hidden />
-            {t("Rooms ready from {time}", { time: p.checkin_time.slice(0, 5) })}
+            {t("Check-in from {time}", { time: p.checkin_time.slice(0, 5) })}
           </p>
         </div>
 
@@ -395,8 +395,8 @@ export default function PublicCheckin() {
             />
             <p className="-mt-1 text-xs text-zinc-500">
               {p.id_retention === "Verify & Discard"
-                ? t("Your ID photo is used only to confirm your identity at arrival, and is permanently deleted when you check out. Only hotel staff can see it.")
-                : t("Your ID photo is kept with the guest register the hotel is required by law to maintain. Only hotel staff can see it.")}
+                ? t("Your ID photo is used only to confirm your identity at arrival, and is permanently deleted when you check out. Only your host's team can see it.")
+                : t("Your ID photo is kept with the guest register your host is required by law to keep. Only your host's team can see it.")}
               {info?.id_type_hints?.[form.id_type] && " " + t(info.id_type_hints[form.id_type])}
             </p>
 
@@ -447,7 +447,7 @@ export default function PublicCheckin() {
             {(p.house_rules || p.pets_policy || p.children_policy || p.extra_bed_policy) && (
               <details className="group rounded-lg border border-zinc-200 bg-zinc-50/50 p-3 text-xs">
                 <summary className="flex items-center justify-between font-medium text-zinc-700 cursor-pointer select-none [&::-webkit-details-marker]:hidden">
-                  <span>{t("View Hotel House Rules & Policies")}</span>
+                  <span>{t("View House Rules & Policies")}</span>
                   <span className="transition group-open:rotate-180">
                     <svg fill="none" height="16" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="16" className="size-3.5 text-zinc-500"><polyline points="6 9 12 15 18 9"></polyline></svg>
                   </span>
@@ -484,7 +484,7 @@ export default function PublicCheckin() {
             <div className="space-y-2 rounded-lg border border-zinc-200 p-3">
               <span className="block text-sm font-medium text-zinc-600">{t("People staying with you")}</span>
               <p className="text-xs text-zinc-500">
-                {t("Add everyone else in your room. Adults need an ID number; for children, name and age are enough.")}
+                {t("Add everyone else in your booking. Adults need an ID number; for children, name and age are enough.")}
               </p>
               {others.map((o, i) => (
                 <div key={i} className="grid grid-cols-2 gap-2 rounded-lg bg-zinc-50 p-2">
@@ -522,7 +522,7 @@ export default function PublicCheckin() {
                   another gate to the form whose completion rate is the whole
                   point would cost more than it protects. */}
               <p className="mb-2 text-xs text-zinc-500">
-                {t("I confirm the details above are correct, agree to the hotel's registration terms and house rules, and consent to the hotel holding a copy of my ID for this stay.")}
+                {t("I confirm the details above are correct, agree to the registration terms and house rules, and consent to my host holding a copy of my ID for this stay.")}
               </p>
               <SignaturePad onChange={setSignature} />
               <label className="mt-2 flex items-start gap-2 text-xs text-zinc-600">

@@ -260,7 +260,7 @@ function PropertyChooser({
           </h1>
           <LanguageSwitcher className="col-start-2 row-start-1 max-sm:min-h-11 sm:row-span-3 sm:self-center" />
           <p className="col-span-2 row-start-2 mt-1 text-sm text-zinc-500 sm:col-span-1 sm:mt-2 sm:max-w-xl sm:text-base">
-            {t("Pick a property to see its rooms, prices and availability.")}
+            {t("Pick a property to see its apartments, prices and availability.")}
           </p>
           <Link
             to="/loyalty"
@@ -285,7 +285,7 @@ function PropertyChooser({
               </div>
             )}
             <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
-            <label htmlFor="size-filter" className="text-xs font-medium text-zinc-500 sm:text-sm sm:font-normal">{t("Room size")}</label>
+            <label htmlFor="size-filter" className="text-xs font-medium text-zinc-500 sm:text-sm sm:font-normal">{t("Size")}</label>
             <select id="size-filter" value={size === null ? "" : String(size)}
               onChange={(e) => setSize(e.target.value === "" ? null : Number(e.target.value))}
               className="w-full min-w-0 truncate rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm focus:outline-2 focus:outline-offset-1 focus:outline-brand-600 max-sm:min-h-11 sm:w-auto">
@@ -349,11 +349,11 @@ function PropertyChooser({
                         {" "}/ {t("night")}
                       </>
                     ) : (
-                      t("See rooms and prices")
+                      t("See apartments and prices")
                     )}
                   </p>
                   <span className="inline-flex items-center gap-1 text-sm font-medium text-brand-700">
-                    {t("View rooms")}
+                    {t("View apartments")}
                     <ChevronRight className="size-4 rtl:rotate-180" aria-hidden />
                   </span>
                 </div>
@@ -601,7 +601,7 @@ export default function PublicBooking() {
     setMetaTag(
       "description",
       p.meta_description ||
-        t("{property} in {city}: {count} room types from {price} per night. Best-rate direct booking, pay at hotel. {description}", {
+        t("{property} in {city}: {count} apartment types from {price} per night. Book direct for the best rate. {description}", {
           property: p.property_name, city: p.city, count: data.room_types.length,
           price: money(minPrice), description: p.description ?? "",
         }).slice(0, 158),
@@ -624,7 +624,7 @@ export default function PublicBooking() {
     }
     canonical.href = `${window.location.origin}/book${propertySlug ? `?property=${encodeURIComponent(propertySlug)}` : ""}`
 
-    const isStr = p.property_kind === "Short Term Rental"
+    const isStr = p.property_kind === "Short Term Rental" || p.property_kind === "Serviced Apartments"
     const schemaType = isStr ? "VacationRental" : "Hotel"
     const offerType = isStr ? "Accommodation" : "HotelRoom"
     const jsonld = {
@@ -858,7 +858,7 @@ export default function PublicBooking() {
 
   const p = data.property
   const minNights = p.minimum_nights || 1
-  const isStr = p.property_kind === "Short Term Rental"
+  const isStr = p.property_kind === "Short Term Rental" || p.property_kind === "Serviced Apartments"
   const bookCta =
     p.booking_mode === "Request to Book"
       ? t("Request to book")
@@ -891,7 +891,7 @@ export default function PublicBooking() {
     (parseDate(iso) ?? new Date()).toLocaleDateString(lang, { weekday: "short", day: "numeric", month: "short" })
   const guestsLabel = tn(search.adults + search.children, "{n} guest", "{n} guests")
   const mealLabel = (mp: string) =>
-    mp ? translate(data.meal_plans.find((m) => m.name === mp)?.label ?? mp) : t("Room only")
+    mp ? translate(data.meal_plans.find((m) => m.name === mp)?.label ?? mp) : t(isStr ? "Self-catering" : "Room only")
 
   // Cancellation terms from the property's real policy (the same rules as
   // cancellation_preview): free while more than free_cancel_days remain
@@ -916,7 +916,7 @@ export default function PublicBooking() {
       ? [{ icon: ShieldCheck, text: t("Free cancellation") }]
       : [{ icon: ShieldCheck, text: tn(p.free_cancel_days,
           "Free cancellation up to {n} day before arrival", "Free cancellation up to {n} days before arrival") }]),
-    ...(p.payment_mode === "Pay at hotel" ? [{ icon: Wallet, text: t("No payment today, pay at the property") }] : []),
+    ...(p.payment_mode === "Pay at hotel" ? [{ icon: Wallet, text: t("No payment today, pay on arrival") }] : []),
     ...(p.booking_mode !== "Request to Book" ? [{ icon: Zap, text: t("Instant confirmation") }] : []),
     { icon: Clock, text: t("Check-in from {in}, check-out by {out}", { in: p.checkin_time.slice(0, 5), out: p.checkout_time.slice(0, 5) }) },
   ]
@@ -1390,7 +1390,7 @@ export default function PublicBooking() {
                   {roomsShown.length === 0 && (
                     <div className="rounded-2xl border border-dashed border-zinc-300 bg-white px-6 py-10 text-center">
                       <p className="font-medium text-zinc-800">{t("Nothing is available for these dates")}</p>
-                      <p className="mt-1 text-sm text-zinc-500">{t("Try other dates, or fewer guests per room.")}</p>
+                      <p className="mt-1 text-sm text-zinc-500">{t("Try other dates, or fewer guests per apartment.")}</p>
                       <Button className="mt-4" variant="outline" onClick={() => { setEditing(true); window.scrollTo({ top: 0, behavior: "smooth" }) }}>
                         {t("Change dates or guests")}
                       </Button>
@@ -1448,7 +1448,7 @@ export default function PublicBooking() {
                             {(rt.description || rt.amenities.length > 4) && (
                               <details className="group mt-3 text-sm">
                                 <summary className="inline-flex cursor-pointer list-none items-center gap-1 font-medium text-brand-700 [&::-webkit-details-marker]:hidden">
-                                  {t("Room details")}
+                                  {t("Apartment details")}
                                   <ChevronDown className="size-4 transition group-open:rotate-180" aria-hidden />
                                 </summary>
                                 {rt.description && <p className="mt-2 leading-relaxed text-zinc-600">{rt.description}</p>}
@@ -1526,7 +1526,7 @@ export default function PublicBooking() {
                                             <Wallet className="size-3.5 shrink-0" aria-hidden />
                                             {(pl.advance_due || 0) > 0
                                               ? t("{amount} due now", { amount: money(pl.advance_due || 0) })
-                                              : t("Pay at the property")}
+                                              : t("Balance on arrival")}
                                           </p>
                                         </div>
                                         <div className="ms-auto flex items-center gap-4">
@@ -1686,7 +1686,7 @@ export default function PublicBooking() {
                           )}
                           {locations.length > 1 && loc.room_types.length > 0 && (
                             <p className="border-t border-zinc-100 pt-3 text-xs text-zinc-500">
-                              {t("Rooms here:")}{" "}
+                              {t("Apartments here:")}{" "}
                               {loc.room_types
                                 .map((rt) => data.room_types.find((r) => r.name === rt)?.room_type_name || rt)
                                 .join(", ")}
@@ -1754,7 +1754,7 @@ export default function PublicBooking() {
                   <div className="mt-3 text-sm text-zinc-500">
                     <p>{fmtDay(search.check_in_date)} {t("to")} {fmtDay(checkOut)}</p>
                     <p>{tn(nights, "{n} night", "{n} nights")}, {guestsLabel}</p>
-                    <p className="mt-4 rounded-xl bg-zinc-50 p-4 text-zinc-600">{t("Select a room and rate to see your total here.")}</p>
+                    <p className="mt-4 rounded-xl bg-zinc-50 p-4 text-zinc-600">{t("Select an apartment and rate to see your total here.")}</p>
                   </div>
                 )}
               </div>
@@ -1833,7 +1833,7 @@ export default function PublicBooking() {
                   <div className="flex justify-between gap-4 py-3"><dt className="text-zinc-500">{t("Due now")}</dt><dd className="text-end font-semibold text-zinc-900">{money(done.advance_due)}</dd></div>
                 )}
                 {done.status !== "Inquiry" && done.balance_at_hotel > 0 && (
-                  <div className="flex justify-between gap-4 py-3"><dt className="text-zinc-500">{t("Pay at the property")}</dt><dd className="text-end font-medium text-zinc-800">{money(done.balance_at_hotel)}</dd></div>
+                  <div className="flex justify-between gap-4 py-3"><dt className="text-zinc-500">{t("Balance on arrival")}</dt><dd className="text-end font-medium text-zinc-800">{money(done.balance_at_hotel)}</dd></div>
                 )}
               </dl>
               {done.status !== "Inquiry" && done.advance_due > 0 && done.token && !payLink && (
@@ -1891,7 +1891,7 @@ export default function PublicBooking() {
                 {done.payToConfirm && !done.paid
                   ? `${t("Pay within {time} to confirm - your dates are secured once payment is received.", { time: done.payWithin && done.payWithin % 60 === 0 ? tn(done.payWithin / 60, "{n} hour", "{n} hours", { n: String(done.payWithin / 60) }) : t("{n} minutes", { n: String(done.payWithin || 120) }) })} `
                   : done.status === "Pending Payment" && !done.paid
-                  ? `${t("Your rooms are held until the advance is received.")} `
+                  ? `${t("Your dates are held until the deposit is received.")} `
                   : ""}
                 {done.status === "Inquiry"
                   ? t("Thanks — your inquiry is with the property. They'll confirm availability and pricing shortly.")
@@ -2012,7 +2012,7 @@ export default function PublicBooking() {
                     const addonTotal = data.experiences.reduce((s, e) => s + (addons[e.name] || 0) * e.price, 0)
                     return addonTotal > 0 ? (
                       <p className="mt-2 text-end text-xs text-zinc-500">
-                        {t("Experiences: +{amount} · added to your bill at the hotel", { amount: money(addonTotal) })}
+                        {t("Experiences: +{amount} · added to your bill", { amount: money(addonTotal) })}
                       </p>
                     ) : null
                   })()}
@@ -2027,10 +2027,10 @@ export default function PublicBooking() {
                     {p.payment_mode === "Full online"
                       ? t("The full amount is paid online to confirm this booking.")
                       : p.payment_mode === "Advance percent"
-                        ? t("A {percent}% advance is collected to confirm; the rest is paid at the hotel.", { percent: p.advance_percent })
+                        ? t("A {percent}% advance is collected to confirm; the balance is paid on arrival.", { percent: p.advance_percent })
                         : p.payment_mode === "Registration fee"
-                          ? t("A registration fee of {amount} is collected to confirm; the rest is paid at the hotel.", { amount: money(p.registration_fee) })
-                          : t("No payment today, pay at the property")}
+                          ? t("A registration fee of {amount} is collected to confirm; the balance is paid on arrival.", { amount: money(p.registration_fee) })
+                          : t("No payment today, pay on arrival")}
                   </p>
                 </div>
                 {(p.security_deposit_amount || 0) > 0 && (
@@ -2048,10 +2048,10 @@ export default function PublicBooking() {
                         checked={!payFull} onChange={() => setPayFull(false)} />
                       <span>
                         <span className="block font-medium text-zinc-800">
-                          {t("Pay {amount} now, balance at the property", { amount: money(selPlan.advance_due || 0) })}
+                          {t("Pay {amount} now, balance on arrival", { amount: money(selPlan.advance_due || 0) })}
                         </span>
                         <span className="block text-xs text-zinc-500">
-                          {t("{amount} due during your stay", { amount: money((selPlan.balance_at_hotel ?? 0) || selPlan.amount_after_tax - (selPlan.advance_due || 0)) })}
+                          {t("Balance {amount} due on arrival", { amount: money((selPlan.balance_at_hotel ?? 0) || selPlan.amount_after_tax - (selPlan.advance_due || 0)) })}
                         </span>
                       </span>
                     </label>
@@ -2062,7 +2062,7 @@ export default function PublicBooking() {
                       <span>
                         <span className="block font-medium text-zinc-800">{t("Pay in full now")}</span>
                         <span className="block text-xs text-zinc-500">
-                          {money(selPlan.amount_after_tax)} · {t("one payment, nothing due at the property")}
+                          {money(selPlan.amount_after_tax)} · {t("one payment, nothing due on arrival")}
                         </span>
                       </span>
                     </label>

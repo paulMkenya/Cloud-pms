@@ -1075,7 +1075,7 @@ export default function PublicListing() {
                     <div className="flex justify-between gap-4"><dt className="text-zinc-500">{t("Due now")}</dt><dd className="font-semibold text-zinc-900">{`${cur()}${inr(done.advance_due)}`}</dd></div>
                   )}
                   {done.balance_at_hotel > 0 && !done.paid && (
-                    <div className="flex justify-between gap-4"><dt className="text-zinc-500">{t("Pay at the property")}</dt><dd className="text-zinc-800">{`${cur()}${inr(done.balance_at_hotel)}`}</dd></div>
+                    <div className="flex justify-between gap-4"><dt className="text-zinc-500">{t("Balance on arrival")}</dt><dd className="text-zinc-800">{`${cur()}${inr(done.balance_at_hotel)}`}</dd></div>
                   )}
                 </dl>
               </div>
@@ -1174,10 +1174,10 @@ export default function PublicListing() {
                             checked={!payFull} onChange={() => setPayFull(false)} />
                           <span>
                             <span className="block font-medium text-zinc-800">
-                              {t("Pay {amount} now, balance at the property", { amount: money(due) })}
+                              {t("Pay {amount} now, balance on arrival", { amount: money(due) })}
                             </span>
                             <span className="block text-xs text-zinc-500">
-                              {t("{amount} due during your stay", { amount: money(balance) })}
+                              {t("Balance {amount} due on arrival", { amount: money(balance) })}
                             </span>
                           </span>
                         </label>
@@ -1188,7 +1188,7 @@ export default function PublicListing() {
                           <span>
                             <span className="block font-medium text-zinc-800">{t("Pay in full now")}</span>
                             <span className="block text-xs text-zinc-500">
-                              {money(total)} · {t("one payment, nothing due at the property")}
+                              {money(total)} · {t("one payment, nothing due on arrival")}
                             </span>
                           </span>
                         </label>

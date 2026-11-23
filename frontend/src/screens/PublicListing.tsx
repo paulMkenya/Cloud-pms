@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
-import { clampGuests, maxCapacity } from "../lib/occupancy"
+import { maxCapacity } from "../lib/occupancy"
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import {
   ArrowLeft,
@@ -278,22 +278,21 @@ export default function PublicListing() {
   const maxChildren = isSite
     ? maxCapacity(data?.room_types, "children_capacity")
     : Number(primary?.children_capacity) || 0
-  const atAdultCap = maxAdults > 0 && search.adults >= maxAdults
-  const atChildCap = maxChildren > 0 && search.children >= maxChildren
+  const atAdultCap = maxAdults > 0 && search.adults > maxAdults
+  const atChildCap = maxChildren > 0 && search.children > maxChildren
 
-  // The party also arrives in the URL (/stay/slug/in/out/adults/children), so
-  // clamp once the capacity is known - otherwise a shared or edited link walks
-  // straight past the inputs.
+  // The party also arrives in the URL (/stay/slug/in/out/adults/children):
+  // keep the floors but no capacity cap - above what the room sleeps the
+  // booking goes to the host as Requested to confirm the arrangement.
   useEffect(() => {
-    if (!maxAdults && !maxChildren) return
     setSearch((q) => {
-      const adults = clampGuests(q.adults, 1, maxAdults)
-      const children = clampGuests(q.children, 0, maxChildren)
+      const adults = Math.max(1, q.adults)
+      const children = Math.max(0, q.children)
       return adults === q.adults && children === q.children
         ? q
         : { ...q, adults, children }
     })
-  }, [maxAdults, maxChildren])
+  }, [])
   const siteMeta = useMemo(() => {
     if (!data) return null
     if (isSite && locationSlug) {
@@ -850,19 +849,18 @@ export default function PublicListing() {
                   <input
                     type="number"
                     min={1}
-                    max={maxAdults || undefined}
                     className={inputCls}
                     value={search.adults}
                     onChange={(e) =>
                       setSearch({
                         ...search,
-                        adults: clampGuests(Number(e.target.value), 1, maxAdults),
+                        adults: Math.max(1, Number(e.target.value) || 1),
                       })
                     }
                   />
                   {atAdultCap && (
                     <span className="mt-1 block text-xs text-rose-600">
-                      {t("Sleeps up to {n}", { n: maxAdults })}
+                      {t("Sleeps up to {n} - the property will confirm the arrangement", { n: maxAdults })}
                     </span>
                   )}
                 </label>
@@ -873,19 +871,18 @@ export default function PublicListing() {
                   <input
                     type="number"
                     min={0}
-                    max={maxChildren || undefined}
                     className={inputCls}
                     value={search.children}
                     onChange={(e) =>
                       setSearch({
                         ...search,
-                        children: clampGuests(Number(e.target.value), 0, maxChildren),
+                        children: Math.max(0, Number(e.target.value) || 0),
                       })
                     }
                   />
                   {atChildCap && (
                     <span className="mt-1 block text-xs text-rose-600">
-                      {t("Up to {n} children", { n: maxChildren })}
+                      {t("Up to {n} children - the property will confirm the arrangement", { n: maxChildren })}
                     </span>
                   )}
                 </label>

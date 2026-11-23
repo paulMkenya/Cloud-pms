@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { clampGuests, maxCapacity, sleeps } from "../lib/occupancy"
+import { maxCapacity, sleeps } from "../lib/occupancy"
 import PrivacyNotice, { setPrivacyTerms } from "../components/PrivacyNotice"
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom"
 import {
@@ -340,8 +340,8 @@ function PropertyChooser({
           </label>
           <label className="block min-w-0 sm:w-24">
             <span className="mb-1 block text-xs font-medium text-zinc-500">{t("Guests")}</span>
-            <input type="number" min={1} max={20} value={stay.adults}
-              onChange={(e) => setStay((s) => ({ ...s, adults: Math.max(1, Math.min(20, Number(e.target.value) || 1)) }))}
+            <input type="number" min={1} value={stay.adults}
+              onChange={(e) => setStay((s) => ({ ...s, adults: Math.max(1, Number(e.target.value) || 1) }))}
               className="w-full min-w-0 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-base focus:outline-2 focus:outline-offset-1 focus:outline-brand-600 max-sm:min-h-11" />
           </label>
           <Button type="submit" disabled={!stayValid}
@@ -571,19 +571,19 @@ export default function PublicBooking() {
   const maxAdults = maxCapacity(data?.room_types, "adults_capacity")
   const maxChildren = maxCapacity(data?.room_types, "children_capacity")
 
-  // The party also arrives in the URL (/book/in/out/adults/children), so clamp
-  // once the capacity is known - otherwise a shared or edited link walks
-  // straight past the inputs.
+  // The party also arrives in the URL (/book/in/out/adults/children): keep
+  // the floors (one adult, no negative children) but no capacity cap - a
+  // party above what the room sleeps books as Requested for the host to
+  // confirm the arrangement (public_api.book -> over_capacity_guests).
   useEffect(() => {
-    if (!maxAdults && !maxChildren) return
     setSearch((q) => {
-      const adults = clampGuests(q.adults, 1, maxAdults)
-      const children = clampGuests(q.children, 0, maxChildren)
+      const adults = Math.max(1, q.adults)
+      const children = Math.max(0, q.children)
       return adults === q.adults && children === q.children
         ? q
         : { ...q, adults, children }
     })
-  }, [maxAdults, maxChildren])
+  }, [])
   const [search, setSearch] = useState(() =>
     stayFromParams(slugInPath ? {} : params),
   )
@@ -1181,15 +1181,16 @@ export default function PublicBooking() {
                   <input
                     type="number"
                     min={1}
-                    max={maxAdults || undefined}
                     className={inputCls}
                     value={search.adults}
                     onChange={(e) =>
-                      setSearch({ ...search, adults: clampGuests(Number(e.target.value), 1, maxAdults) })
+                      setSearch({ ...search, adults: Math.max(1, Number(e.target.value) || 1) })
                     }
                   />
-                  {maxAdults > 0 && search.adults >= maxAdults && (
-                    <span className="mt-1 block text-xs text-zinc-500">{t("Sleeps up to {n}", { n: maxAdults })}</span>
+                  {maxAdults > 0 && search.adults > maxAdults && (
+                    <span className="mt-1 block text-xs text-zinc-500">
+                      {t("Sleeps up to {n} - the property will confirm the arrangement", { n: maxAdults })}
+                    </span>
                   )}
                 </label>
                 <label className="block">
@@ -1197,15 +1198,16 @@ export default function PublicBooking() {
                   <input
                     type="number"
                     min={0}
-                    max={maxChildren || undefined}
                     className={inputCls}
                     value={search.children}
                     onChange={(e) =>
-                      setSearch({ ...search, children: clampGuests(Number(e.target.value), 0, maxChildren) })
+                      setSearch({ ...search, children: Math.max(0, Number(e.target.value) || 0) })
                     }
                   />
-                  {maxChildren > 0 && search.children >= maxChildren && (
-                    <span className="mt-1 block text-xs text-zinc-500">{t("Up to {n} children", { n: maxChildren })}</span>
+                  {maxChildren > 0 && search.children > maxChildren && (
+                    <span className="mt-1 block text-xs text-zinc-500">
+                      {t("Up to {n} children - the property will confirm the arrangement", { n: maxChildren })}
+                    </span>
                   )}
                 </label>
                 {!!p.pets_allowed && (

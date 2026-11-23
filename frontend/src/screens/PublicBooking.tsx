@@ -358,6 +358,12 @@ function PropertyChooser({
             <Search className="size-4" aria-hidden />
             {t("Show prices")}
           </Button>
+          {priced && (
+            <button type="button" onClick={() => { setPriced(null); setPrices(null); setShowSmall(false) }}
+              className="col-span-2 justify-self-start text-sm font-medium text-brand-700 underline-offset-2 hover:underline max-sm:min-h-11 sm:self-center">
+              {t("Clear dates - show all properties")}
+            </button>
+          )}
         </form>
         {(cities.length > 1 || bedSizes.length > 0) && (
           /* phones: two equal columns, label above its dropdown; from sm up
@@ -606,6 +612,10 @@ export default function PublicBooking() {
         : { ...q, adults, children }
     })
   }, [])
+  // the page writes its default dates into the URL straight away, so
+  // "did the guest come with dates" (a campaign link, back from a property)
+  // is read once, before that happens
+  const [arrivedWithDates] = useState(() => !!params.checkin && !!parseDate(params.checkin))
   const [search, setSearch] = useState(() =>
     stayFromParams(slugInPath ? {} : params),
   )
@@ -935,7 +945,7 @@ export default function PublicBooking() {
       <PropertyChooser
         properties={properties}
         initialStay={{ checkIn: search.check_in_date, checkOut, adults: search.adults, children: search.children }}
-        searched={!!params.checkin && !!parseDate(params.checkin)}
+        searched={arrivedWithDates}
         query={new URLSearchParams([...new URLSearchParams(location.search)].filter(([k]) => k !== "property")).toString()}
       />
     )

@@ -168,6 +168,22 @@ def _build_locations(prop, room_types: list[dict]) -> list[dict]:
 	return locations
 
 
+PROPERTY_ORDER = "ct_property_order"
+
+
+def _in_site_order(properties):
+	"""The order the owner set for the booking homepage (site default
+	ct_property_order: a JSON list of property names); any property not in
+	it follows, alphabetically."""
+	import json
+	try:
+		order = json.loads(frappe.db.get_default(PROPERTY_ORDER) or "[]")
+	except ValueError:
+		order = []
+	rank = {n: i for i, n in enumerate(order if isinstance(order, list) else [])}
+	return sorted(properties, key=lambda p: (rank.get(p.name, len(rank)), p.property_name or p.name))
+
+
 @frappe.whitelist(allow_guest=True)
 def catalog_index(property_slug: str | None = None):
 	"""Entry point for /book — how many properties, sites, or listings to show.
@@ -191,6 +207,7 @@ def catalog_index(property_slug: str | None = None):
 			        "showcase_description"],
 			order_by="property_name asc",
 		)
+		properties = _in_site_order(properties)
 	from kamra.track import record as _track_click
 	if property_slug:
 		_track_click("listing_view", property=properties[0].name,

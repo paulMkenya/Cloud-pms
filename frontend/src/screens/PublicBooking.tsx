@@ -37,6 +37,7 @@ import { formatPhoneDisplay, formatPhoneTel } from "../lib/phone"
 import { petChargeBasis } from "../lib/pets"
 import { WhatsAppFab, WhatsAppStayButton, type StayChoice } from "../components/WhatsAppBook"
 import { ReviewBadges } from "../components/ReviewBadges"
+import { badgeScore, loadCatalogBadges, type RatingBadge } from "../lib/publicReviews"
 import { ReviewsBlock } from "../components/ReviewsBlock"
 import { useT, t as translate } from "../lib/i18n"
 import { adoptGuestLanguage } from "../lib/dir"
@@ -235,6 +236,15 @@ function PropertyChooser({
   const { t, tn } = useT()
   const [city, setCity] = useState("")
   const [size, setSize] = useState<number | null>(null)
+  // each card's rating from Airbnb / Booking.com, when the owner shows badges
+  const [ratings, setRatings] = useState<Record<string, RatingBadge[]>>({})
+  useEffect(() => {
+    let live = true
+    loadCatalogBadges().then((r) => live && setRatings(r))
+    return () => {
+      live = false
+    }
+  }, [])
   useEffect(() => {
     document.title = t("Places to stay - book direct")
   }, [t])
@@ -334,6 +344,14 @@ function PropertyChooser({
               </div>
               <div className="p-5">
                 <h2 className="text-lg font-semibold text-zinc-900">{p.property_name}</h2>
+                {(ratings[p.name] || []).slice(0, 1).map((b) => (
+                  <p key={b.source} className="mt-1 flex flex-wrap items-center gap-x-1.5 text-sm">
+                    {b.out_of === 5 && <Star className="size-3.5 fill-amber-400 text-amber-400" aria-hidden />}
+                    <span className="font-semibold text-zinc-900">{badgeScore(b)}</span>
+                    {b.count > 0 && <span className="text-zinc-500">· {tn(b.count, "{n} review", "{n} reviews")}</span>}
+                    <span className="text-zinc-500">{t("on {site}", { site: b.source })}</span>
+                  </p>
+                ))}
                 {(p.city || p.state) && (
                   <p className="mt-1 inline-flex items-center gap-1.5 text-sm text-zinc-500">
                     <MapPin className="size-3.5 shrink-0" aria-hidden />

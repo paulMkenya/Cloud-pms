@@ -46,3 +46,17 @@ export function loadPublicReviews(property: string): Promise<PublicReviews> {
 
 export const reviewSourceLabel = (s: string) =>
   s === "Booking.com" || s === "Airbnb" || s === "Google" ? s : ""
+
+let catalog: Promise<Record<string, RatingBadge[]>> | null = null
+
+/** Rating badges for every property on the booking homepage, in one call. */
+export function loadCatalogBadges(): Promise<Record<string, RatingBadge[]>> {
+  catalog ??= callGuest<Record<string, RatingBadge[]>>("cloudtrade_hospitality.reviews.catalog_badges")
+    .then((d) => d || {})
+    .catch(() => ({}))
+  return catalog
+}
+
+/** "4.73" for Airbnb / Google, "8.9/10" for Booking.com. */
+export const badgeScore = (b: RatingBadge) =>
+  b.out_of === 10 ? `${b.score.toFixed(1)}/10` : String(Number(b.score.toFixed(2)))

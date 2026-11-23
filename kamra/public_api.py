@@ -491,6 +491,39 @@ def search_stay(property: str, check_in_date: str, check_out_date: str,
 	return results
 
 
+@frappe.whitelist(allow_guest=True)
+def catalog_stay(check_in_date: str, check_out_date: str, adults: int = 2, children: int = 0):
+	"""The booking homepage with dates: for each live property, the cheapest
+	room-only total for that stay (seasons, minimum stays and availability
+	applied exactly as on its own page), or why it cannot be booked.
+
+	{property: {"total", "nights", "available": True}} or
+	{property: {"available": False, "reason"}}."""
+	nights = date_diff(check_out_date, check_in_date)
+	if nights < 1 or nights > 30:
+		return {}
+	out = {}
+	for p in frappe.get_all("Property", filters={"booking_engine_enabled": 1, "disabled": 0}, pluck="name"):
+		try:
+			rows = search_stay(p, check_in_date, check_out_date, int(adults or 1), int(children or 0))
+		except Exception:
+			frappe.clear_last_message()
+			continue
+		best = None
+		for r in rows:
+			total = ((r.get("plans") or [{}])[0].get("amount_after_tax")
+			         or (r.get("quote") or {}).get("amount_after_tax"))
+			if r.get("available") and total and (best is None or total < best):
+				best = total
+		if best is not None:
+			out[p] = {"available": True, "total": round(float(best), 2), "nights": nights}
+		else:
+			reasons = [r.get("reason") for r in rows if r.get("reason")]
+			out[p] = {"available": False,
+			          "reason": reasons[0] if reasons else "Not available for these dates."}
+	return out
+
+
 def _usable_voucher(property: str, code: str | None, nights: int) -> str | None:
 	"""The code when it is valid for this stay, else None."""
 	if not (code or "").strip():

@@ -225,16 +225,44 @@ interface PropertyCard {
 
 /** /book on a site with several properties: pick one, then book it. Each
  *  card opens that property's own page with the stay already filled in. */
+interface CatalogStay {
+  available: boolean
+  total?: number
+  nights?: number
+  reason?: string
+}
+
 function PropertyChooser({
   properties,
-  stayPath,
+  initialStay,
+  searched,
   query,
 }: {
   properties: PropertyCard[]
-  stayPath: string
+  initialStay: { checkIn: string; checkOut: string; adults: number; children: number }
+  /** the URL carried dates: price every card for them straight away */
+  searched: boolean
   query: string
 }) {
   const { t, tn } = useT()
+  // the stay the cards are priced for; "from" prices until the guest sets dates
+  const [stay, setStay] = useState(initialStay)
+  const [priced, setPriced] = useState<typeof initialStay | null>(searched ? initialStay : null)
+  const [prices, setPrices] = useState<Record<string, CatalogStay> | null>(null)
+  useEffect(() => {
+    if (!priced) return
+    let live = true
+    setPrices(null)
+    callGuest<Record<string, CatalogStay>>("kamra.public_api.catalog_stay", {
+      check_in_date: priced.checkIn, check_out_date: priced.checkOut,
+      adults: priced.adults, children: priced.children,
+    }).then((r) => live && setPrices(r || {})).catch(() => live && setPrices({}))
+    return () => {
+      live = false
+    }
+  }, [priced])
+  const stayPath = `/${stay.checkIn}/${stay.checkOut}/${stay.adults}/${stay.children}`
+  const stayValid = !!parseDate(stay.checkIn) && !!parseDate(stay.checkOut) && stay.checkOut > stay.checkIn
   const [city, setCity] = useState("")
   const [size, setSize] = useState<number | null>(null)
   // each card's rating from Airbnb / Booking.com, when the owner shows badges
@@ -284,6 +312,41 @@ function PropertyChooser({
             <span>{t("Loyalty programme - earn points on every stay")}</span>
           </Link>
         </div>
+        {/* dates: price every card for this stay */}
+        <form
+          className="mt-4 grid grid-cols-2 gap-3 rounded-2xl border border-zinc-200 bg-white p-3 sm:mt-6 sm:flex sm:items-end sm:gap-3 sm:p-4"
+          onSubmit={(e) => {
+            e.preventDefault()
+            if (stayValid) setPriced({ ...stay })
+          }}
+        >
+          <label className="block min-w-0">
+            <span className="mb-1 block text-xs font-medium text-zinc-500">{t("Check-in")}</span>
+            <input type="date" value={stay.checkIn} min={todayPlus(0)}
+              onChange={(e) => {
+                const ci = e.target.value
+                setStay((s) => ({ ...s, checkIn: ci, checkOut: s.checkOut > ci ? s.checkOut : addDays(ci, 1) }))
+              }}
+              className="w-full min-w-0 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-base focus:outline-2 focus:outline-offset-1 focus:outline-brand-600 max-sm:min-h-11" />
+          </label>
+          <label className="block min-w-0">
+            <span className="mb-1 block text-xs font-medium text-zinc-500">{t("Check-out")}</span>
+            <input type="date" value={stay.checkOut} min={addDays(stay.checkIn, 1)}
+              onChange={(e) => setStay((s) => ({ ...s, checkOut: e.target.value }))}
+              className="w-full min-w-0 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-base focus:outline-2 focus:outline-offset-1 focus:outline-brand-600 max-sm:min-h-11" />
+          </label>
+          <label className="block min-w-0 sm:w-24">
+            <span className="mb-1 block text-xs font-medium text-zinc-500">{t("Guests")}</span>
+            <input type="number" min={1} max={20} value={stay.adults}
+              onChange={(e) => setStay((s) => ({ ...s, adults: Math.max(1, Math.min(20, Number(e.target.value) || 1)) }))}
+              className="w-full min-w-0 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-base focus:outline-2 focus:outline-offset-1 focus:outline-brand-600 max-sm:min-h-11" />
+          </label>
+          <Button type="submit" disabled={!stayValid}
+            className="justify-center gap-2 self-end py-2.5 max-sm:min-h-11 sm:ms-auto">
+            <Search className="size-4" aria-hidden />
+            {t("Show prices")}
+          </Button>
+        </form>
         {(cities.length > 1 || bedSizes.length > 0) && (
           /* phones: two equal columns, label above its dropdown; from sm up
              the old single inline row (label, dropdown, label, dropdown) */
@@ -364,7 +427,16 @@ function PropertyChooser({
                 )}
                 <div className="mt-4 flex items-end justify-between gap-2 border-t border-zinc-100 pt-4">
                   <p className="text-sm text-zinc-500">
-                    {p.from_rate > 0 ? (
+                    {priced && !prices ? (
+                      <span className="text-zinc-400">{t("Checking prices…")}</span>
+                    ) : priced && prices && prices[p.name]?.available ? (
+                      <>
+                        <span className="text-lg font-semibold text-zinc-900">{money(prices[p.name].total || 0)}</span>
+                        {" "}· {tn(prices[p.name].nights || 1, "{n} night", "{n} nights")}
+                      </>
+                    ) : priced && prices && prices[p.name] ? (
+                      <span className="text-zinc-500">{translate(prices[p.name].reason || "Not available for these dates.")}</span>
+                    ) : p.from_rate > 0 ? (
                       <>
                         {t("from")}{" "}
                         <span className="text-lg font-semibold text-zinc-900">{money(p.from_rate)}</span>
@@ -837,7 +909,8 @@ export default function PublicBooking() {
     return (
       <PropertyChooser
         properties={properties}
-        stayPath={`/${search.check_in_date}/${checkOut}/${search.adults}/${search.children}`}
+        initialStay={{ checkIn: search.check_in_date, checkOut, adults: search.adults, children: search.children }}
+        searched={!!params.checkin && !!parseDate(params.checkin)}
         query={new URLSearchParams([...new URLSearchParams(location.search)].filter(([k]) => k !== "property")).toString()}
       />
     )

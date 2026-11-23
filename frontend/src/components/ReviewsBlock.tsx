@@ -8,6 +8,13 @@ import { loadPublicReviews, reviewSourceLabel, type PublicReviews } from "../lib
 
 const SHOWN = 6
 
+// month and year only: copied reviews carry the month the site shows
+const monthYear = (d: string) => {
+  const x = new Date(String(d).replace(" ", "T"))
+  return Number.isNaN(x.getTime()) ? String(d).slice(0, 7)
+    : x.toLocaleDateString("en-GB", { month: "long", year: "numeric" })
+}
+
 /** Approved guest reviews for this property - renders nothing until the
  *  owner has approved at least one (cloudtrade_hospitality.reviews). */
 export function ReviewsBlock({ property, className = "" }: { property: string; className?: string }) {
@@ -32,10 +39,12 @@ export function ReviewsBlock({ property, className = "" }: { property: string; c
     <section className={"rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm " + className}>
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="text-lg font-semibold text-zinc-900">{t("Guest reviews")}</h2>
+        {!data.filtered && (
         <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-sm font-semibold text-amber-800">
-          <Star className="size-4 fill-amber-400 text-amber-400" aria-hidden />
-          {data.average.toFixed(1)}
-        </span>
+            <Star className="size-4 fill-amber-400 text-amber-400" aria-hidden />
+            {data.average.toFixed(1)}
+          </span>
+        )}
         <span className="text-sm text-zinc-500">
           {tn(data.count, "{n} review", "{n} reviews")}
         </span>
@@ -55,7 +64,7 @@ export function ReviewsBlock({ property, className = "" }: { property: string; c
             {r.comment && <p className="mt-1.5 text-sm leading-relaxed text-zinc-600">{r.comment}</p>}
             <p className="mt-2 text-xs text-zinc-400">
               {r.display_name || t("Verified guest")}
-              {r.submitted_on ? ` · ${String(r.submitted_on).slice(0, 10)}` : ""}
+              {r.submitted_on ? ` · ${monthYear(r.submitted_on)}` : ""}
               {sourceLabel(r.source) && !r.external_url ? ` · ${sourceLabel(r.source)}` : ""}
               {r.external_url && " · "}
               {r.external_url && (

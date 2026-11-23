@@ -25,6 +25,8 @@ export interface PublicReviews {
   average: number
   count: number
   badges: RatingBadge[]
+  /** only some reviews are shown (e.g. 4 and 5 stars): no average then */
+  filtered?: boolean
 }
 
 const EMPTY: PublicReviews = { reviews: [], average: 0, count: 0, badges: [] }

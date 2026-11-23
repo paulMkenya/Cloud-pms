@@ -37,6 +37,7 @@ import { formatPhoneDisplay, formatPhoneTel } from "../lib/phone"
 import { petChargeBasis } from "../lib/pets"
 import { WhatsAppFab, WhatsAppStayButton, type StayChoice } from "../components/WhatsAppBook"
 import { ReviewBadges } from "../components/ReviewBadges"
+import { ReviewsBlock } from "../components/ReviewsBlock"
 import { useT, t as translate } from "../lib/i18n"
 import { adoptGuestLanguage } from "../lib/dir"
 import { LanguageSwitcher } from "../components/LanguageSwitcher"
@@ -1714,6 +1715,8 @@ export default function PublicBooking() {
                     </div>
                   </div>
                 </section>
+
+                <ReviewsBlock property={p.name} className="mt-14" />
 
                 {p.faqs && p.faqs.length > 0 && (
                   <section className="mt-14 border-t border-zinc-200 pt-10">

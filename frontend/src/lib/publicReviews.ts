@@ -34,7 +34,7 @@ export function loadPublicReviews(property: string): Promise<PublicReviews> {
   if (!property) return Promise.resolve(EMPTY)
   let p = cache.get(property)
   if (!p) {
-    p = callGuest<PublicReviews>("cloudtrade_hospitality.reviews.public_reviews", { property })
+    p = callGuest<PublicReviews>("cloudtrade_hospitality.reviews.public_reviews", { property, limit: 60 })
       .then((d) => ({ ...EMPTY, ...d, badges: d?.badges || [] }))
       .catch(() => EMPTY)
     cache.set(property, p)

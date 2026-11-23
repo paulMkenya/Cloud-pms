@@ -36,6 +36,7 @@ import { cur, locale, moneyLocale, adoptUiLocale } from "../lib/money"
 import { formatPhoneDisplay, formatPhoneTel } from "../lib/phone"
 import { petChargeBasis } from "../lib/pets"
 import { WhatsAppFab, WhatsAppStayButton, type StayChoice } from "../components/WhatsAppBook"
+import { ReviewBadges } from "../components/ReviewBadges"
 import { useT, t as translate } from "../lib/i18n"
 import { adoptGuestLanguage } from "../lib/dir"
 import { LanguageSwitcher } from "../components/LanguageSwitcher"
@@ -1224,6 +1225,7 @@ export default function PublicBooking() {
             <h1 className="mt-1.5 text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl">
               {p.property_name}
             </h1>
+            <ReviewBadges property={p.name} className="mt-3" />
             <Link
               to="/loyalty"
               className="mt-1.5 inline-flex items-center gap-1.5 text-sm font-medium text-brand-700 hover:underline"

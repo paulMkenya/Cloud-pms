@@ -59,6 +59,7 @@ const Marketplace = lazy(() => import("./screens/Marketplace"))
 const Reports = lazy(() => import("./screens/Reports"))
 const ReportsHub = lazy(() => import("./screens/ReportsHub"))
 const Campaigns = lazy(() => import("./screens/Campaigns"))
+const Reviews = lazy(() => import("./screens/Reviews"))
 const HostsCommission = lazy(() => import("./screens/HostsCommission"))
 const InHouse = lazy(() => import("./screens/InHouse"))
 const RateCalendar = lazy(() => import("./screens/RateCalendar"))
@@ -357,6 +358,7 @@ export default function App() {
           <Route path="developers" element={<Developers />} />
           <Route path="reports" element={<ReportsHub />} />
           <Route path="campaigns" element={<Campaigns />} />
+          <Route path="reviews" element={<Reviews />} />
           <Route path="hosts-commission" element={<HostsCommission />} />
           <Route path="reports/flash" element={<Reports initialTab="flash" />} />
           <Route path="reports/custom" element={<Reports />} />

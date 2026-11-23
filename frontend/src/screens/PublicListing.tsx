@@ -23,6 +23,8 @@ import { cur, moneyLocale, adoptUiLocale } from "../lib/money"
 import { formatPhoneDisplay, formatPhoneTel } from "../lib/phone"
 import { petChargeBasis } from "../lib/pets"
 import { WhatsAppStayButton } from "../components/WhatsAppBook"
+import { ReviewBadges } from "../components/ReviewBadges"
+import { loadPublicReviews, reviewSourceLabel, type PublicReviews } from "../lib/publicReviews"
 import { useT, t as translate } from "../lib/i18n"
 import { adoptGuestLanguage } from "../lib/dir"
 import { LanguageSwitcher } from "../components/LanguageSwitcher"
@@ -110,33 +112,24 @@ interface Showcase {
   meal_plans: { name: string; code: string; label: string; price_per_adult: number }[]
 }
 
-interface PublicReview {
-  display_name: string
-  rating: number
-  headline: string | null
-  comment: string | null
-  source: string
-  external_url: string | null
-  submitted_on: string | null
-}
-
 /** Approved guest reviews for this property - renders nothing until the
  *  owner has approved at least one (cloudtrade_hospitality.reviews). */
 function ReviewsBlock({ property }: { property: string }) {
   const { t, tn } = useT()
-  const [data, setData] = useState<{ reviews: PublicReview[]; average: number; count: number } | null>(null)
+  const [data, setData] = useState<PublicReviews | null>(null)
 
   useEffect(() => {
     if (!property) return
-    callGuest<{ reviews: PublicReview[]; average: number; count: number }>(
-      "cloudtrade_hospitality.reviews.public_reviews", { property },
-    ).then(setData).catch(() => setData({ reviews: [], average: 0, count: 0 }))
+    let live = true
+    loadPublicReviews(property).then((d) => live && setData(d))
+    return () => {
+      live = false
+    }
   }, [property])
 
   if (!data || data.count === 0) return null
 
-  const sourceLabel = (s: string) =>
-    s === "Booking.com" ? "Booking.com" : s === "Airbnb" ? "Airbnb" : ""
+  const sourceLabel = reviewSourceLabel
 
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
@@ -665,6 +658,7 @@ export default function PublicListing() {
               <h1 className="mt-1 text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl">
                 {translate(title)}
               </h1>
+              <ReviewBadges property={p.name} className="mt-3" />
               {address && (
                 <p className="mt-2 inline-flex items-start gap-1.5 text-sm text-zinc-500">
                   <MapPin className="mt-0.5 size-4 shrink-0" aria-hidden />

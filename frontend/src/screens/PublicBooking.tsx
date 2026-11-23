@@ -39,6 +39,7 @@ import { WhatsAppFab, WhatsAppStayButton, type StayChoice } from "../components/
 import { ReviewBadges } from "../components/ReviewBadges"
 import { badgeScore, loadCatalogBadges, type RatingBadge } from "../lib/publicReviews"
 import { ReviewsBlock } from "../components/ReviewsBlock"
+import { ShowMoreTags } from "../components/ShowMore"
 import { useT, t as translate } from "../lib/i18n"
 import { adoptGuestLanguage } from "../lib/dir"
 import { LanguageSwitcher } from "../components/LanguageSwitcher"
@@ -1277,14 +1278,12 @@ export default function PublicBooking() {
               )}
             </div>
             {p.amenities.length > 0 && (
-              <ul className="mt-5 flex flex-wrap gap-2" aria-label={t("Amenities")}>
-                {p.amenities.map((a) => (
-                  <li key={a} className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 py-1 text-sm text-zinc-700">
-                    <Check className="size-3.5 text-brand-600" aria-hidden />
-                    {translate(a)}
-                  </li>
-                ))}
-              </ul>
+              <ShowMoreTags className="mt-5" ariaLabel={t("Amenities")} items={p.amenities} render={(a) => (
+                <li key={a} className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 py-1 text-sm text-zinc-700">
+                  <Check className="size-3.5 text-brand-600" aria-hidden />
+                  {translate(a)}
+                </li>
+              )} />
             )}
 
             {/* what booking here gets you - each line from a real setting */}

@@ -24,6 +24,7 @@ import { petChargeBasis } from "../lib/pets"
 import { WhatsAppStayButton } from "../components/WhatsAppBook"
 import { ReviewBadges } from "../components/ReviewBadges"
 import { ReviewsBlock } from "../components/ReviewsBlock"
+import { ShowMoreTags } from "../components/ShowMore"
 import { useT, t as translate } from "../lib/i18n"
 import { adoptGuestLanguage } from "../lib/dir"
 import { LanguageSwitcher } from "../components/LanguageSwitcher"
@@ -623,13 +624,11 @@ export default function PublicListing() {
             )}
 
             {!isSite && primary && primary.amenities.length > 0 && (
-              <ul className="flex flex-wrap gap-2">
-                {primary.amenities.map((a) => (
-                  <Badge key={a} tone="zinc">
-                    {a}
-                  </Badge>
-                ))}
-              </ul>
+              <ShowMoreTags items={primary.amenities} render={(a) => (
+                <Badge key={a} tone="zinc">
+                  {a}
+                </Badge>
+              )} />
             )}
 
             {/* Property page: listings */}

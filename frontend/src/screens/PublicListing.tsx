@@ -159,12 +159,11 @@ function ReviewsBlock({ property }: { property: string }) {
             <p className="mt-2 text-xs text-zinc-400">
               {r.display_name || t("Verified guest")}
               {r.submitted_on ? ` · ${String(r.submitted_on).slice(0, 10)}` : ""}
-              {sourceLabel(r.source)
-                ? ` · ${sourceLabel(r.source)}${r.external_url ? "" : ""}`
-                : ""}
+              {sourceLabel(r.source) && !r.external_url ? ` · ${sourceLabel(r.source)}` : ""}
+              {r.external_url && " · "}
               {r.external_url && (
-                <a href={r.external_url} target="_blank" rel="noreferrer"
-                  className="ms-1 inline-flex items-center gap-0.5 text-brand-700 hover:underline">
+                <a href={r.external_url} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-0.5 text-brand-700 hover:underline">
                   {sourceLabel(r.source) || t("Source")} <ExternalLink className="size-3" aria-hidden />
                 </a>
               )}

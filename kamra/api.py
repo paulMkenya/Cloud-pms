@@ -8377,118 +8377,168 @@ def release_room_block(name: str):
 
 @frappe.whitelist(methods=["POST"])
 @require_roles("Front Desk", "Kamra Agent")
-def record_room_block_booking(name: str, guest_name: str,
-				              phone: str | None = None,
-				              adults: int = 2, children: int = 0,
-				              ota_ref: str | None = None,
-				              ota_total: float = 0,
-				              paid_amount: float | None = None,
-				              booked_via: str = "Airbnb",
-				              ota_commission_pct: float | None = None,
-				              check_in_date: str | None = None,
-				              check_out_date: str | None = None,
-				              idempotency_key: str | None = None):
-	"""Turn an Active Room Block (an Airbnb/iCal closure) into the guest's
-	Confirmed booking in one step.
+def record_stay(property: str, room: str, check_in_date: str, check_out_date: str,
+                guest_name: str, phone: str | None = None,
+                adults: int = 2, children: int = 0,
+                booked_via: str = "Airbnb",
+                ota_ref: str | None = None, ota_total: float = 0,
+                paid_amount: float | None = None,
+                ota_commission_pct: float | None = None,
+                rate_per_night: float = 0, deposit: float = 0,
+                deposit_mode: str | None = None, deposit_ref: str | None = None,
+                source: str = "Manual", idempotency_key: str | None = None):
+	"""Enter a stay that is already agreed - a guest who booked on Airbnb, or
+	a direct guest who paid a deposit - on one unit, for ALL of the guest's
+	nights in one step, even when those nights are closed.
 
-	The block is released and the booking taken inside the same request, so
-	the nights are never open to anyone else. iCal merges neighbouring
-	events into one block, so the stay may cover only part of it: the
-	nights either side are re-blocked exactly as they were. The channel's
-	collected money is posted as OTA Prepaid so the stay does not show a
-	balance due on arrival. Retries are safe: the block's own idempotency
-	key replays the first booking and payment instead of doubling them."""
+	Every Active closure on the unit that touches the stay (Airbnb/iCal
+	calendar closures, the director's own, however many the nights span)
+	is released and the Confirmed booking taken in the same request, so the
+	nights are never open to anyone else; the nights of those closures
+	outside the stay are closed again exactly as they were. Maintenance
+	closures are never overridden.
+
+	Airbnb / other channel: `ota_total` is what the channel charged; the
+	money it collected (`paid_amount`, default all of it) is posted as OTA
+	Prepaid - no balance due on arrival. Direct (`booked_via="Direct"`):
+	`rate_per_night` is the agreed price; a `deposit` already received is
+	posted in `deposit_mode` (M-Pesa, Cash, Bank Transfer, Card) and the
+	rest is due. Retries replay the first booking and payment."""
+	from kamra.reservation_state import find_by_idempotency
+
+	assert_property_access(property)
+	if frappe.db.get_value("Room", room, "property") != property:
+		frappe.throw(_("Unit {0} is not part of {1}.").format(room, property))
+	room_type = frappe.db.get_value("Room", room, "room_type")
+	if not room_type:
+		frappe.throw(_("Room {0} has no room type.").format(room))
+	ci, co = getdate(check_in_date), getdate(check_out_date)
+	if co <= ci:
+		frappe.throw(_("Check-out must be after check-in."))
+	if not (guest_name or "").strip():
+		frappe.throw(_("Enter the guest's name."))
+	direct = (booked_via or "").strip().lower() in ("", "direct")
+	key = (idempotency_key or "").strip() or f"record-stay:{room}:{ci}:{co}"
+	existing = find_by_idempotency(property, key)
+	if existing:
+		return _booking_replay(existing)
+	if direct:
+		rate = flt(rate_per_night)
+		if rate <= 0:
+			frappe.throw(_("Enter the price per night agreed with the guest."))
+		paid = flt(deposit)
+		mode = (deposit_mode or "M-Pesa").strip()
+		ref = (deposit_ref or "").strip()
+	else:
+		rate = 0
+		ota_total = flt(ota_total)
+		if ota_total <= 0:
+			frappe.throw(_("Enter the total the channel charged the guest."))
+		paid = flt(paid_amount) if paid_amount not in (None, "") else ota_total
+		mode = "OTA Prepaid"
+		ref = (ota_ref or "").strip()
+
+	blocks = [frappe.get_doc("Room Block", n) for n in frappe.get_all(
+		"Room Block", filters={"room": room, "block_status": "Active",
+		                       "from_date": ("<", co), "to_date": (">", ci)},
+		pluck="name", order_by="from_date asc")]
+	shut = [b for b in blocks if b.reason == "Maintenance"]
+	if shut:
+		frappe.throw(_("{0} is closed for maintenance {1} to {2}; reopen it first.").format(
+			room, shut[0].from_date, shut[0].to_date))
+	for b in blocks:
+		b.block_status = "Released"
+		b.released_by = frappe.session.user
+		b.released_on = now_datetime()
+		b.save(ignore_permissions=True)
+	res = create_booking(
+		property=property, room_type=room_type,
+		check_in_date=str(ci), check_out_date=str(co),
+		guest_name=guest_name.strip(), phone=phone, adults=adults, children=children,
+		room=room, status="Confirmed", assign_room=0, idempotency_key=key,
+		source=source or "Manual",
+		booked_via=None if direct else booked_via,
+		ota_ref=None if direct else ota_ref,
+		ota_total=0 if direct else ota_total,
+		ota_commission_pct=None if direct else ota_commission_pct,
+		agreed_rate=rate, agreed_rate_note="Agreed with the guest" if rate else None)
+	# the stay took only part of each closure: the nights either side stay
+	# closed exactly as they were (same note, so the iCal sync still owns them)
+	for b in blocks:
+		left_end, right_start = min(getdate(b.to_date), ci), max(getdate(b.from_date), co)
+		for s, e in ((getdate(b.from_date), left_end), (right_start, getdate(b.to_date))):
+			if s < e:
+				frappe.get_doc({
+					"doctype": "Room Block", "property": b.property, "room": b.room,
+					"reason": b.reason or "Other", "from_date": s, "to_date": e,
+					"block_status": "Active", "note": b.note or "",
+				}).insert(ignore_permissions=True)
+	res["released_closures"] = len(blocks)
+	if paid > 0:
+		from kamra.folio import open_folio
+		folio = open_folio(frappe.get_doc("Reservation", res["reservation"]))
+		# money already in hand (the channel's, or the deposit the guest
+		# sent) - recorded, not taken at a till: no cashier session or PIN
+		prev_bypass = getattr(frappe.flags, "kamra_gate_bypass", False)
+		frappe.flags.kamra_gate_bypass = True
+		try:
+			pay_res = add_folio_payment(
+				folio, mode, paid, reference=ref or f"recorded:{res['reservation']}",
+				kind="Advance", idempotency_key=f"{key}:payment")
+		finally:
+			frappe.flags.kamra_gate_bypass = prev_bypass
+		if not pay_res.get("idempotent_replay"):
+			frappe.db.set_value(
+				"Reservation", res["reservation"], "advance_paid",
+				flt(frappe.db.get_value("Reservation", res["reservation"], "advance_paid")) + paid)
+		res["paid"] = paid
+		res["payment_mode"] = mode
+	res["total"] = flt(frappe.db.get_value("Reservation", res["reservation"], "amount_after_tax"))
+	res["balance"] = max(0.0, res["total"] - flt(res.get("paid")))
+	return res
+
+
+@frappe.whitelist(methods=["POST"])
+@require_roles("Front Desk", "Kamra Agent")
+def record_room_block_booking(name: str, guest_name: str,
+                              phone: str | None = None,
+                              adults: int = 2, children: int = 0,
+                              ota_ref: str | None = None,
+                              ota_total: float = 0,
+                              paid_amount: float | None = None,
+                              booked_via: str = "Airbnb",
+                              ota_commission_pct: float | None = None,
+                              check_in_date: str | None = None,
+                              check_out_date: str | None = None,
+                              rate_per_night: float = 0, deposit: float = 0,
+                              deposit_mode: str | None = None,
+                              deposit_ref: str | None = None,
+                              idempotency_key: str | None = None):
+	"""The Room Blocks drawer's "Record booking": the guest's stay on this
+	closure's unit (record_stay). The dates default to the closure's and may
+	run past it - every closure the stay touches gives way in one go."""
 	block = frappe.get_doc("Room Block", name)
 	assert_property_access(block.property)
 	key = (idempotency_key or "").strip() or f"room-block:{name}"
-	if "ical-import" not in (block.note or "") and \
-			not re.search(r"(?i)airbnb", block.note or ""):
-		frappe.throw(_("Only an Airbnb/iCal closure can be recorded this way."))
 	if block.block_status != "Active":
 		from kamra.reservation_state import find_by_idempotency
 		existing = find_by_idempotency(block.property, key)
 		if existing:
 			return _booking_replay(existing)
 		frappe.throw(_("This room block is no longer active."))
-	room_type = frappe.db.get_value("Room", block.room, "room_type")
-	if not room_type:
-		frappe.throw(_("Room {0} has no room type.").format(block.room))
-	ota_total = flt(ota_total)
-	if ota_total <= 0:
-		frappe.throw(_("Enter the total the channel charged the guest."))
-	paid = flt(paid_amount) if paid_amount not in (None, "") else ota_total
 	ci = getdate(check_in_date) if check_in_date else getdate(block.from_date)
 	co = getdate(check_out_date) if check_out_date else getdate(block.to_date)
-	if co <= ci or ci < getdate(block.from_date) or co > getdate(block.to_date):
-		frappe.throw(_("The stay must sit inside the closure "
+	if not (ci < getdate(block.to_date) and co > getdate(block.from_date)):
+		frappe.throw(_("The stay must include at least one night of this closure "
 		               "({0} to {1}).").format(block.from_date, block.to_date))
-	# whole-house feeds stack several iCal sources on one room, so every
-	# Airbnb/iCal closure covering a stay night has to give way - not just
-	# the block that was picked. An ineligible block left behind simply
-	# makes create_booking refuse, and the whole request rolls back.
-	sibs = frappe.get_all("Room Block", filters={
-		"room": block.room, "block_status": "Active",
-		"from_date": ("<", co), "to_date": (">", ci)}, pluck="name")
-	released = []
-	for bn in sibs:
-		b = frappe.get_doc("Room Block", bn)
-		if "ical-import" not in (b.note or "") and \
-				not re.search(r"(?i)airbnb", b.note or ""):
-			continue
-		b.block_status = "Released"
-		b.released_by = frappe.session.user
-		b.released_on = now_datetime()
-		b.save(ignore_permissions=True)
-		released.append(b)
-	res = create_booking(
-		property=block.property, room_type=room_type,
-		check_in_date=str(ci), check_out_date=str(co),
-		guest_name=guest_name, phone=phone, adults=adults, children=children,
-		room=block.room, status="Confirmed", booked_via=booked_via,
-		ota_ref=ota_ref, ota_total=ota_total,
-		ota_commission_pct=ota_commission_pct,
-		assign_room=0, idempotency_key=key)
-	# the stay took only part of each closure: keep the nights either side
-	# blocked exactly as the calendar had them (same note, so the next
-	# iCal sync still owns them)
-	for b in released:
-		os_, oe = max(getdate(b.from_date), ci), min(getdate(b.to_date), co)
-		for s, e in ((b.from_date, os_), (oe, b.to_date)):
-			if getdate(s) < getdate(e):
-				frappe.get_doc({
-					"doctype": "Room Block",
-					"property": b.property,
-					"room": b.room,
-					"reason": b.reason or "Other",
-					"from_date": s,
-					"to_date": e,
-					"block_status": "Active",
-					"note": b.note or "",
-				}).insert(ignore_permissions=True)
-	if paid > 0:
-		from kamra.folio import open_folio
-		res_doc = frappe.get_doc("Reservation", res["reservation"])
-		folio = open_folio(res_doc)
-		# OTA Prepaid is money the channel already collected - not a till
-		# payment, so it neither needs an open cashier session nor a PIN.
-		prev_bypass = getattr(frappe.flags, "kamra_gate_bypass", False)
-		frappe.flags.kamra_gate_bypass = True
-		try:
-			pay_res = add_folio_payment(
-				folio, "OTA Prepaid", paid,
-				reference=(ota_ref or "").strip() or f"ota:{res['reservation']}",
-				kind="Advance",
-				idempotency_key=f"{key}:payment")
-		finally:
-			frappe.flags.kamra_gate_bypass = prev_bypass
-		if not pay_res.get("idempotent_replay"):
-			frappe.db.set_value(
-				"Reservation", res["reservation"], "advance_paid",
-				float(frappe.db.get_value(
-					"Reservation", res["reservation"], "advance_paid") or 0) + paid)
-		res["paid"] = paid
-		res["payment_mode"] = "OTA Prepaid"
-	return res
+	return record_stay(
+		property=block.property, room=block.room,
+		check_in_date=str(ci), check_out_date=str(co), guest_name=guest_name,
+		phone=phone, adults=adults, children=children, booked_via=booked_via,
+		ota_ref=ota_ref, ota_total=ota_total, paid_amount=paid_amount,
+		ota_commission_pct=ota_commission_pct, rate_per_night=rate_per_night,
+		deposit=deposit, deposit_mode=deposit_mode, deposit_ref=deposit_ref,
+		idempotency_key=key)
 
 
 @frappe.whitelist()

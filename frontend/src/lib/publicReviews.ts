@@ -57,6 +57,12 @@ export function loadCatalogBadges(): Promise<Record<string, RatingBadge[]>> {
   return catalog
 }
 
+/** A 5-star score as sites show it: "4.73", "4.9", "5.0" (never "5"). */
+export const fiveScale = (n: number) => {
+  const t = String(Number(n.toFixed(2)))
+  return t.includes(".") ? t : `${t}.0`
+}
+
 /** "4.73" for Airbnb / Google, "8.9/10" for Booking.com. */
 export const badgeScore = (b: RatingBadge) =>
-  b.out_of === 10 ? `${b.score.toFixed(1)}/10` : String(Number(b.score.toFixed(2)))
+  b.out_of === 10 ? `${b.score.toFixed(1)}/10` : fiveScale(b.score)

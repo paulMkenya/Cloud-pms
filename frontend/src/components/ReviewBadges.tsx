@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { ExternalLink, Star } from "lucide-react"
 import { useT } from "../lib/i18n"
-import { loadPublicReviews, type RatingBadge } from "../lib/publicReviews"
+import { fiveScale, loadPublicReviews, type RatingBadge } from "../lib/publicReviews"
 
 export function ReviewBadges({ property, className = "" }: { property: string; className?: string }) {
   const { t, tn } = useT()
@@ -19,7 +19,7 @@ export function ReviewBadges({ property, className = "" }: { property: string; c
   return (
     <div className={"flex flex-wrap gap-2 " + className}>
       {badges.map((b) => {
-        const score = b.out_of === 10 ? b.score.toFixed(1) : String(Number(b.score.toFixed(2)))
+        const score = b.out_of === 10 ? b.score.toFixed(1) : fiveScale(b.score)
         const body = (
           <>
             {b.out_of === 5 && <Star className="size-3.5 fill-amber-400 text-amber-400" aria-hidden />}

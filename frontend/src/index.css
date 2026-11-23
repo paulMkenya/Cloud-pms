@@ -256,3 +256,12 @@ select:disabled {
   table.m-cards td[data-label=""] { justify-content: flex-start; text-align: start !important; }
   table.m-cards td:empty { display: none; }
 }
+
+
+/* Phones: nothing smaller than 12px to read, and every field / drop-down
+   at least 40px tall to tap. Computers keep their compact sizes. */
+@media screen and (max-width: 639px) {
+  .text-\[9px\], .text-\[10px\], .text-\[11px\] { font-size: 12px; }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+  select { min-height: 40px; }
+}

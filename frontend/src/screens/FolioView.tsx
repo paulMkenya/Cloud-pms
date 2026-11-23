@@ -436,7 +436,7 @@ export default function FolioView() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between print:hidden">
+      <div className="mb-4 flex items-center justify-between print:hidden max-sm:flex-col max-sm:items-stretch max-sm:gap-3">
         <Link
           to="/billing"
           className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-800"
@@ -444,7 +444,7 @@ export default function FolioView() {
           <ArrowLeft className="size-4" aria-hidden />
           {t("Billing")}
         </Link>
-        <div className="flex gap-2">
+        <div className="flex gap-2 max-sm:grid max-sm:grid-cols-2 max-sm:[&>*]:justify-center max-sm:[&>*]:text-center">
           {siblings.length > 1 && (
             <div className="flex flex-wrap items-center gap-1 rounded-lg bg-zinc-100 p-1">
               {siblings.map((s) => {
@@ -670,6 +670,7 @@ export default function FolioView() {
           {open && (
             <Button
               disabled={busy}
+              className="max-sm:order-first max-sm:col-span-2"
               onClick={() =>
                 act(() => call("kamra.api.close_folio", withPin({ folio: folio.name })))
               }

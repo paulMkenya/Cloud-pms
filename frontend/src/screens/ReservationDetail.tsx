@@ -354,13 +354,13 @@ export default function ReservationDetail({
         <div className="grid grid-cols-3 gap-3">
           <div>
             <div className="text-xs text-zinc-400">{translate("Total")}</div>
-            <div className="text-lg font-semibold text-zinc-900">
+            <div className="text-lg font-semibold text-zinc-900 max-sm:whitespace-nowrap max-sm:text-base">
               {inr(money.total)}
             </div>
           </div>
           <div>
             <div className="text-xs text-zinc-400">{translate("Paid")}</div>
-            <div className="text-lg font-semibold text-emerald-700">
+            <div className="text-lg font-semibold text-emerald-700 max-sm:whitespace-nowrap max-sm:text-base">
               {inr(money.paid)}
             </div>
           </div>
@@ -368,7 +368,7 @@ export default function ReservationDetail({
             <div className="text-xs text-zinc-400">{translate("Balance due")}</div>
             <div
               className={
-                "text-lg font-semibold " +
+                "text-lg font-semibold max-sm:whitespace-nowrap max-sm:text-base " +
                 (money.due > 0 ? "text-rose-600" : "text-zinc-400")
               }
             >

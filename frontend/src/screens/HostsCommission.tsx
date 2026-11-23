@@ -215,7 +215,7 @@ function UnitsTab({ data, onSaved, onAddHost }: {
                         disabled={!data.can_edit}
                         onClick={() => set(u, { model: m })}
                         className={
-                          "flex-1 rounded-md px-2 py-1.5 " +
+                          "flex-1 rounded-md px-2 py-1.5 max-sm:min-h-10 " +
                           (u.model === m ? "bg-brand-600 font-semibold text-white" : "text-zinc-600 hover:bg-zinc-50")
                         }
                       >

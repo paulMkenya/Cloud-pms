@@ -284,6 +284,9 @@ function PropertyChooser({
       (!city || p.city === city) &&
       (size === null || (p.bedrooms ?? []).includes(size)),
   )
+  // with dates priced, the properties a guest can book come first
+  if (priced && prices)
+    shownProps.sort((a, b) => Number(!!prices[b.name]?.available) - Number(!!prices[a.name]?.available))
   const linkFor = (slug: string) => {
     const qs = new URLSearchParams(query)
     qs.set("property", slug)

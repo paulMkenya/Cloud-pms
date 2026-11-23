@@ -27,6 +27,7 @@ import {
   UtensilsCrossed,
   Webhook,
   type LucideIcon,
+  ListOrdered,
 } from "lucide-react"
 
 import { Badge } from "../../components/ui/badge"
@@ -56,6 +57,7 @@ import { LanguagesPage } from "./LanguagesPage"
 import { McpAccessPage } from "./McpAccessPage"
 import { GuestMessagesPage } from "./GuestMessagesPage"
 import { WhatsAppButtonPage } from "./WhatsAppButtonPage"
+import { PropertyOrderPage } from "./PropertyOrderPage"
 import { ChannelsPage } from "./ChannelsPage"
 import { ModulePage, Switch, type OptionSources } from "./ModulePage"
 import { WebhooksPage } from "./WebhooksPage"
@@ -113,6 +115,9 @@ const CUSTOM_PAGES: CustomPage[] = [
   { id: "guest-messages", title: "Guest messages", group: "integrations", icon: MessageSquareText,
     description: "WhatsApp and SMS texts guests receive - booking, deposit, reminders and access details.",
     keywords: "whatsapp sms template message guest notification booking confirmation deposit reminder wifi access wording text" },
+  { id: "property-order", title: "Order of properties", group: "integrations", icon: ListOrdered,
+    description: "The order guests see the properties in on the booking homepage.",
+    keywords: "order sort arrange rank homepage booking page properties first top position move" },
   { id: "whatsapp-button", title: "WhatsApp booking button", group: "integrations", icon: MessageSquareText,
     description: "Show a Book via WhatsApp button on property pages and the homepage, and set the business number.",
     keywords: "whatsapp book button chat bot homepage property floating number wa.me" },
@@ -551,6 +556,8 @@ function CustomPageBody({
       return <GuestMessagesPage />
     case "whatsapp-button":
       return <WhatsAppButtonPage />
+    case "property-order":
+      return <PropertyOrderPage />
     case "channels":
       return <ChannelsPage />
     case "webhooks":

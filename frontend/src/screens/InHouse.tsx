@@ -205,7 +205,7 @@ export default function InHouse() {
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="m-cards w-full text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 text-left text-[11px] font-medium uppercase tracking-wider text-zinc-400">
                   <th className="px-4 py-2.5">{t("Guest")}</th>

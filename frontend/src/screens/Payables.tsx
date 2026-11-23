@@ -181,7 +181,7 @@ export default function Payables() {
         </CardHeader>
         <CardContent className="overflow-x-auto">
           {tab === "bills" ? (
-            <table className="w-full text-left text-sm">
+            <table className="m-cards w-full text-left text-sm">
               <thead className="text-xs uppercase text-zinc-400">
                 <tr>
                   <th className="py-2 pr-3">{translate("Vendor")}</th>
@@ -237,7 +237,7 @@ export default function Payables() {
               </tbody>
             </table>
           ) : (
-            <table className="w-full text-left text-sm">
+            <table className="m-cards w-full text-left text-sm">
               <thead className="text-xs uppercase text-zinc-400">
                 <tr>
                   <th className="py-2 pr-3">{translate("Vendor")}</th>

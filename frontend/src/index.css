@@ -211,3 +211,48 @@ select:disabled {
     padding: 0 !important;
   }
 }
+
+
+/* Phones: a box with text under 16px makes iOS zoom the whole page in when
+   tapped - form fields keep 16px there; everything else keeps its size. */
+@media (max-width: 639px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Phones: a list table marked m-cards shows each row as a card - the
+   first cell is the title, every other cell a "column: value" line (the
+   column name comes from the table's own header, see lib/tableCards.ts).
+   Grids (calendars, tape chart) and printed documents are not marked. */
+@media screen and (max-width: 639px) {
+  table.m-cards { min-width: 0 !important; width: 100%; border-collapse: separate; border-spacing: 0; }
+  table.m-cards thead { display: none; }
+  table.m-cards, table.m-cards > tbody, table.m-cards > tfoot,
+  table.m-cards > tbody > tr, table.m-cards > tfoot > tr { display: block; }
+  table.m-cards > tbody > tr, table.m-cards > tfoot > tr {
+    margin-bottom: 0.5rem; padding: 0.5rem 0.75rem; border: 1px solid var(--color-zinc-200);
+    border-radius: 0.75rem; background: var(--color-white);
+  }
+  table.m-cards > tfoot > tr { background: var(--color-zinc-50); font-weight: 600; }
+  table.m-cards > tbody > tr > td, table.m-cards > tfoot > tr > td,
+  table.m-cards > tbody > tr > th, table.m-cards > tfoot > tr > th {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem;
+    width: auto !important; max-width: none; padding: 0.15rem 0 !important; border: 0 !important;
+    text-align: end !important; white-space: normal !important; overflow-wrap: anywhere;
+  }
+  table.m-cards > tbody > tr > td::before, table.m-cards > tfoot > tr > td::before,
+  table.m-cards > tbody > tr > th::before, table.m-cards > tfoot > tr > th::before {
+    content: attr(data-label); flex-shrink: 0; max-width: 45%; text-align: start;
+    font-size: 0.75rem; font-weight: 400; color: var(--color-zinc-500); text-transform: none;
+  }
+  table.m-cards > tbody > tr > :first-child {
+    justify-content: flex-start; text-align: start !important; font-weight: 600; color: var(--color-zinc-900);
+  }
+  table.m-cards > tbody > tr > :first-child::before,
+  table.m-cards td[data-label=""]::before, table.m-cards th[data-label=""]::before { display: none; }
+  table.m-cards td[data-label=""] { justify-content: flex-start; text-align: start !important; }
+  table.m-cards td:empty { display: none; }
+}

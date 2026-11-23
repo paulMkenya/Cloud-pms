@@ -143,7 +143,7 @@ export default function CashierShiftReport() {
       {err ? <p className="text-sm text-rose-600">{translate(err)}</p> : null}
 
       <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
-        <table className="w-full table-fixed text-left text-sm">
+        <table className="m-cards w-full table-fixed text-left text-sm">
           <thead className="border-b text-xs uppercase text-zinc-400">
             <tr>
               <th className="w-[28%] px-3 py-2">{t("Cashier")}</th>
@@ -241,7 +241,7 @@ export default function CashierShiftReport() {
           {t("Journal by kind / mode")}
         </h2>
         <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
-          <table className="w-full table-fixed text-left text-sm">
+          <table className="m-cards w-full table-fixed text-left text-sm">
             <thead className="border-b text-xs uppercase text-zinc-400">
               <tr>
                 <th className="w-[30%] px-3 py-2">{t("Kind")}</th>

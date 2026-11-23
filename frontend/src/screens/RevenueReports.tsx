@@ -135,7 +135,7 @@ function BudgetVsActual() {
           </div>
         )}
         {data && (
-          <table className="w-full text-sm">
+          <table className="m-cards w-full text-sm">
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
                 <th className="py-2 pr-3">{translate("Metric")}</th>
@@ -299,7 +299,7 @@ function Contribution() {
           <p className="py-6 text-center text-sm text-zinc-400">{translate("No bookings in this window.")}</p>
         )}
         {data && data.rows.length > 0 && (
-          <table className="w-full text-sm">
+          <table className="m-cards w-full text-sm">
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
                 <th className="py-2 pr-3">{translate(BY_OPTIONS.find((o) => o.key === by)?.label.replace("By ", ""))}</th>

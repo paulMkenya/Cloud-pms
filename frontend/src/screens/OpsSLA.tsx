@@ -116,7 +116,7 @@ export default function OpsSLA() {
           <p className="py-6 text-center text-sm text-zinc-400">{translate("No tickets.")}</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="m-cards w-full text-sm">
               <thead>
                 <tr className="border-b border-zinc-200 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
                   <th className="py-2 pr-3">{title.includes("category") ? translate("Category") : translate("Priority")}</th>
@@ -217,7 +217,7 @@ export default function OpsSLA() {
                 <p className="py-6 text-center text-sm text-zinc-400">{translate("Nothing overdue - every open request is inside its window.")}</p>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                  <table className="m-cards w-full text-sm">
                     <thead>
                       <tr className="border-b border-zinc-200 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
                         <th className="py-2 pr-3">{translate("Ticket")}</th>
@@ -257,7 +257,7 @@ export default function OpsSLA() {
                 {data.by_resolver.length === 0 ? (
                   <p className="py-6 text-center text-sm text-zinc-400">{translate("No tickets solved in this window.")}</p>
                 ) : (
-                  <table className="w-full text-sm">
+                  <table className="m-cards w-full text-sm">
                     <thead>
                       <tr className="border-b border-zinc-200 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
                         <th className="py-2 pr-3">{translate("Person")}</th>
@@ -311,7 +311,7 @@ export default function OpsSLA() {
                 <p className="py-6 text-center text-sm text-zinc-400">{translate("Nothing is waiting.")}</p>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                  <table className="m-cards w-full text-sm">
                     <thead>
                       <tr className="border-b border-zinc-200 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
                         <th className="py-2 pr-3">{translate("Ticket")}</th>

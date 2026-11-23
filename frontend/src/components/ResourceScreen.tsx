@@ -7,7 +7,8 @@ import {
   type ReactNode,
 } from "react"
 import { useSearchParams } from "react-router-dom"
-import { Columns3, Download, Plus, Search, Trash2 } from "lucide-react"
+import { Columns3, Download, Plus, Search, SlidersHorizontal, Trash2 } from "lucide-react"
+import { useIsPhone } from "../lib/useIsPhone"
 import { Sheet } from "./ui/sheet"
 import { call, getCurrentProperty } from "../lib/api"
 import {
@@ -145,6 +146,10 @@ export interface ScreenConfig {
   searchFields?: string[]
   /** Dropdown filters shown in the toolbar (e.g. status). */
   filters?: FilterSpec[]
+  /** Phones show rows as cards: the field for the card's title and the
+   *  small line under it (default: the first column, then the second). */
+  cardTitle?: string
+  cardSubtitle?: string
   /** Rows per page (adds pagination when set). */
   pageSize?: number
   /** Date-range filter on this date field (adds From/To pickers). */
@@ -499,6 +504,9 @@ export function ResourceScreen({
     })
   }
   const visibleCols = config.columns.filter((c) => !hiddenCols.has(c.field))
+  const phone = useIsPhone()
+  // phones: filters, dates, export and columns sit behind one Filters button
+  const [toolsOpen, setToolsOpen] = useState(false)
   const [debounced, setDebounced] = useState("")
   const [filterVals, setFilterVals] = useState<Record<string, string>>({})
   const [filterOpts, setFilterOpts] = useState<Record<string, Opt[]>>({})
@@ -705,8 +713,8 @@ export function ResourceScreen({
   }
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="max-sm:border-0 max-sm:bg-transparent max-sm:shadow-none">
+      <CardHeader className="max-sm:px-0.5">
         <div>
           <CardTitle>{t(config.title)}</CardTitle>
           {config.description && (
@@ -725,7 +733,7 @@ export function ResourceScreen({
           )}
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="max-sm:px-0">
         {error && !editing && (
           <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
             {translate(error)}
@@ -733,24 +741,39 @@ export function ResourceScreen({
         )}
         <div className="mb-4 flex flex-wrap items-center gap-2">
             {config.searchFields?.length ? (
-              <div className="relative">
+              <div className="relative max-sm:min-w-0 max-sm:flex-1">
                 <Search className="pointer-events-none absolute left-2.5 top-2 size-4 text-zinc-400" />
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder={t("Search…")}
-                  className="w-56 rounded-lg border border-zinc-300 bg-white py-1.5 pl-8 pr-3 text-sm focus:outline-2 focus:outline-offset-1 focus:outline-brand-600"
+                  className="w-56 rounded-lg border border-zinc-300 bg-white py-1.5 pl-8 pr-3 text-sm focus:outline-2 focus:outline-offset-1 focus:outline-brand-600 max-sm:min-h-10 max-sm:w-full max-sm:text-base"
                 />
               </div>
             ) : null}
-            {config.filters?.map((f) => (
+            {phone && (
+              <button
+                type="button"
+                onClick={() => setToolsOpen((o) => !o)}
+                aria-expanded={toolsOpen}
+                className={`flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium ${toolsOpen ? "border-brand-600 bg-brand-50 text-brand-800" : "border-zinc-300 text-zinc-700"} ${config.searchFields?.length ? "" : "me-auto"}`}
+              >
+                <SlidersHorizontal className="size-4" aria-hidden />
+                {t("Filters")}
+                {(() => {
+                  const n = Object.values(filterVals).filter(Boolean).length + (dateFrom || dateTo ? 1 : 0)
+                  return n ? <span className="grid size-5 place-items-center rounded-full bg-brand-600 text-[11px] text-white">{n}</span> : null
+                })()}
+              </button>
+            )}
+            {(!phone || toolsOpen) && config.filters?.map((f) => (
               <select
                 key={f.field}
                 value={filterVals[f.field] ?? ""}
                 onChange={(e) =>
                   setFilterVals((v) => ({ ...v, [f.field]: e.target.value }))
                 }
-                className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm focus:outline-2 focus:outline-offset-1 focus:outline-brand-600"
+                className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm focus:outline-2 focus:outline-offset-1 focus:outline-brand-600 max-sm:min-h-10 max-sm:w-full max-sm:text-base"
               >
                 <option value="">{t("{label}: all", { label: t(f.label) })}</option>
                 {f.options
@@ -766,13 +789,13 @@ export function ResourceScreen({
                     ))}
               </select>
             ))}
-            {config.dateFilter && (
-              <div className="flex items-center gap-1.5 text-sm text-zinc-500">
+            {config.dateFilter && (!phone || toolsOpen) && (
+              <div className="flex items-center gap-1.5 text-sm text-zinc-500 max-sm:w-full max-sm:flex-wrap">
                 <span className="text-xs">{t(config.dateFilter.label)}</span>
                 <input
                   type="date"
                   aria-label={(`${t(config.dateFilter.label)} ${t("from")}`)}
-                  className="rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm"
+                  className="rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm max-sm:min-h-10 max-sm:min-w-0 max-sm:flex-1 max-sm:text-base"
                   value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
                 />
@@ -780,7 +803,7 @@ export function ResourceScreen({
                 <input
                   type="date"
                   aria-label={(`${t(config.dateFilter.label)} ${t("to")}`)}
-                  className="rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm"
+                  className="rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm max-sm:min-h-10 max-sm:min-w-0 max-sm:flex-1 max-sm:text-base"
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
                 />
@@ -797,7 +820,8 @@ export function ResourceScreen({
                 )}
               </div>
             )}
-            <div className="relative ml-auto flex items-center gap-2">
+            {(!phone || toolsOpen) && (
+            <div className="relative ml-auto flex items-center gap-2 max-sm:ml-0">
               <button
                 onClick={exportCsv}
                 title={t("Download the current view as CSV (Excel-ready)")}
@@ -841,7 +865,61 @@ export function ResourceScreen({
                 </div>
               )}
             </div>
+            )}
           </div>
+        {phone ? (
+          <ul className="space-y-2">
+            {rows.map((row) => {
+              const titleF = config.cardTitle && visibleCols.some((c) => c.field === config.cardTitle)
+                ? config.cardTitle : visibleCols[0]?.field
+              const subF = config.cardSubtitle && visibleCols.some((c) => c.field === config.cardSubtitle)
+                ? config.cardSubtitle : config.cardTitle ? visibleCols[0]?.field : undefined
+              const badges = visibleCols.filter((c) => (c.badge || c.statusCheck) && c.field !== titleF)
+              const rest = visibleCols.filter((c) => c.field !== titleF && c.field !== subF && !badges.includes(c))
+              const cell = (c: (typeof visibleCols)[number]) =>
+                c.statusCheck ? (
+                  <Badge tone={row[c.field] ? "zinc" : "green"}>{t(row[c.field] ? "Disabled" : "Active")}</Badge>
+                ) : c.badge && row[c.field] ? (
+                  <Badge tone={BADGE_TONES[String(row[c.field])] ?? "zinc"}>{t(String(row[c.field]))}</Badge>
+                ) : (
+                  cellValue(row[c.field], t)
+                )
+              return (
+                <li key={row.name}>
+                  <button type="button" onClick={() => openEdit(row)}
+                    className="block w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-start active:bg-zinc-50">
+                    <span className="flex items-start justify-between gap-2">
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold text-zinc-900 [overflow-wrap:anywhere]">
+                          {titleF ? cellValue(row[titleF], t) : row.name}
+                        </span>
+                        {subF && (
+                          <span className="block text-xs text-zinc-500 [overflow-wrap:anywhere]">{cellValue(row[subF], t)}</span>
+                        )}
+                      </span>
+                      {badges.length > 0 && (
+                        <span className="flex shrink-0 flex-col items-end gap-1">{badges.map((c) => <span key={c.field}>{cell(c)}</span>)}</span>
+                      )}
+                    </span>
+                    {rest.length > 0 && (
+                      <span className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5">
+                        {rest.map((c) => (
+                          <span key={c.field} className="flex min-w-0 items-baseline gap-1.5">
+                            <span className="shrink-0 text-xs text-zinc-500">{t(c.label)}</span>
+                            <span className={`min-w-0 truncate text-sm text-zinc-800 ${typeof row[c.field] === "number" ? "tabular-nums" : ""}`}>{cell(c)}</span>
+                          </span>
+                        ))}
+                      </span>
+                    )}
+                  </button>
+                </li>
+              )
+            })}
+            {rows.length === 0 && (
+              <li className="py-6 text-center text-sm text-zinc-400">{t("Nothing here yet.")}</li>
+            )}
+          </ul>
+        ) : (
         <div className="overflow-x-auto">
           <table className="w-full table-fixed text-sm">
             <thead>
@@ -905,6 +983,7 @@ export function ResourceScreen({
             </tbody>
           </table>
         </div>
+        )}
         {pageSize > 0 && (page > 0 || rows.length >= pageSize) && (
           <div className="mt-3 flex items-center justify-between text-sm text-zinc-500">
             <span>{t("Page {n}", { n: page + 1 })}</span>

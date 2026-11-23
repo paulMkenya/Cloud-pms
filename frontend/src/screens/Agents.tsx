@@ -64,7 +64,7 @@ function SignInsTable({ property }: { property: string }) {
         <p className="py-8 text-center text-sm text-zinc-400">{t("No sign-ins recorded yet.")}</p>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
-          <table className="w-full text-sm">
+          <table className="m-cards w-full text-sm">
             <thead>
               <tr className="border-b border-zinc-200 text-start text-xs font-medium uppercase tracking-wider text-zinc-500">
                 <th className="px-3 py-2 text-start">{t("When")}</th>
@@ -297,7 +297,7 @@ export function ActivityTab({ property }: { property: string }) {
         <p className="py-8 text-center text-sm text-zinc-400">{translate("Nothing logged yet.")}</p>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
-          <table className="w-full text-sm">
+          <table className="m-cards w-full text-sm">
             <thead>
               <tr className="border-b border-zinc-200 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
                 <th className="px-3 py-2">{translate("When")}</th>

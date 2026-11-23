@@ -1182,7 +1182,7 @@ function NewInvoice(props: { acc: Account; onClose: () => void; onCreated: (invo
         </label>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left">
+          <table className="m-cards w-full text-left">
             <thead className="text-xs uppercase text-zinc-400">
               <tr>
                 <th className="py-2 pr-2">{translate("Charge")}</th>
@@ -1307,7 +1307,7 @@ function InvoiceView(props: { folio: string; company: string; onClose: () => voi
             {inv.reservation ? ` · ${inv.reservation}` : ""}
             {inv.closed_on ? ` · ${inv.closed_on.slice(0, 10)}` : ""}
           </p>
-          <table className="w-full text-left">
+          <table className="m-cards w-full text-left">
             <thead className="text-xs uppercase text-zinc-400">
               <tr>
                 <th className="py-2 pr-3">{translate("Date")}</th>

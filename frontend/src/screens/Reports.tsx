@@ -573,7 +573,7 @@ export default function Reports({ initialTab = "saved" }: { initialTab?: Tab }) 
             </Card>
           ) : (
             <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
-              <table className="w-full text-sm">
+              <table className="m-cards w-full text-sm">
                 <thead>
                   <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wider text-zinc-500">
                     <th className="px-3 py-2">{t("Title")}</th>
@@ -969,7 +969,7 @@ export default function Reports({ initialTab = "saved" }: { initialTab?: Tab }) 
                 </p>
               )}
               {preview && (
-                <table className="w-full text-sm">
+                <table className="m-cards w-full text-sm">
                   <thead>
                     <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wider text-zinc-500">
                       {preview.columns.map((c) => (
@@ -1097,7 +1097,7 @@ function FlashPanel(props: {
             <CardTitle>{ranged ? `${d.from_date} → ${d.date}` : t("Last 14 days")}</CardTitle>
           </CardHeader>
           <CardContent className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="m-cards w-full text-sm">
               <thead>
                 <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wider text-zinc-500">
                   <th className="py-1.5 pr-3">{t("Date")}</th>

@@ -34,14 +34,16 @@ export default function SetupNag() {
 
   if (!list) return null
   return (
-    <div className="flex items-center gap-3 border-b border-brand-200 bg-brand-50 px-4 py-2 text-sm text-brand-800">
+    <div className="flex items-center gap-3 border-b border-brand-200 bg-brand-50 px-4 py-2 text-sm text-brand-800 max-sm:gap-2 max-sm:px-3 max-sm:py-1 max-sm:text-xs">
       <ListChecks className="size-4 shrink-0" aria-hidden />
-      <span className="min-w-0 flex-1">
-        {t("Finish setting up: {done} of {total} done.", { done: list.done, total: list.total })}{" "}
-        <Link to="/finish-setup" className="font-medium underline">{t("See what is left")}</Link>
+      <span className="min-w-0 flex-1 max-sm:truncate">
+        <span className="max-sm:hidden">{t("Finish setting up: {done} of {total} done.", { done: list.done, total: list.total })}{" "}</span>
+        <span className="sm:hidden">{t("Setup {done}/{total}", { done: list.done, total: list.total })} · </span>
+        <Link to="/finish-setup" className="font-medium underline max-sm:inline-block max-sm:py-2">{t("See what is left")}</Link>
       </span>
       <button
         type="button"
+        className="shrink-0 max-sm:grid max-sm:size-8 max-sm:place-items-center"
         aria-label={t("Hide for a week")}
         onClick={() => {
           try {

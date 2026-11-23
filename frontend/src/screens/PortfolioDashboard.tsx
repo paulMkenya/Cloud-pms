@@ -161,7 +161,7 @@ export default function PortfolioDashboard() {
 
           {/* per-property table */}
           <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white shadow-sm">
-            <table className="w-full min-w-[900px] text-sm">
+            <table className="m-cards w-full min-w-[900px] text-sm">
               <thead>
                 <tr className="border-b border-zinc-200 bg-zinc-50 text-start text-xs font-medium uppercase tracking-wide text-zinc-500">
                   <th className="px-4 py-2.5 text-start font-medium">{t("Property")}</th>

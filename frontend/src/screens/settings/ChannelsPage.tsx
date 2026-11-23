@@ -284,7 +284,7 @@ export function ChannelsPage() {
                     </span>
                   </div>
                   {c.mappings.length > 0 && (
-                    <table className="w-full text-xs">
+                    <table className="m-cards w-full text-xs">
                       <tbody>
                         {c.mappings.map((m) => {
                           const rt = p.room_types.find((r) => r.name === m.room_type)

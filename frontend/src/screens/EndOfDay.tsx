@@ -250,7 +250,7 @@ export default function EndOfDay() {
         </CardHeader>
         <CardContent className="pt-2">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="m-cards w-full text-sm">
               <thead>
                 <tr className="border-b border-zinc-200 text-start text-xs font-medium uppercase tracking-wider text-zinc-500">
                   <th className="py-2 pe-3 text-start">{t("Business date")}</th>

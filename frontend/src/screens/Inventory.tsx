@@ -243,7 +243,7 @@ export default function Inventory() {
         </div>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-zinc-200 bg-white">
-          <table className="w-full text-sm">
+          <table className="m-cards w-full text-sm">
             <thead className="border-b border-zinc-200 bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-500">
               <tr>
                 <th className="px-4 py-2 font-bold">{translate("Ingredient")}</th>
@@ -327,7 +327,7 @@ function ReceiveModal({ rows, busy, onClose, onSubmit }: {
         <input className="rounded-lg border border-zinc-300 px-3 py-2 text-sm"
           placeholder={translate("Invoice no")} value={invoice} onChange={(e) => setInvoice(e.target.value)} />
       </div>
-      <table className="w-full text-sm">
+      <table className="m-cards w-full text-sm">
         <thead className="text-left text-xs uppercase text-zinc-400">
           <tr><th className="pb-1">{translate("Ingredient")}</th><th className="pb-1">{translate("Qty in")}</th><th className="pb-1">{translate("Cost/unit")}</th></tr>
         </thead>
@@ -370,7 +370,7 @@ function CountModal({ rows, busy, onClose, onSubmit }: {
   return (
     <Modal title={translate("Stock take")} onClose={onClose}>
       <p className="mb-3 text-sm text-zinc-500">{translate("Count what's physically on the shelf. Leave a row blank to skip it.")}</p>
-      <table className="w-full text-sm">
+      <table className="m-cards w-full text-sm">
         <thead className="text-left text-xs uppercase text-zinc-400">
           <tr><th className="pb-1">{translate("Ingredient")}</th><th className="pb-1 text-right">{translate("System")}</th>
             <th className="pb-1">{translate("Counted")}</th><th className="pb-1 text-right">{translate("Variance")}</th></tr>
@@ -468,7 +468,7 @@ function LedgerModal({ row, outlet, onClose }: {
       ) : entries.length === 0 ? (
         <p className="text-sm text-zinc-400">{translate("No movements yet.")}</p>
       ) : (
-        <table className="w-full text-sm">
+        <table className="m-cards w-full text-sm">
           <thead className="text-left text-xs uppercase text-zinc-400">
             <tr><th className="pb-1">{translate("When")}</th><th className="pb-1">{translate("Reason")}</th>
               <th className="pb-1 text-right">{translate("Change")}</th><th className="pb-1 text-right">{translate("Balance")}</th>

@@ -19,7 +19,7 @@ export function CardHeader({
 }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-5 pt-4", className)}
+      className={cn("flex flex-wrap items-center justify-between gap-x-3 gap-y-2 px-5 pt-4 max-sm:px-3.5 max-sm:pt-3", className)}
       {...props}
     />
   )
@@ -44,5 +44,5 @@ export function CardContent({
   className,
   ...props
 }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("px-5 py-4", className)} {...props} />
+  return <div className={cn("px-5 py-4 max-sm:px-3.5 max-sm:py-3", className)} {...props} />
 }

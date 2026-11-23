@@ -597,7 +597,7 @@ function CommissionTab() {
         <p className="text-xs text-zinc-500">{t("Plus {amount} expected from bookings not yet paid.", { amount: money(tot.pending_commission) })}</p>
       )}
       <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
-        <table className="w-full text-sm">
+        <table className="m-cards w-full text-sm">
           <thead className="bg-zinc-50 text-left text-xs uppercase tracking-wide text-zinc-500">
             <tr>
               <th className="px-3 py-2">{t("Stay")}</th>

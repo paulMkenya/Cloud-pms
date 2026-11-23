@@ -128,7 +128,7 @@ export default function NotificationBell({ property }: { property: string }) {
         onClick={() => setOpen((o) => !o)}
         aria-label={t("Notifications")}
         title={t("Notifications")}
-        className="relative rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
+        className="relative rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 max-sm:p-3"
       >
         <Bell className="size-4" aria-hidden />
         {data.unread > 0 && (

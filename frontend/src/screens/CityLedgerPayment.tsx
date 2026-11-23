@@ -336,7 +336,7 @@ export default function CityLedgerPayment(props: {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="m-cards w-full text-left text-sm">
               <thead className="text-xs uppercase text-zinc-400">
                 <tr>
                   {manual ? <th className="py-2 pr-2" /> : null}

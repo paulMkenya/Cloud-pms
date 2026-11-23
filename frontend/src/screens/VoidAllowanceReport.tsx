@@ -148,7 +148,7 @@ export default function VoidAllowanceReport() {
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
-        <table className="w-full text-left text-sm">
+        <table className="m-cards w-full text-left text-sm">
           <thead className="border-b text-xs uppercase text-zinc-400">
             <tr>
               <th className="px-3 py-2">{t("When")}</th>

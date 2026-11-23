@@ -242,7 +242,7 @@ export default function CurrencyDesk() {
       </div>
 
       <div className="overflow-x-auto rounded-xl border bg-white">
-        <table className="w-full text-left text-sm">
+        <table className="m-cards w-full text-left text-sm">
           <thead className="border-b text-xs uppercase text-zinc-400">
             <tr>
               <th className="px-3 py-2">{translate("Currency")}</th>
@@ -283,7 +283,7 @@ export default function CurrencyDesk() {
       <div>
         <h2 className="mb-2 text-sm font-semibold">{translate("Today's exchanges")}</h2>
         <div className="overflow-x-auto rounded-xl border bg-white">
-          <table className="w-full text-left text-sm">
+          <table className="m-cards w-full text-left text-sm">
             <thead className="border-b text-xs uppercase text-zinc-400">
               <tr>
                 <th className="px-3 py-2">{translate("Dir")}</th>

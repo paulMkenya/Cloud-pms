@@ -141,7 +141,7 @@ export default function CashForecast() {
 
       <Card>
         <CardContent className="overflow-x-auto pt-4">
-          <table className="w-full text-left text-sm">
+          <table className="m-cards w-full text-left text-sm">
             <thead className="text-xs uppercase text-zinc-400">
               <tr>
                 <th className="py-2 pr-3">{translate("Day")}</th>

@@ -245,7 +245,7 @@ export default function PettyCash() {
             {t("{n} posted", { n: report?.voucher_count ?? 0 })}
           </p>
         </div>
-        <table className="w-full table-fixed text-left text-sm">
+        <table className="m-cards w-full table-fixed text-left text-sm">
           <thead className="text-xs uppercase tracking-wide text-zinc-400">
             <tr>
               <th className="w-[14%] px-3 py-2">{t("Date")}</th>

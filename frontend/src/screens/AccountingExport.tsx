@@ -221,7 +221,7 @@ export default function AccountingExport() {
                 <p className="py-6 text-center text-sm text-zinc-400">{translate("No closed invoices in this window.")}</p>
               ) : (
                 <div className="overflow-x-auto rounded-xl border border-zinc-200">
-                  <table className="w-full text-sm">
+                  <table className="m-cards w-full text-sm">
                     <thead>
                       <tr className="border-b border-zinc-200 bg-zinc-50 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
                         {cols.map((c) => (

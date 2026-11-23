@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, Columns3, Download } fro
 import { Button } from "./button"
 import { t as translate, useUILanguage } from "../../lib/i18n"
 import { downloadCsv } from "../../lib/csv"
+import { useIsPhone } from "../../lib/useIsPhone"
 
 export type Column<R> = {
   key: string
@@ -62,6 +63,7 @@ function raw<R>(c: Column<R>, row: R): string | number | null | undefined {
  *  through long lists. */
 export function DataTable<R>({ id, columns, rows, rowKey, onRowClick, exportName, empty, pageSize = 25 }: Props<R>) {
   useUILanguage()
+  const phone = useIsPhone()
   const [hidden, setHidden] = useState<string[]>(
     () => load(id) ?? columns.filter((c) => c.hidden).map((c) => c.key))
   const [sort, setSort] = useState<{ key: string; dir: 1 | -1 } | null>(null)
@@ -101,9 +103,70 @@ export function DataTable<R>({ id, columns, rows, rowKey, onRowClick, exportName
   const alignCls = (c: Column<R>) =>
     c.align === "right" ? "text-right tabular-nums" : c.align === "center" ? "text-center" : "text-left"
 
+  // phones: each row is a card - the first column is its title, the other
+  // shown columns are label / value lines, a column without a header (the
+  // row's buttons) sits at the bottom. Same rows, columns, sort and paging.
+  const titleCol = shown.find((c) => c.label)
+  const cardList = (
+    <div className="space-y-2">
+      {view.map((r) => {
+        const body = shown.filter((c) => c !== titleCol && c.label)
+        const actions = shown.filter((c) => !c.label)
+        return (
+          <div key={rowKey(r)}
+            className={`rounded-xl border border-zinc-200 bg-white px-3 py-2.5 ${onRowClick ? "cursor-pointer active:bg-zinc-50" : ""}`}
+            onClick={onRowClick ? () => onRowClick(r) : undefined}>
+            {titleCol ? (
+              <div className="text-sm font-semibold text-zinc-900 [overflow-wrap:anywhere]">
+                {titleCol.render ? titleCol.render(r) : String(raw(titleCol, r) ?? "")}
+              </div>
+            ) : null}
+            {body.length ? (
+              <dl className="mt-1.5 grid grid-cols-[minmax(0,auto)_minmax(0,1fr)] gap-x-3 gap-y-1 text-sm">
+                {body.map((c) => (
+                  <div key={c.key} className="contents">
+                    <dt className="text-xs leading-5 text-zinc-500">{c.label}</dt>
+                    <dd className={`min-w-0 [overflow-wrap:anywhere] text-zinc-800 ${c.align === "right" ? "tabular-nums" : ""}`}>
+                      {c.render ? c.render(r) : String(raw(c, r) ?? "")}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            ) : null}
+            {actions.length ? (
+              <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-2"
+                onClick={(e) => e.stopPropagation()}>
+                {actions.map((c) => <div key={c.key}>{c.render ? c.render(r) : null}</div>)}
+              </div>
+            ) : null}
+          </div>
+        )
+      })}
+      {!rows.length ? (
+        <p className="py-8 text-center text-sm text-zinc-400">{empty ?? translate("Nothing to show.")}</p>
+      ) : null}
+    </div>
+  )
+  const sortable = shown.filter((c) => c.label && !c.noSort)
+
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-end gap-2">
+        {phone && sortable.length > 1 ? (
+          <select aria-label={translate("Sort by")}
+            className="me-auto min-h-10 min-w-0 max-w-[55%] rounded-lg border border-zinc-300 bg-white px-2 text-base"
+            value={sort ? `${sort.key}:${sort.dir}` : ""}
+            onChange={(e) => {
+              const [key, dir] = e.target.value.split(":")
+              setSort(key ? { key, dir: dir === "-1" ? -1 : 1 } : null)
+            }}>
+            <option value="">{translate("Sort by")}</option>
+            {sortable.flatMap((c) => [
+              <option key={`${c.key}:1`} value={`${c.key}:1`}>{c.label} ↑</option>,
+              <option key={`${c.key}:-1`} value={`${c.key}:-1`}>{c.label} ↓</option>,
+            ])}
+          </select>
+        ) : null}
         <div className="relative">
           <Button variant="outline" onClick={() => setPicking((v) => !v)} aria-expanded={picking}>
             <Columns3 className="size-4" />{translate("Columns")}
@@ -123,6 +186,7 @@ export function DataTable<R>({ id, columns, rows, rowKey, onRowClick, exportName
           <Download className="size-4" />{translate("Export CSV")}
         </Button>
       </div>
+      {phone ? cardList : (
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="text-xs uppercase text-zinc-400">
@@ -161,6 +225,7 @@ export function DataTable<R>({ id, columns, rows, rowKey, onRowClick, exportName
           </tbody>
         </table>
       </div>
+      )}
       {sorted.length > PAGE_SIZES[0] ? (
         <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-zinc-500">
           <label className="flex items-center gap-1.5">

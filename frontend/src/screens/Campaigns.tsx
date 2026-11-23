@@ -235,7 +235,7 @@ export default function Campaigns() {
 
           {/* per property - every number drills down */}
           <div className="overflow-x-auto rounded-xl border border-zinc-200 bg-white">
-            <table className="w-full min-w-[640px] text-sm">
+            <table className="m-cards w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="border-b border-zinc-100 text-xs uppercase tracking-wider text-zinc-400">
                   <th className="px-4 py-2.5 text-start font-medium">{t("Property")}</th>
@@ -404,7 +404,7 @@ function DrillPanel({ drill, period, onClose, navigate, onVisitor }: {
           {error && <p className="m-4 rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-600">{translate(error)}</p>}
           {rows && rows.length === 0 && <p className="p-8 text-center text-sm text-zinc-400">{t("Nothing in this period.")}</p>}
           {rows && rows.length > 0 && (
-            <table className="w-full min-w-[720px] text-sm">
+            <table className="m-cards w-full min-w-[720px] text-sm">
               <thead className="sticky top-0 bg-white">
                 <tr className="border-b border-zinc-100 text-xs uppercase tracking-wider text-zinc-400">
                   <th className="px-4 py-2 text-start font-medium">{t("When")}</th>

@@ -521,7 +521,7 @@ export default function CashierTill() {
             </CardHeader>
             <CardContent className="overflow-x-auto pt-0">
               {txns.length ? (
-                <table className="w-full table-fixed text-left text-sm">
+                <table className="m-cards w-full table-fixed text-left text-sm">
                   <thead className="text-xs uppercase tracking-wide text-zinc-400">
                     <tr>
                       <th className="w-[18%] py-2 pr-3">{t("Kind")}</th>

@@ -995,7 +995,7 @@ function PriceMenu({
             })}
           </p>
         ) : (
-          <table className="w-full text-sm">
+          <table className="m-cards w-full text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-zinc-400">
                 <th className="py-1.5">{t("Item")}</th>
@@ -1107,7 +1107,7 @@ function Billing({
               </p>
             )}
             {rev.by_service.length > 0 && (
-              <table className="mt-3 w-full text-sm">
+              <table className="m-cards mt-3 w-full text-sm">
                 <thead>
                   <tr className="text-left text-xs uppercase tracking-wide text-zinc-400">
                     <th className="py-1.5">{t("Service")}</th>
@@ -1142,7 +1142,7 @@ function Billing({
         {recent.length === 0 ? (
           <p className="py-3 text-sm text-zinc-400">{t("Nothing delivered yet.")}</p>
         ) : (
-          <table className="w-full text-sm">
+          <table className="m-cards w-full text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-zinc-400">
                 <th className="py-1.5">{t("Room")}</th>

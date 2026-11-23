@@ -334,7 +334,7 @@ export default function CashierBoard() {
         </CardHeader>
         <CardContent className="pt-0">
           {terminals.length ? (
-            <table className="w-full text-left text-sm">
+            <table className="m-cards w-full text-left text-sm">
               <thead className="text-xs uppercase tracking-wide text-zinc-400">
                 <tr>
                   <th className="py-2 pr-3">{t("Name")}</th>

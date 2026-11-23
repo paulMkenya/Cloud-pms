@@ -667,6 +667,8 @@ export const reservationsConfig: ScreenConfig = {
   allowCreate: false,
   orderBy: "check_in_date desc",
   searchFields: ["name", "guest_name", "room"],
+  cardTitle: "guest_name",
+  cardSubtitle: "name",
   filters: [
     {
       field: "status",

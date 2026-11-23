@@ -164,7 +164,7 @@ export default function OwnerPortal() {
         <Card>
           <CardHeader><CardTitle className="text-base">{t("Statement - {month}", { month: stmt.month })}</CardTitle></CardHeader>
           <CardContent className="overflow-x-auto p-0">
-            <table className="w-full text-sm">
+            <table className="m-cards w-full text-sm">
               <thead>
                 <tr className="border-b border-zinc-200 text-left text-xs uppercase tracking-wide text-zinc-500">
                   <th className="px-4 py-2">{t("Stay")}</th>

@@ -1,7 +1,10 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react"
+import { startTableCards } from "./lib/tableCards"
 import {
   BedDouble,
   CalendarDays,
+  ClipboardList,
+  Receipt,
   ChevronDown,
   Globe,
   Home as HomeIcon,
@@ -315,7 +318,7 @@ function AppSwitcher({ apps, current }: { apps: AppDef[]; current: AppDef }) {
         onClick={() => setOpen((o) => !o)}
         aria-label={t("Switch app")}
         title={t("Switch app")}
-        className="flex size-8 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800"
+        className="flex size-8 max-sm:size-10 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800"
       >
         <LayoutGrid className="size-4" strokeWidth={1.75} aria-hidden />
       </button>
@@ -478,6 +481,8 @@ export default function AppShell() {
   }, [location.pathname, navigate])
 
   useEffect(() => subscribeRealtime(() => setRefreshKey((k) => k + 1)), [])
+  // phones: list tables marked m-cards read as cards (column names on each cell)
+  useEffect(() => startTableCards(), [])
 
   // currency symbol + number locale follow the property's country pack
   useEffect(() => {
@@ -561,13 +566,20 @@ export default function AppShell() {
   const TAB_DESK = ["Front Desk", "Hotel Admin", "Finance", "Revenue Manager", "Night Auditor",
                     "Kamra Agent", "System Manager", "Administrator"]
   const TAB_FNB = ["F&B Manager", "Hotel Admin", "System Manager", "Administrator"]
+  // a tab only for a screen this person's menu has (role + the property's
+  // modules), so a BnB without a restaurant gets Reservations and Billing
+  const inMenu = (to: string) =>
+    to === "/" || apps.some((a) => a.items.some((i) => i.to === to &&
+      (!i.roles || i.roles.some((r) => roles.includes(r)))))
   const phoneTabs = [
     { to: "/", label: t("Today"), icon: HomeIcon, roles: TAB_DESK, end: true },
+    { to: "/reservations", label: t("Bookings"), icon: ClipboardList, roles: TAB_DESK },
     { to: "/calendar", label: t("Calendar"), icon: CalendarDays, roles: TAB_DESK },
-    { to: "/room-board", label: t("Rooms"), icon: BedDouble, roles: TAB_DESK },
+    { to: "/billing", label: t("Billing"), icon: Receipt, roles: TAB_DESK },
     { to: "/pos", label: t("Restaurant"), icon: UtensilsCrossed, roles: TAB_FNB },
+    { to: "/room-board", label: t("Rooms"), icon: BedDouble, roles: TAB_DESK },
     { to: "/guests", label: t("Guests"), icon: Users, roles: TAB_DESK },
-  ].filter((x) => x.roles.some((r) => roles.includes(r))).slice(0, 4)
+  ].filter((x) => x.roles.some((r) => roles.includes(r)) && inMenu(x.to)).slice(0, 4)
   const showTabs = !kiosk && !floor && phoneTabs.length > 0
 
   const items = (currentApp?.items ?? []).filter(
@@ -773,6 +785,10 @@ export default function AppShell() {
                 <X className="size-5" aria-hidden />
               </button>
             </div>
+            <div className="mb-3 flex items-center gap-2 rounded-lg bg-white/95 px-2 text-zinc-700">
+              <LanguageToggle />
+              <span className="text-xs text-zinc-500">{t("Language")}</span>
+            </div>
             {navAppLabel}
             <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto">{navGroups}</nav>
             {navFooter}
@@ -782,10 +798,10 @@ export default function AppShell() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         {!kiosk && (
-        <header className="sticky top-0 z-40 flex min-w-0 items-center gap-2 border-b border-zinc-200 bg-white/90 px-4 py-2.5 backdrop-blur">
+        <header className="sticky top-0 z-40 flex min-w-0 flex-wrap items-center gap-2 border-b border-zinc-200 bg-white/90 px-4 py-2.5 backdrop-blur max-sm:gap-x-1 max-sm:gap-y-1.5 max-sm:px-2.5 max-sm:py-1.5">
           <button
             type="button"
-            className="grid size-8 shrink-0 place-items-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 sm:hidden"
+            className="grid size-10 shrink-0 place-items-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 sm:hidden"
             aria-label={t("Open menu")}
             title={t("Open menu")}
             aria-expanded={navOpen}
@@ -796,7 +812,7 @@ export default function AppShell() {
           <AppSwitcher apps={apps} current={currentApp ?? apps[0]} />
           {properties.length > 1 ? (
             <select
-              className="min-w-0 max-w-[34vw] truncate rounded-lg sm:max-w-[40vw] border border-zinc-200 bg-white px-2.5 py-1.5 text-sm font-medium focus:outline-2 focus:outline-brand-600 lg:max-w-xs"
+              className="min-w-0 max-w-[34vw] truncate rounded-lg sm:max-w-[40vw] border border-zinc-200 bg-white px-2.5 py-1.5 text-sm font-medium focus:outline-2 focus:outline-brand-600 lg:max-w-xs max-sm:order-last max-sm:min-h-10 max-sm:max-w-none max-sm:basis-full"
               value={showAll && location.pathname === "/" ? "__all__" : property}
               onChange={(e) => {
                 const v = e.target.value
@@ -819,11 +835,11 @@ export default function AppShell() {
               ))}
             </select>
           ) : (
-            <span className="min-w-0 truncate text-sm font-medium text-zinc-600">
+            <span className="min-w-0 truncate text-sm font-medium text-zinc-600 max-sm:order-last max-sm:basis-full max-sm:px-1 max-sm:text-xs">
               {properties[0]?.property_name ?? ""}
             </span>
           )}
-          <div className="flex min-w-0 flex-1 justify-center px-2">
+          <div className="flex min-w-0 flex-1 justify-center px-2 max-sm:px-0">
             <div className="hidden w-full max-w-md lg:block">
               <SearchShortcut />
             </div>
@@ -832,15 +848,15 @@ export default function AppShell() {
               onClick={() => window.dispatchEvent(new Event("kamra:open-palette"))}
               aria-label={t("Open search")}
               title={t("Open search")}
-              className="ms-auto grid size-9 place-items-center rounded-lg text-zinc-500 hover:bg-zinc-100 lg:hidden"
+              className="ms-auto grid size-9 place-items-center rounded-lg text-zinc-500 hover:bg-zinc-100 lg:hidden max-sm:size-10"
             >
               <Search className="size-4" aria-hidden />
             </button>
           </div>
-          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3 max-sm:gap-1">
             {canBook && <UnrecordedBadge />}
             <NotificationBell property={property} />
-            <LanguageToggle />
+            <span className="max-sm:hidden"><LanguageToggle /></span>
             {user ? <AccountMenu user={user} onSignOut={signOut} /> : null}
             {canBook && (
               <Button onClick={() => setBooking({})} aria-label={t("New booking")}>
@@ -862,7 +878,7 @@ export default function AppShell() {
                     ? "h-[100dvh] overflow-hidden p-0"
                     : "min-h-[calc(100dvh-3.5rem)] overflow-auto p-3 lg:min-h-0 lg:flex-1 lg:overflow-hidden",
                 )
-              : cn("w-full max-w-none px-4 py-6 lg:px-6", showTabs && "pb-24 sm:pb-6")
+              : cn("w-full max-w-none px-4 py-6 lg:px-6 max-sm:px-2.5 max-sm:pt-3", showTabs && "pb-24 sm:pb-6")
           }
         >
           <ErrorBoundary>
@@ -901,7 +917,7 @@ export default function AppShell() {
               end={tab.end}
               className={({ isActive }) =>
                 cn(
-                  "flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium",
+                  "flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs font-medium",
                   isActive ? "text-brand-700" : "text-zinc-500",
                 )
               }
@@ -913,7 +929,7 @@ export default function AppShell() {
           <button
             type="button"
             onClick={() => setNavOpen(true)}
-            className="flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-zinc-500"
+            className="flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs font-medium text-zinc-500"
           >
             <Menu className="size-5" aria-hidden />
             {t("Menu")}

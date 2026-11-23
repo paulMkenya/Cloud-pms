@@ -258,7 +258,7 @@ export default function Dashboard() {
             <CardHeader><CardTitle>{t("By property")}</CardTitle></CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+                <table className="m-cards w-full text-sm">
                   <thead>
                     <tr className="border-b border-zinc-200 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
                       <th className="py-2 pr-3">{t("Property")}</th>
@@ -361,7 +361,7 @@ function Comparison({ data }: { data: NonNullable<PropDash["comparison"]> }) {
       </CardHeader>
       <CardContent>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="m-cards w-full text-sm">
             <thead>
               <tr className="border-b border-zinc-200 text-xs font-medium text-zinc-500">
                 <th className="py-2 pe-3 text-start" />

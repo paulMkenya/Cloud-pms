@@ -55,6 +55,7 @@ import { getSiteInfo, versionLabel } from "./lib/siteInfo"
 import AlertSettings from "./components/AlertSettings"
 import NotificationHost from "./components/NotificationHost"
 import NotificationBell from "./components/NotificationBell"
+import { UnrecordedBadge } from "./screens/GuestsToRecord"
 
 
 // On-demand UI kept out of the entry chunk: the booking dialog opens on
@@ -805,6 +806,7 @@ export default function AppShell() {
             </button>
           </div>
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+            {canBook && <UnrecordedBadge />}
             <NotificationBell property={property} />
             <LanguageToggle />
             {user ? <AccountMenu user={user} onSignOut={signOut} /> : null}

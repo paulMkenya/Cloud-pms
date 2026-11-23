@@ -44,6 +44,7 @@ import { useT, t as translate } from "../lib/i18n"
 import { adoptGuestLanguage } from "../lib/dir"
 import { LanguageSwitcher } from "../components/LanguageSwitcher"
 import { addDays, nightsBetween, parseDate, stayFromParams, todayPlus } from "../lib/stay"
+import CountInput from "../components/CountInput"
 import ChildAges, {
   agesToSend, canReserve, sizeAges, StayNotice,
   type ChildAge, type StayFit,
@@ -230,6 +231,7 @@ interface CatalogStay {
   total?: number
   nights?: number
   reason?: string
+  too_small?: boolean
 }
 
 function PropertyChooser({
@@ -249,6 +251,7 @@ function PropertyChooser({
   const [stay, setStay] = useState(initialStay)
   const [priced, setPriced] = useState<typeof initialStay | null>(searched ? initialStay : null)
   const [prices, setPrices] = useState<Record<string, CatalogStay> | null>(null)
+  const [showSmall, setShowSmall] = useState(false)
   useEffect(() => {
     if (!priced) return
     let live = true
@@ -287,6 +290,9 @@ function PropertyChooser({
   // with dates priced, the properties a guest can book come first
   if (priced && prices)
     shownProps.sort((a, b) => Number(!!prices[b.name]?.available) - Number(!!prices[a.name]?.available))
+  // a group size was searched: places too small for it step aside
+  const tooSmall = priced && prices ? shownProps.filter((p) => prices[p.name]?.too_small) : []
+  const visibleProps = showSmall ? shownProps : shownProps.filter((p) => !tooSmall.includes(p))
   const linkFor = (slug: string) => {
     const qs = new URLSearchParams(query)
     qs.set("property", slug)
@@ -320,7 +326,10 @@ function PropertyChooser({
           className="mt-4 grid grid-cols-2 gap-3 rounded-2xl border border-zinc-200 bg-white p-3 sm:mt-6 sm:flex sm:items-end sm:gap-3 sm:p-4"
           onSubmit={(e) => {
             e.preventDefault()
-            if (stayValid) setPriced({ ...stay })
+            if (stayValid) {
+              setPriced({ ...stay })
+              setShowSmall(false)
+            }
           }}
         >
           <label className="block min-w-0">
@@ -340,8 +349,8 @@ function PropertyChooser({
           </label>
           <label className="block min-w-0 sm:w-24">
             <span className="mb-1 block text-xs font-medium text-zinc-500">{t("Guests")}</span>
-            <input type="number" min={1} value={stay.adults}
-              onChange={(e) => setStay((s) => ({ ...s, adults: Math.max(1, Number(e.target.value) || 1) }))}
+            <CountInput min={1} value={stay.adults}
+              onChange={(n) => setStay((s) => ({ ...s, adults: n }))}
               className="w-full min-w-0 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-base focus:outline-2 focus:outline-offset-1 focus:outline-brand-600 max-sm:min-h-11" />
           </label>
           <Button type="submit" disabled={!stayValid}
@@ -384,7 +393,7 @@ function PropertyChooser({
           </p>
         )}
         <div className="mt-5 grid gap-6 sm:mt-8 sm:grid-cols-2 lg:grid-cols-3">
-          {shownProps.map((p) => (
+          {visibleProps.map((p) => (
             <Link
               key={p.name}
               to={linkFor(p.property_slug)}
@@ -438,7 +447,9 @@ function PropertyChooser({
                         {" "}· {tn(prices[p.name].nights || 1, "{n} night", "{n} nights")}
                       </>
                     ) : priced && prices && prices[p.name] ? (
-                      <span className="text-zinc-500">{translate(prices[p.name].reason || "Not available for these dates.")}</span>
+                      <span className="text-zinc-500">{prices[p.name].too_small
+                        ? t("Sleeps fewer than {n} guests", { n: priced.adults })
+                        : translate(prices[p.name].reason || "Not available for these dates.")}</span>
                     ) : p.from_rate > 0 ? (
                       <>
                         {t("from")}{" "}
@@ -458,6 +469,17 @@ function PropertyChooser({
             </Link>
           ))}
         </div>
+        {tooSmall.length > 0 && !showSmall && (
+          <p className="mt-5 text-sm text-zinc-500">
+            {visibleProps.length === 0
+              ? t("None of our places sleeps {n} guests on one booking.", { n: priced?.adults ?? 0 }) + " "
+              : ""}
+            <button type="button" onClick={() => setShowSmall(true)}
+              className="font-medium text-brand-700 underline-offset-2 hover:underline max-sm:min-h-11">
+              {t("Show {k} smaller places", { k: tooSmall.length })}
+            </button>
+          </p>
+        )}
       </div>
       <WhatsAppFab />
     </div>
@@ -1178,15 +1200,8 @@ export default function PublicBooking() {
                 </label>
                 <label className="block">
                   <span className="mb-1 block text-xs font-medium text-zinc-500">{t("Adults")}</span>
-                  <input
-                    type="number"
-                    min={1}
-                    className={inputCls}
-                    value={search.adults}
-                    onChange={(e) =>
-                      setSearch({ ...search, adults: Math.max(1, Number(e.target.value) || 1) })
-                    }
-                  />
+                  <CountInput min={1} className={inputCls} value={search.adults}
+                    onChange={(n) => setSearch({ ...search, adults: n })} />
                   {maxAdults > 0 && search.adults > maxAdults && (
                     <span className="mt-1 block text-xs text-zinc-500">
                       {t("Sleeps up to {n} - the property will confirm the arrangement", { n: maxAdults })}
@@ -1195,15 +1210,8 @@ export default function PublicBooking() {
                 </label>
                 <label className="block">
                   <span className="mb-1 block text-xs font-medium text-zinc-500">{t("Children")}</span>
-                  <input
-                    type="number"
-                    min={0}
-                    className={inputCls}
-                    value={search.children}
-                    onChange={(e) =>
-                      setSearch({ ...search, children: Math.max(0, Number(e.target.value) || 0) })
-                    }
-                  />
+                  <CountInput min={0} className={inputCls} value={search.children}
+                    onChange={(n) => setSearch({ ...search, children: n })} />
                   {maxChildren > 0 && search.children > maxChildren && (
                     <span className="mt-1 block text-xs text-zinc-500">
                       {t("Up to {n} children - the property will confirm the arrangement", { n: maxChildren })}
@@ -1213,13 +1221,8 @@ export default function PublicBooking() {
                 {!!p.pets_allowed && (
                   <label className="block">
                     <span className="mb-1 block text-xs font-medium text-zinc-500">{t("Pets")}</span>
-                    <input
-                      type="number"
-                      min={0}
-                      className={inputCls}
-                      value={search.pets}
-                      onChange={(e) => setSearch({ ...search, pets: Math.max(0, Number(e.target.value) || 0) })}
-                    />
+                    <CountInput min={0} className={inputCls} value={search.pets}
+                    onChange={(n) => setSearch({ ...search, pets: n })} />
                     {(p.pet_charge || 0) > 0 && (
                       <span className="mt-1 block text-xs text-zinc-500">
                         {money(p.pet_charge || 0)} {petChargeBasis(p.pet_charge_basis, t)}

@@ -520,7 +520,9 @@ def catalog_stay(check_in_date: str, check_out_date: str, adults: int = 2, child
 		else:
 			reasons = [r.get("reason") for r in rows if r.get("reason")]
 			out[p] = {"available": False,
-			          "reason": reasons[0] if reasons else "Not available for these dates."}
+			          "reason": reasons[0] if reasons else "Not available for these dates.",
+			          # every unit is too small for the party (not just booked)
+			          "too_small": bool(rows) and all(r.get("reason") == TOO_MANY_GUESTS for r in rows)}
 	return out
 
 

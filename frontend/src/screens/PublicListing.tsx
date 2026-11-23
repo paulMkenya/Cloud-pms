@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react"
+import CountInput from "../components/CountInput"
 import { maxCapacity } from "../lib/occupancy"
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import {
@@ -846,18 +847,8 @@ export default function PublicListing() {
                   <span className="mb-1 block text-sm font-medium text-zinc-600">
                     {t("Adults")}
                   </span>
-                  <input
-                    type="number"
-                    min={1}
-                    className={inputCls}
-                    value={search.adults}
-                    onChange={(e) =>
-                      setSearch({
-                        ...search,
-                        adults: Math.max(1, Number(e.target.value) || 1),
-                      })
-                    }
-                  />
+                  <CountInput min={1} className={inputCls} value={search.adults}
+                    onChange={(n) => setSearch({ ...search, adults: n })} />
                   {atAdultCap && (
                     <span className="mt-1 block text-xs text-rose-600">
                       {t("Sleeps up to {n} - the property will confirm the arrangement", { n: maxAdults })}
@@ -868,18 +859,8 @@ export default function PublicListing() {
                   <span className="mb-1 block text-sm font-medium text-zinc-600">
                     {t("Children")}
                   </span>
-                  <input
-                    type="number"
-                    min={0}
-                    className={inputCls}
-                    value={search.children}
-                    onChange={(e) =>
-                      setSearch({
-                        ...search,
-                        children: Math.max(0, Number(e.target.value) || 0),
-                      })
-                    }
-                  />
+                  <CountInput min={0} className={inputCls} value={search.children}
+                    onChange={(n) => setSearch({ ...search, children: n })} />
                   {atChildCap && (
                     <span className="mt-1 block text-xs text-rose-600">
                       {t("Up to {n} children - the property will confirm the arrangement", { n: maxChildren })}
@@ -891,18 +872,8 @@ export default function PublicListing() {
                     <span className="mb-1 block text-sm font-medium text-zinc-600">
                       {t("Pets")}
                     </span>
-                    <input
-                      type="number"
-                      min={0}
-                      className={inputCls}
-                      value={search.pets}
-                      onChange={(e) =>
-                        setSearch({
-                          ...search,
-                          pets: Math.max(0, Number(e.target.value) || 0),
-                        })
-                      }
-                    />
+                    <CountInput min={0} className={inputCls} value={search.pets}
+                    onChange={(n) => setSearch({ ...search, pets: n })} />
                     {(p.pet_charge || 0) > 0 && (
                       <span className="mt-1 block text-xs text-zinc-500">
                         {cur()}

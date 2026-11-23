@@ -9,6 +9,7 @@
 import {
   BadgePercent,
   MousePointerClick,
+  CalendarX2,
   MessageSquareQuote,
   Share2,
   Network,
@@ -144,6 +145,9 @@ export const APPS: AppDef[] = [
       { to: "/hosts-commission", label: "Hosts & Commission", icon: Handshake,
         keywords: ["Commission", "Hosts", "Owners", "Payout", "Units"],
         roles: ["Hotel Admin", "Finance", "System Manager", "Administrator"] },
+      { to: "/guests-to-record", label: "Guests to record", icon: CalendarX2,
+        keywords: ["Airbnb", "Closed dates", "Blocked", "Unrecorded", "Record booking", "Add guest", "Room blocks"],
+        roles: ["Hotel Admin", "Front Desk", "System Manager", "Administrator"] },
       { to: "/reviews", label: "Reviews", icon: MessageSquareQuote,
         keywords: ["Reviews", "Ratings", "Airbnb", "Booking.com", "Google", "Stars", "Badges", "Feedback"],
         roles: ["Hotel Admin", "Front Desk", "System Manager", "Administrator"] },

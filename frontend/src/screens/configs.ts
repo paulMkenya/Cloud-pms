@@ -14,6 +14,7 @@ const HkTaskMediaPanel = lazy(() =>
   import("../components/HkMedia").then((m) => ({ default: m.HkTaskMediaPanel })),
 )
 const ReservationDetail = lazy(() => import("./ReservationDetail"))
+const RoomBlockBooking = lazy(() => import("../components/RoomBlockBooking"))
 import { cur, locale, sellsAlcohol } from "../lib/money"
 
 export const floorsConfig: ScreenConfig = {
@@ -449,6 +450,7 @@ export const roomBlocksConfig: ScreenConfig = {
     { field: "block_status", label: "Status", type: "select", options: ["Active", "Released"] },
     { field: "note", label: "Note", type: "data" },
   ],
+  extra: RoomBlockBooking,
 }
 
 const FUNCTION_STATUSES = [

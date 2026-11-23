@@ -25,7 +25,8 @@ interface Badge { source: string; score: number; out_of?: number; count: number;
 interface Overview {
   reviews: Review[]
   badges: Badge[]
-  display: { outside_reviews: number; badges: number }
+  display: { outside_reviews: number; badges: number; min_stars: number }
+  listings: { site: string; name: string; url: string }[]
   can_admin: boolean
 }
 
@@ -77,9 +78,9 @@ export default function Reviews() {
     }
   }
 
-  async function toggle(key: "outside_reviews" | "badges") {
+  async function toggle(key: "outside_reviews" | "badges" | "min_stars") {
     if (!data) return
-    const next = { ...data.display, [key]: data.display[key] ? 0 : 1 }
+    const next = { ...data.display, [key]: key === "min_stars" ? (data.display.min_stars ? 0 : 4) : (data.display[key] ? 0 : 1) }
     try {
       const d = await call<Overview["display"]>("cloudtrade_hospitality.reviews_admin.save_display", next)
       setData({ ...data, display: d })
@@ -130,9 +131,36 @@ export default function Reviews() {
                 <Switch on={!!data.display.badges} disabled={!data.can_admin}
                   label={t("Rating badges")} onToggle={() => toggle("badges")} />
               </div>
+              <div className="flex items-center justify-between gap-4 py-3">
+                <div>
+                  <p className="text-sm font-medium text-zinc-900">{t("Only 4 and 5-star reviews")}</p>
+                  <p className="text-xs text-zinc-500">{t("Lower-rated reviews stay saved here but are not shown. Reviews are always shown word for word.")}</p>
+                </div>
+                <Switch on={!!data.display.min_stars} disabled={!data.can_admin}
+                  label={t("Only 4 and 5-star reviews")} onToggle={() => toggle("min_stars")} />
+              </div>
             </div>
             {!data.can_admin && <p className="mt-2 text-xs text-zinc-500">{t("Only a Hotel Admin can change these.")}</p>}
           </section>
+
+          {/* the property's listings: where to copy reviews from */}
+          {data.listings.length > 0 && (
+            <section className="rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5">
+              <h2 className="font-semibold text-zinc-900">{t("Your Airbnb listings")}</h2>
+              <p className="mt-1 text-xs text-zinc-500">{t("From the calendars you connected. Open a listing to see its reviews and rating, then add the ones you want here.")}</p>
+              <ul className="mt-3 divide-y divide-zinc-100">
+                {data.listings.map((l) => (
+                  <li key={l.url} className="flex items-center justify-between gap-3 py-2.5">
+                    <span className="min-w-0 truncate text-sm text-zinc-800">{l.name}</span>
+                    <a href={l.url} target="_blank" rel="noopener noreferrer"
+                      className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm text-brand-700 hover:bg-brand-50">
+                      {t("Open on Airbnb")} <ExternalLink className="size-3.5" aria-hidden />
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
 
           {/* rating badges for this property */}
           <section className="rounded-2xl border border-zinc-200 bg-white p-4 sm:p-5">
@@ -220,7 +248,7 @@ export default function Reviews() {
           onSaved={(d) => { setData(d); setAdding(false) }} />
       )}
       {editBadges && data && (
-        <EditBadges property={prop} badges={data.badges} onClose={() => setEditBadges(false)}
+        <EditBadges property={prop} badges={data.badges} listings={data.listings} onClose={() => setEditBadges(false)}
           onSaved={(d) => { setData(d); setEditBadges(false) }} />
       )}
     </div>
@@ -306,16 +334,19 @@ function AddReview({ property, onClose, onSaved }: {
   )
 }
 
-function EditBadges({ property, badges, onClose, onSaved }: {
+function EditBadges({ property, badges, listings, onClose, onSaved }: {
   property: string
   badges: Badge[]
+  listings: Overview["listings"]
   onClose: () => void
   onSaved: (d: Overview) => void
 }) {
   const { t } = useT()
   const start = (s: string) => {
     const b = badges.find((x) => x.source === s)
-    return { source: s, score: b ? String(b.score) : "", count: b ? String(b.count) : "", url: b?.url || "" }
+    // the Airbnb badge links to the property's own listing unless set otherwise
+    const fallback = s === "Airbnb" ? listings[0]?.url || "" : ""
+    return { source: s, score: b ? String(b.score) : "", count: b ? String(b.count) : "", url: b?.url || fallback }
   }
   const [rows, setRows] = useState(["Airbnb", "Booking.com", "Google"].map(start))
   const [busy, setBusy] = useState(false)

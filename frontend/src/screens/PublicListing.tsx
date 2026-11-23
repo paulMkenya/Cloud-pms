@@ -9,6 +9,7 @@ import {
   Phone,
   Search,
   Users,
+  ChevronDown,
 } from "lucide-react"
 import { callGuest } from "../lib/api"
 import { googleMapsEmbed } from "../lib/utils"
@@ -727,6 +728,24 @@ export default function PublicListing() {
             />
 
             <ReviewsBlock property={p.name} />
+
+            {/* the property's FAQs (Booking engine > FAQ), as on property pages */}
+            {((p as { faqs?: { question: string; answer: string }[] }).faqs || []).length > 0 && (
+              <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+                <h2 className="text-lg font-semibold text-zinc-900">{t("Frequently Asked Questions")}</h2>
+                <div className="mt-3 divide-y divide-zinc-200">
+                  {((p as { faqs?: { question: string; answer: string }[] }).faqs || []).map((faq, i) => (
+                    <details key={i} className="group py-3">
+                      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 font-medium text-zinc-800 [&::-webkit-details-marker]:hidden">
+                        {faq.question}
+                        <ChevronDown className="size-4 shrink-0 text-zinc-500 transition group-open:rotate-180" aria-hidden />
+                      </summary>
+                      <p className="mt-2 text-sm leading-relaxed text-zinc-600">{faq.answer}</p>
+                    </details>
+                  ))}
+                </div>
+              </section>
+            )}
 
             {(p.house_rules || p.pets_policy || p.children_policy) && (
               <section className="rounded-2xl border border-zinc-200 bg-white p-5 text-sm shadow-sm">

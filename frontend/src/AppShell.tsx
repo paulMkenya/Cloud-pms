@@ -90,6 +90,10 @@ export interface ShellContext {
   /** The property's enabled_modules (empty = all; undefined while loading) -
    *  the same filter the sidebar and MCP apply. */
   modules?: string[]
+  /** "All properties" is picked (several properties): home shows them all */
+  allProperties?: boolean
+  /** leave "All properties" and work in this one */
+  openProperty?: (name: string) => void
 }
 
 // mirrors @require_roles on kamra.api.create_booking / walk_in (admins always pass)
@@ -484,6 +488,24 @@ export default function AppShell() {
     setCurrentProperty(name)
     setProperty(name)
   }
+  // "All properties" in the picker: the default for anyone with several;
+  // picking one property leaves it until "All properties" is picked again
+  const [allMode, setAllModeState] = useState(() => {
+    try {
+      return localStorage.getItem("kamra_all_properties") !== "0"
+    } catch {
+      return true
+    }
+  })
+  const setAllMode = (on: boolean) => {
+    setAllModeState(on)
+    try {
+      localStorage.setItem("kamra_all_properties", on ? "1" : "0")
+    } catch {
+      /* private window: this tab only */
+    }
+  }
+  const showAll = allMode && properties.length > 1
   // a screen can switch the property too (the owner view on a phone)
   useEffect(() => {
     const on = (e: Event) => setProperty((e as CustomEvent<string>).detail)
@@ -775,10 +797,20 @@ export default function AppShell() {
           {properties.length > 1 ? (
             <select
               className="min-w-0 max-w-[34vw] truncate rounded-lg sm:max-w-[40vw] border border-zinc-200 bg-white px-2.5 py-1.5 text-sm font-medium focus:outline-2 focus:outline-brand-600 lg:max-w-xs"
-              value={property}
-              onChange={(e) => switchProperty(e.target.value)}
+              value={showAll && location.pathname === "/" ? "__all__" : property}
+              onChange={(e) => {
+                const v = e.target.value
+                if (v === "__all__") {
+                  setAllMode(true)
+                  navigate("/")
+                } else {
+                  setAllMode(false)
+                  switchProperty(v)
+                }
+              }}
               aria-label={t("Property")}
             >
+              <option value="__all__">{t("All properties")}</option>
               {properties.map((p) => (
                 <option key={p.name} value={p.name}>
                   {p.property_name}
@@ -840,6 +872,12 @@ export default function AppShell() {
                 refreshKey,
                 canBook,
                 modules,
+                allProperties: showAll,
+                openProperty: (name: string) => {
+                  setAllMode(false)
+                  switchProperty(name)
+                  navigate("/")
+                },
                 openBooking: (initial) => {
                   if (canBook) setBooking(initial)
                 },

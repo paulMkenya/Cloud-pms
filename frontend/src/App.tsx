@@ -61,6 +61,7 @@ const ReportsHub = lazy(() => import("./screens/ReportsHub"))
 const Campaigns = lazy(() => import("./screens/Campaigns"))
 const Reviews = lazy(() => import("./screens/Reviews"))
 const GuestsToRecord = lazy(() => import("./screens/GuestsToRecord"))
+const AllPropertiesToday = lazy(() => import("./screens/AllPropertiesToday"))
 const HostsCommission = lazy(() => import("./screens/HostsCommission"))
 const InHouse = lazy(() => import("./screens/InHouse"))
 const RateCalendar = lazy(() => import("./screens/RateCalendar"))
@@ -141,7 +142,12 @@ const TODAY_ROLES = [
 
 function Home() {
   const { roles } = useAuth()
-  if (roles.some((r) => TODAY_ROLES.includes(r))) return <Today />
+  const shell = useOutletContext<ShellContext>()
+  if (roles.some((r) => TODAY_ROLES.includes(r))) {
+    if (shell?.allProperties && shell.openProperty)
+      return <AllPropertiesToday onOpen={shell.openProperty} />
+    return <Today />
+  }
   const first = visibleApps(roles)
     .flatMap((a) => a.items)
     .find((i) => i.to && i.to !== "/" && (!i.roles || i.roles.some((r) => roles.includes(r))))

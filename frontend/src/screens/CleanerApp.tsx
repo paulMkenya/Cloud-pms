@@ -237,7 +237,30 @@ export default function CleanerApp() {
 }
 
 /** One tap from WhatsApp: sign in with the code in the link, then carry on. */
-function LinkSignIn({ code, phone, onDone }: { code: string; phone: string; onDone: () => void }) {
+const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+
+function LinkSignIn(props: { code: string; phone: string; onDone: () => void }) {
+  // iPhone: a link always opens in Safari, and the home-screen app does not
+  // share Safari's sign-in - show the code to type in the app instead
+  const [here, setHere] = useState(() => !(isIOS() && !standalone()))
+  if (!here) return <IOSCode {...props} onSafari={() => setHere(true)} />
+  return <LinkVerify {...props} />
+}
+
+function IOSCode({ code, onSafari, onDone }: { code: string; phone: string; onDone: () => void; onSafari: () => void }) {
+  return (
+    <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-5 bg-zinc-50 px-6 text-center">
+      <img src="/assets/kamra/frontend/clean-180.png" alt="" className="mx-auto size-20 rounded-3xl shadow" />
+      <p className="text-lg text-zinc-700">Open <b>Cleaning</b> on your home screen and type this code:</p>
+      <p className="select-all rounded-2xl border-2 border-brand-600 bg-white py-4 text-4xl font-bold tracking-[0.3em] text-zinc-900">{code}</p>
+      <p className="text-base text-zinc-500">Fungua <b>Cleaning</b> kwenye skrini ya simu, andika namba hii.</p>
+      <button type="button" onClick={onSafari} className="py-2 text-sm text-zinc-500 underline">I don't have the app - sign in here in Safari</button>
+      <button type="button" onClick={() => { window.history.replaceState(null, "", window.location.pathname); onDone() }} className="text-sm text-zinc-400 underline">Close</button>
+    </div>
+  )
+}
+
+function LinkVerify({ code, phone, onDone }: { code: string; phone: string; onDone: () => void }) {
   const [err, setErr] = useState<string | null>(null)
   useEffect(() => {
     let gone = false
@@ -1054,7 +1077,7 @@ function InstallGate({ onContinue }: { onContinue: () => void }) {
     const t = setTimeout(() => setWaited(true), 5000)
     return () => { window.removeEventListener("beforeinstallprompt", got); window.removeEventListener("appinstalled", done); clearTimeout(t) }
   }, [])
-  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent)
+  const ios = isIOS()
   const skip = () => { try { sessionStorage.setItem(SKIP_INSTALL_KEY, "1") } catch { /* private */ } onContinue() }
   const install = async () => {
     if (!prompt) return
@@ -1066,7 +1089,7 @@ function InstallGate({ onContinue }: { onContinue: () => void }) {
   }
   return (
     <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-5 bg-zinc-50 px-6 text-center">
-      <img src="/assets/kamra/frontend/clean-192.png" alt="" className="mx-auto size-24 rounded-3xl shadow" />
+      <img src="/assets/kamra/frontend/clean-180.png" alt="" className="mx-auto size-24 rounded-3xl shadow" />
       {installed ? (
         <>
           <h1 className="text-2xl font-semibold text-zinc-900">Installed! / Imewekwa!</h1>
@@ -1076,14 +1099,18 @@ function InstallGate({ onContinue }: { onContinue: () => void }) {
       ) : (
         <>
           <h1 className="text-2xl font-semibold text-zinc-900">Put the Cleaning app on your phone</h1>
-          <p className="text-lg text-zinc-700">One tap. It opens straight to your work, like WhatsApp. / Weka app kwenye simu yako.</p>
+          <p className="text-lg text-zinc-700">{ios ? "Three quick taps." : "One tap."} It opens straight to your work, like WhatsApp. / Weka app kwenye simu yako.</p>
           {prompt ? (
             <Big onClick={() => void install()}><Download className="size-6" /> Install · Weka app</Big>
           ) : ios ? (
             <ol className="space-y-3 rounded-2xl border border-zinc-200 bg-white p-4 text-start text-base text-zinc-800">
-              <li>1. Tap <Share className="inline size-5 align-text-bottom text-brand-700" /> <b>Share</b> at the bottom of Safari.</li>
-              <li>2. Tap <b>Add to Home Screen</b>.</li>
-              <li>3. Tap <b>Add</b>, then open <b>Cleaning</b> from your home screen.</li>
+              {/crios|fxios|edgios/i.test(navigator.userAgent) ? (
+                <li>1. Tap <Share className="inline size-5 align-text-bottom text-brand-700" /> <b>Share</b> at the top right, next to the address.</li>
+              ) : (
+                <li>1. Tap <Share className="inline size-5 align-text-bottom text-brand-700" /> <b>Share</b> (at the bottom of Safari - on newer iPhones tap <b>•••</b> first).</li>
+              )}
+              <li>2. Scroll down and tap <b>Add to Home Screen</b>.</li>
+              <li>3. Tap <b>Add</b>. Then open <b>Cleaning</b> from your home screen and sign in there.</li>
             </ol>
           ) : waited ? (
             <ol className="space-y-3 rounded-2xl border border-zinc-200 bg-white p-4 text-start text-base text-zinc-800">

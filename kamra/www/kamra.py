@@ -62,7 +62,7 @@ def _cleaning_app(html: str, path: str) -> str:
 	        '<meta name="mobile-web-app-capable" content="yes" />'
 	        '<meta name="apple-mobile-web-app-capable" content="yes" />'
 	        '<meta name="apple-mobile-web-app-title" content="Cleaning" />'
-	        '<link rel="apple-touch-icon" href="/assets/kamra/frontend/clean-192.png" />')
+	        '<link rel="apple-touch-icon" sizes="180x180" href="/assets/kamra/frontend/clean-180.png" />')
 	return html.replace("</head>", tags + "</head>", 1)
 
 

@@ -48,7 +48,8 @@ function setIcon(rel: string, href: string, type?: string) {
 }
 setIcon("icon", "kamra-mark.svg", "image/svg+xml")
 setIcon("icon", "favicon-32.png", "image/png")
-setIcon("apple-touch-icon", "apple-touch-180.png")
+// the cleaning app (/clean) brings its own home-screen icon from the server
+if (!/^\/kamra\/clean\/?$/.test(location.pathname)) setIcon("apple-touch-icon", "apple-touch-180.png")
 
 // Offline (#228): the service worker keeps the app shell and built files
 // (kamra/www/kamra-sw.min.js, served at the site root so it may control

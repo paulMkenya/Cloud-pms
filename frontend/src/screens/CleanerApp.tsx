@@ -222,12 +222,45 @@ const standalone = () =>
 const buzz = (ms = 40) => { try { navigator.vibrate?.(ms) } catch { /* not supported */ } }
 
 export default function CleanerApp() {
+  // the sign-in link from the WhatsApp code message: ?c=<code>&p=<phone>
+  const [link, setLink] = useState(() => {
+    const q = new URLSearchParams(window.location.search)
+    return q.get("c") && q.get("p") ? { code: q.get("c")!, phone: q.get("p")! } : null
+  })
   const [installed, setInstalled] = useState(() => {
     if (standalone()) return true
     try { return sessionStorage.getItem(SKIP_INSTALL_KEY) === "1" } catch { return false }
   })
+  if (link) return <LinkSignIn {...link} onDone={() => setLink(null)} />
   if (!installed) return <InstallGate onContinue={() => setInstalled(true)} />
   return <CleanerMain />
+}
+
+/** One tap from WhatsApp: sign in with the code in the link, then carry on. */
+function LinkSignIn({ code, phone, onDone }: { code: string; phone: string; onDone: () => void }) {
+  const [err, setErr] = useState<string | null>(null)
+  useEffect(() => {
+    let gone = false
+    const clean = () => window.history.replaceState(null, "", window.location.pathname)
+    if (readToken()) { clean(); onDone(); return }   // already signed in on this phone
+    api<{ token: string }>("verify_code", { phone, code })
+      .then((r) => { if (gone) return; writeToken(r.token); clearSignInState(); clean(); onDone() })
+      .catch((e) => { if (!gone) { clean(); setErr((e as Error).message) } })
+    return () => { gone = true }
+  }, [code, phone, onDone])
+  return (
+    <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-5 bg-zinc-50 px-6 text-center">
+      <img src="/assets/kamra/frontend/clean-192.png" alt="" className="mx-auto size-20 rounded-3xl shadow" />
+      {err ? (
+        <>
+          <p className="rounded-xl bg-rose-50 px-3 py-3 text-lg text-rose-800">{err}</p>
+          <Big onClick={onDone}>Sign in with your number · Ingia</Big>
+        </>
+      ) : (
+        <p className="text-lg text-zinc-700">Signing you in… / Unaingia…</p>
+      )}
+    </div>
+  )
 }
 
 function CleanerMain() {
@@ -336,10 +369,21 @@ function CleanerMain() {
   )
 }
 
+const SIGNIN_KEY = "ct_clean_signin"
+function readSignInState(): { phone: string; at: number } | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(SIGNIN_KEY) || "null")
+    return v && Date.now() - v.at < 10 * 60_000 ? v : null
+  } catch { return null }
+}
+function clearSignInState() { try { localStorage.removeItem(SIGNIN_KEY) } catch { /* private */ } }
+
 function SignIn({ onToken }: { onToken: (t: string) => void }) {
-  const [phone, setPhone] = useState("")
+  // a code already sent (she went to WhatsApp to read it): back on the code box
+  const kept = useRef(readSignInState()).current
+  const [phone, setPhone] = useState(kept?.phone || "")
   const [code, setCode] = useState("")
-  const [sent, setSent] = useState(false)
+  const [sent, setSent] = useState(!!kept)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const go = async (fn: () => Promise<void>) => {
@@ -350,7 +394,7 @@ function SignIn({ onToken }: { onToken: (t: string) => void }) {
     <div className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-4 bg-zinc-50 px-5">
       <h1 className="text-2xl font-semibold text-zinc-900">Cleaning app</h1>
       <p className="text-base text-zinc-600">
-        {sent ? "Type the 6-digit code we sent you on WhatsApp. / Andika namba tuliyokutumia." : "Your phone number - we send a code on WhatsApp. / Namba yako ya simu."}
+        {sent ? "Open WhatsApp and tap the sign-in link we sent - or type the 6-digit code here. / Bonyeza kiungo kwenye WhatsApp au andika namba." : "Your phone number - we send a code on WhatsApp. / Namba yako ya simu."}
       </p>
       {!sent ? (
         <input inputMode="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
@@ -363,16 +407,20 @@ function SignIn({ onToken }: { onToken: (t: string) => void }) {
       {err && <p className="rounded-xl bg-rose-50 px-3 py-2 text-base text-rose-800">{err}</p>}
       {!sent ? (
         <Big disabled={busy || phone.replace(/\D/g, "").length < 9}
-          onClick={() => go(async () => { await api("request_code", { phone }); setSent(true) })}>
+          onClick={() => go(async () => {
+            await api("request_code", { phone })
+            try { localStorage.setItem(SIGNIN_KEY, JSON.stringify({ phone, at: Date.now() })) } catch { /* private */ }
+            setSent(true)
+          })}>
           Send code · Tuma namba
         </Big>
       ) : (
         <>
           <Big disabled={busy || code.length !== 6}
-            onClick={() => go(async () => { const r = await api<{ token: string }>("verify_code", { phone, code }); onToken(r.token) })}>
+            onClick={() => go(async () => { const r = await api<{ token: string }>("verify_code", { phone, code }); clearSignInState(); onToken(r.token) })}>
             Sign in · Ingia
           </Big>
-          <button type="button" className="py-2 text-base text-brand-700" onClick={() => { setSent(false); setCode("") }}>
+          <button type="button" className="py-2 text-base text-brand-700" onClick={() => { clearSignInState(); setSent(false); setCode("") }}>
             Change number / send again
           </button>
         </>

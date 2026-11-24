@@ -43,6 +43,7 @@ interface Me {
   done_today: { unit: string; from: string; to: string; minutes: number }[]
   settings: { checklist: CheckItem[]; photo_damage: number; photo_left: number; photo_final: number; gps: number }
   inventory_due?: Due[]
+  last_out?: string | null
 }
 interface Due { property: string; property_name: string; items: { item: string; qty: number }[] }
 
@@ -387,14 +388,7 @@ function CleanerMain() {
         ) : me.visit ? (
           <VisitView me={me} token={token} busy={busy} run={run} setErr={setErr} onDone={(u) => { buzz(120); setDone(u) }} />
         ) : !me.shift ? (
-          <div className="space-y-4 pt-6 text-center">
-            <Clock className="mx-auto size-14 text-brand-600" />
-            <p className="text-lg text-zinc-700">Start your day / Anza siku</p>
-            <Big disabled={busy} onClick={() => run(async () => api<Me>("clock_in", { token, ...(await where(!!me.settings.gps)) }))}>
-              Clock in · Ingia kazini
-            </Big>
-            {me.tasks.length > 0 && <p className="text-sm text-zinc-500">{me.tasks.length} apartment(s) waiting</p>}
-          </div>
+          <ClockIn me={me} busy={busy} onClockIn={() => run(async () => api<Me>("clock_in", { token, ...(await where(!!me.settings.gps)) }))} />
         ) : (
           <Home me={me} token={token} busy={busy} run={run} />
         )}
@@ -411,6 +405,40 @@ function readSignInState(): { phone: string; at: number } | null {
   } catch { return null }
 }
 function clearSignInState() { try { localStorage.removeItem(SIGNIN_KEY) } catch { /* private */ } }
+
+/** Clock in - with a check first when nothing is waiting or she clocked
+ *  out only minutes ago, so a stray tap does not start a shift. */
+function ClockIn({ me, busy, onClockIn }: { me: Me; busy: boolean; onClockIn: () => void }) {
+  const [asking, setAsking] = useState(false)
+  const recentOut = me.last_out && Date.now() - new Date(me.last_out.replace(" ", "T")).getTime() < 30 * 60_000
+  const reason = recentOut
+    ? `You clocked out at ${hhmm(me.last_out)}. Clock in again? / Umetoka saa ${hhmm(me.last_out)}. Ingia tena?`
+    : me.tasks.length === 0
+      ? "No apartments are waiting right now. Clock in anyway? / Hakuna kazi sasa. Ingia kazini?"
+      : null
+  if (asking && reason) {
+    return (
+      <div className="space-y-4 pt-6 text-center">
+        <Clock className="mx-auto size-14 text-amber-500" />
+        <p className="text-lg font-medium text-zinc-800">{reason}</p>
+        <Big disabled={busy} onClick={() => { setAsking(false); onClockIn() }}>Yes, clock in · Ndiyo</Big>
+        <Big tone="light" onClick={() => setAsking(false)}>Not now · Hapana</Big>
+      </div>
+    )
+  }
+  return (
+    <div className="space-y-4 pt-6 text-center">
+      <Clock className="mx-auto size-14 text-brand-600" />
+      <p className="text-lg text-zinc-700">Start your day / Anza siku</p>
+      <Big disabled={busy} onClick={() => (reason ? setAsking(true) : onClockIn())}>
+        Clock in · Ingia kazini
+      </Big>
+      <p className="text-sm text-zinc-500">
+        {me.tasks.length > 0 ? `${me.tasks.length} apartment(s) waiting` : "No apartments waiting right now"}
+      </p>
+    </div>
+  )
+}
 
 function SignIn({ onToken }: { onToken: (t: string) => void }) {
   // a code already sent (she went to WhatsApp to read it): back on the code box
@@ -606,12 +634,14 @@ function InventoryView({ due, token, busy, run, back }: {
 
 /** Full-screen camera inside the page: the phone never switches to its
  *  camera app, so Android cannot close the page while a photo is taken. */
-function CameraSheet({ onShot, onClose, onGallery }: {
-  onShot: (dataUrl: string) => void; onClose: () => void; onGallery: () => void
+const NATIVE_CAM_KEY = "ct_clean_native_cam"   // this phone's in-app camera failed once
+
+function CameraSheet({ token, onShot, onClose, onGallery, onNative }: {
+  token: string; onShot: (dataUrl: string) => void; onClose: () => void; onGallery: () => void; onNative: () => void
 }) {
   const video = useRef<HTMLVideoElement>(null)
   const [ready, setReady] = useState(false)
-  const [failed, setFailed] = useState(false)
+  const [failed, setFailed] = useState<string | null>(null)
   useEffect(() => {
     let stream: MediaStream | null = null
     let gone = false
@@ -624,18 +654,35 @@ function CameraSheet({ onShot, onClose, onGallery }: {
         video.current.srcObject = st
         void video.current.play().then(() => setReady(true)).catch(() => setReady(true))
       }
-    }).catch(() => setFailed(true))
-    return () => { gone = true; stream?.getTracks().forEach((t) => t.stop()) }
+    }).catch((e: Error) => setFailed(`${e?.name || "Error"}: ${e?.message || ""}`))
+    // no picture after 8 seconds counts as not working
+    const t = setTimeout(() => { if (!gone && !(video.current?.videoWidth)) setFailed((f) => f || "no picture after 8 seconds") }, 8000)
+    return () => { gone = true; clearTimeout(t); stream?.getTracks().forEach((t) => t.stop()) }
   }, [])
-  useEffect(() => { if (failed) onGallery() }, [failed, onGallery])
+  useEffect(() => {
+    if (!failed) return
+    try { localStorage.setItem(NATIVE_CAM_KEY, "1") } catch { /* private */ }
+    void api("report_problem", { token, what: `In-app camera failed: ${failed}` }).catch(() => undefined)
+  }, [failed, token])
   const shoot = () => {
     const v = video.current
     if (!v || !v.videoWidth) return
     onShot(toJpeg(v, v.videoWidth, v.videoHeight))
   }
+  if (failed) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col justify-center gap-4 bg-zinc-50 px-6 text-center">
+        <Camera className="mx-auto size-14 text-brand-600" />
+        <p className="text-lg text-zinc-800">This camera did not open. Use your phone's own camera instead. / Tumia kamera ya simu.</p>
+        <Big onClick={onNative}><Camera className="size-6" /> Use the phone's camera</Big>
+        <Big tone="light" onClick={onGallery}><ImageIcon className="size-6" /> Choose from photos</Big>
+        <button type="button" onClick={onClose} className="py-2 text-base text-zinc-500">Cancel</button>
+      </div>
+    )
+  }
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black">
-      <video ref={video} playsInline muted className="min-h-0 flex-1 object-contain" />
+      <video ref={video} playsInline muted autoPlay className="min-h-0 flex-1 object-contain" />
       {!ready && <p className="absolute inset-x-0 top-1/3 text-center text-lg text-white">Opening camera… / Inafungua kamera…<br /><span className="text-sm opacity-80">Tap “Allow” if your phone asks.</span></p>}
       <div className="flex items-center justify-around bg-black px-4 pb-8 pt-4">
         <button type="button" onClick={onClose} aria-label="Cancel" className="grid size-14 place-items-center rounded-full bg-white/15 text-white">
@@ -658,15 +705,25 @@ function PhotoRow({ visit, stage, token, setErr, setVisit, label, pending, add, 
   setVisit: (v: Visit) => void
 }) {
   const file = useRef<HTMLInputElement>(null)
+  const cam = useRef<HTMLInputElement>(null)
   const [camera, setCamera] = useState(false)
   const [preparing, setPreparing] = useState(false)
   const mine = visit.photos.filter((p) => p.stage === stage)
   const waiting = pending.filter((p) => p.stage === stage)
-  const canCamera = typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia
+  // iPhone: its own camera opens over the page (the page stays alive), and the
+  // in-page camera there asks every time and often fails - use the phone's.
+  // Android: the in-app camera, so the phone does not close the page.
+  const nativeCam = isIOS() || (() => { try { return localStorage.getItem(NATIVE_CAM_KEY) === "1" } catch { return false } })()
+  const canCamera = !nativeCam && typeof navigator !== "undefined" && !!navigator.mediaDevices?.getUserMedia
   const openGallery = useCallback(() => {
     setCamera(false)
     try { localStorage.setItem(PICKING_KEY, String(Date.now())) } catch { /* private mode */ }
     file.current?.click()
+  }, [])
+  const openNative = useCallback(() => {
+    setCamera(false)
+    try { localStorage.setItem(PICKING_KEY, String(Date.now())) } catch { /* private mode */ }
+    cam.current?.click()
   }, [])
   const fromFiles = async (files: FileList | null) => {
     try { localStorage.removeItem(PICKING_KEY) } catch { /* private mode */ }
@@ -680,6 +737,7 @@ function PhotoRow({ visit, stage, token, setErr, setVisit, label, pending, add, 
     } finally {
       setPreparing(false)
       if (file.current) file.current.value = ""
+      if (cam.current) cam.current.value = ""
     }
   }
   return (
@@ -716,12 +774,13 @@ function PhotoRow({ visit, stage, token, setErr, setVisit, label, pending, add, 
       )}
       {waiting.some((p) => !p.failed) && <p className="text-sm text-zinc-600">Sending photo… you can carry on. / Inatuma picha…</p>}
       <input ref={file} type="file" accept="image/*" multiple hidden onChange={(e) => void fromFiles(e.target.files)} />
+      <input ref={cam} type="file" accept="image/*" capture="environment" hidden onChange={(e) => void fromFiles(e.target.files)} />
       <div className="flex gap-2">
-        <button type="button" disabled={preparing} onClick={() => (canCamera ? setCamera(true) : openGallery())}
+        <button type="button" disabled={preparing} onClick={() => (canCamera ? setCamera(true) : openNative())}
           className="flex min-h-14 flex-1 items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand-600 bg-brand-50 text-base font-semibold text-brand-700 active:bg-brand-100">
           <Camera className="size-6" /> {preparing ? "Getting photo…" : label}
         </button>
-        {canCamera && (
+        {(
           <button type="button" disabled={preparing} onClick={openGallery} aria-label="Choose from gallery"
             className="grid min-h-14 w-14 place-items-center rounded-xl border border-zinc-300 bg-white text-zinc-600 active:bg-zinc-50">
             <ImageIcon className="size-6" />
@@ -729,7 +788,7 @@ function PhotoRow({ visit, stage, token, setErr, setVisit, label, pending, add, 
         )}
       </div>
       {camera && (
-        <CameraSheet onClose={() => setCamera(false)} onGallery={openGallery}
+        <CameraSheet token={token} onClose={() => setCamera(false)} onGallery={openGallery} onNative={openNative}
           onShot={(img) => { buzz(); setCamera(false); add(stage, img) }} />
       )}
     </div>

@@ -575,6 +575,9 @@ MODULES: tuple[Module, ...] = (
 				  hint="Comma-separated. Same alerts as WhatsApp, on SMS."),
 				S("alert_email", "Alert email addresses", "text", "", "kv",
 				  hint="Comma-separated. Same alerts by email."),
+				S("reception_whatsapp", "Reception WhatsApp number", "text", "", "kv",
+				  hint="Comma-separated. Gets the guest name, unit, check-in and check-out dates and the "
+				       "balance to collect - once, when a booking is confirmed with payment."),
 				S("guest_booking_whatsapp", "WhatsApp guests on booking events", "check", 1, "kv",
 				  hint="Confirmation, deposit link, payment reminder, abandoned-hold recovery."),
 				S("guest_booking_sms", "SMS guests on booking events", "check", 0, "kv",

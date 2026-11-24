@@ -11,6 +11,7 @@ const TOKEN_KEY = "ct_cleaner_token"
 
 interface Task {
   name: string
+  property: string
   unit: string
   property_name: string
   task_type: string
@@ -41,7 +42,9 @@ interface Me {
   tasks: Task[]
   done_today: { unit: string; from: string; to: string; minutes: number }[]
   settings: { checklist: CheckItem[]; photo_damage: number; photo_left: number; photo_final: number; gps: number }
+  inventory_due?: Due[]
 }
+interface Due { property: string; property_name: string; items: { item: string; qty: number }[] }
 
 function readToken(): string | null {
   try { return localStorage.getItem(TOKEN_KEY) } catch { return null }
@@ -265,8 +268,25 @@ function SignIn({ onToken }: { onToken: (t: string) => void }) {
 function Home({ me, token, busy, run }: {
   me: Me; token: string; busy: boolean; run: (fn: () => Promise<Me | void>) => Promise<void>
 }) {
+  const [counting, setCounting] = useState<Due | null>(null)
+  const due = me.inventory_due || []
+  const dueFor = (prop: string) => due.find((d) => d.property === prop)
+  // the house was accepted (or the list was dropped) - back to the list
+  useEffect(() => { if (counting && !dueFor(counting.property)) setCounting(null) })
+  if (counting) return <InventoryView due={counting} token={token} busy={busy} run={run} back={() => setCounting(null)} />
   return (
     <>
+      {due.length > 0 && (
+        <section className="space-y-2 rounded-2xl border border-amber-300 bg-amber-50 p-4">
+          <h2 className="text-base font-semibold text-amber-900">Count the house inventory / Hesabu vitu vya nyumba</h2>
+          <p className="text-sm text-amber-900">Before your first clean in a house, count its items and accept responsibility for them.</p>
+          {due.map((d) => (
+            <Big key={d.property} tone="light" disabled={busy} onClick={() => setCounting(d)}>
+              {d.property_name} · {d.items.length} items
+            </Big>
+          ))}
+        </section>
+      )}
       <section>
         <h2 className="mb-2 text-base font-semibold text-zinc-800">Apartments to clean / Za kusafisha ({me.tasks.length})</h2>
         {me.tasks.length === 0 ? (
@@ -278,7 +298,8 @@ function Home({ me, token, busy, run }: {
             {me.tasks.map((t) => (
               <li key={t.name}>
                 <button type="button" disabled={busy || !!t.busy_by}
-                  onClick={() => run(async () => api<Me>("start_visit", { token, task: t.name, ...(await where(!!me.settings.gps)) }))}
+                  onClick={() => dueFor(t.property) ? setCounting(dueFor(t.property)!)
+                    : run(async () => api<Me>("start_visit", { token, task: t.name, ...(await where(!!me.settings.gps)) }))}
                   className="w-full rounded-2xl border border-zinc-200 bg-white p-4 text-start active:bg-zinc-50 disabled:opacity-60">
                   <div className="flex items-start gap-2">
                     <span className="min-w-0 flex-1">
@@ -289,7 +310,7 @@ function Home({ me, token, busy, run }: {
                     <span className={`shrink-0 rounded-full px-2.5 py-1 text-sm font-semibold ${PRIO[t.priority]}`}>{t.priority}</span>
                   </div>
                   <span className="mt-3 block rounded-xl bg-brand-50 py-2.5 text-center text-base font-semibold text-brand-700">
-                    {t.busy_by ? `${t.busy_by} is cleaning` : "Check in · Anza hapa"}
+                    {t.busy_by ? `${t.busy_by} is cleaning` : dueFor(t.property) ? "Count the inventory first · Hesabu kwanza" : "Check in · Anza hapa"}
                   </span>
                 </button>
               </li>
@@ -314,6 +335,59 @@ function Home({ me, token, busy, run }: {
           Clock out · Toka kazini
         </Big>
       </div>
+    </>
+  )
+}
+
+/** A house's inventory: she counts each item (filled in with the
+ *  director's number), notes any difference, and accepts responsibility. */
+function InventoryView({ due, token, busy, run, back }: {
+  due: Due; token: string; busy: boolean; run: (fn: () => Promise<Me | void>) => Promise<void>; back: () => void
+}) {
+  const [rows, setRows] = useState(() => due.items.map((i) => ({ item: i.item, qty: i.qty, counted: String(i.qty), note: "" })))
+  const set = (k: number, v: Partial<(typeof rows)[number]>) => setRows(rows.map((r, i) => (i === k ? { ...r, ...v } : r)))
+  const bad = rows.some((r) => !/^\d+$/.test(r.counted.trim()))
+  const diffs = rows.filter((r) => /^\d+$/.test(r.counted.trim()) && Number(r.counted) !== r.qty).length
+  return (
+    <>
+      <button type="button" onClick={back} className="flex items-center text-base text-brand-700">
+        <ChevronLeft className="size-5" /> Back
+      </button>
+      <section className="space-y-3 rounded-2xl border border-zinc-200 bg-white p-4">
+        <div>
+          <h2 className="text-lg font-semibold text-zinc-900">{due.property_name}</h2>
+          <p className="text-sm text-zinc-600">Count each item. Change the number if it is different and say why. / Hesabu kila kitu.</p>
+        </div>
+        <ul className="divide-y divide-zinc-100">
+          {rows.map((r, i) => {
+            const off = /^\d+$/.test(r.counted.trim()) && Number(r.counted) !== r.qty
+            return (
+              <li key={r.item} className="space-y-2 py-3">
+                <div className="flex items-center gap-3">
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-base font-medium text-zinc-900">{r.item}</span>
+                    <span className="block text-sm text-zinc-500">List: {r.qty}</span>
+                  </span>
+                  <input inputMode="numeric" value={r.counted} aria-label={`${r.item} counted`}
+                    onChange={(e) => set(i, { counted: e.target.value.replace(/\D/g, "") })}
+                    className={`min-h-12 w-20 rounded-xl border px-2 text-center text-lg ${off ? "border-amber-500 bg-amber-50" : "border-zinc-300"}`} />
+                </div>
+                {off && (
+                  <input value={r.note} onChange={(e) => set(i, { note: e.target.value })}
+                    placeholder="Why different? e.g. 2 torn, 1 missing"
+                    className="min-h-11 w-full rounded-xl border border-zinc-300 px-3 text-base" />
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      </section>
+      {diffs > 0 && <p className="text-sm text-amber-800">{diffs} item(s) different from the list - the manager will see this.</p>}
+      <Big disabled={busy || bad}
+        onClick={() => window.confirm(`I have counted the items in ${due.property_name} and I take responsibility for them. / Nakubali kuwajibika.`) &&
+          run(() => api<Me>("accept_inventory", { token, property: due.property, counts: JSON.stringify(rows.map((r) => ({ item: r.item, counted: r.counted.trim(), note: r.note }))) }))}>
+        <Check className="size-6" /> I confirm and take responsibility · Nakubali
+      </Big>
     </>
   )
 }

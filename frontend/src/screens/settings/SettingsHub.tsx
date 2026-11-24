@@ -60,6 +60,7 @@ import { GuestMessagesPage } from "./GuestMessagesPage"
 import { WhatsAppButtonPage } from "./WhatsAppButtonPage"
 import { PropertyOrderPage } from "./PropertyOrderPage"
 import { CleanerAppPage } from "./CleanerAppPage"
+import { HouseInventoryPage } from "./HouseInventoryPage"
 import { ChannelsPage } from "./ChannelsPage"
 import { ModulePage, Switch, type OptionSources } from "./ModulePage"
 import { UsageReportingPage } from "./UsageReportingPage"
@@ -121,6 +122,9 @@ const CUSTOM_PAGES: CustomPage[] = [
   { id: "cleaner-app", title: "Cleaner app", group: "integrations", icon: ClipboardCheck,
     description: "The cleaners' checklist, required photos, GPS and the WhatsApp messages you get.",
     keywords: "cleaner cleaning housekeeping checklist photo gps location clock in out token shower toiletries whatsapp app" },
+  { id: "house-inventory", title: "House inventory", group: "integrations", icon: ListTodo,
+    description: "The items in each house - towels, duvets, plates, cups. Cleaners count them and accept responsibility.",
+    keywords: "inventory items towels duvets sheets plates cups glasses cutlery count stock house cleaner responsibility accept" },
   { id: "property-order", title: "Order of properties", group: "integrations", icon: ListOrdered,
     description: "The order guests see the properties in on the booking homepage.",
     keywords: "order sort arrange rank homepage booking page properties first top position move" },
@@ -569,6 +573,8 @@ function CustomPageBody({
       return <PropertyOrderPage />
     case "cleaner-app":
       return <CleanerAppPage />
+    case "house-inventory":
+      return <HouseInventoryPage />
     case "channels":
       return <ChannelsPage />
     case "webhooks":

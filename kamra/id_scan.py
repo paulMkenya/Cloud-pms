@@ -133,7 +133,7 @@ def read(property: str, text: str) -> dict:
 	if out is None:
 		out = loc.read_id_scan(pack, text)
 	if out is None:
-		frappe.throw(_("Kamra can't read this ID's code. Type the details in, "
+		frappe.throw(_("Cloud PMS can't read this ID's code. Type the details in, "
 		               "and take a picture of the ID."))
 	code = out.pop("nationality_code", None)
 	if code and not out.get("nationality"):

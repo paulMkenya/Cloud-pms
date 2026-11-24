@@ -873,7 +873,7 @@ def normalize_night_prices(night_prices, check_in_date, check_out_date) -> dict:
 		if not price.is_finite() or price <= 0:
 			frappe.throw(_("The price for {0} must be above zero.").format(day))
 		if price > MAX_NIGHT_PRICE:
-			frappe.throw(_("The price for {0} is above the highest price Kamra accepts ({1}).").format(
+			frappe.throw(_("The price for {0} is above the highest price Cloud PMS accepts ({1}).").format(
 				day, f"{MAX_NIGHT_PRICE:,.0f}"))
 		if price.as_tuple().exponent < -2:
 			frappe.throw(_("The price for {0} can have at most 2 decimals.").format(day))

@@ -52,7 +52,7 @@ def _provider_error(resp, limit: int = 300) -> str:
 
 
 SYSTEM = """You are Kamra Agent, the assistant for {property_name}, a hotel
-running Kamra PMS. Today is {today}. You help staff work faster: look
+running Cloud PMS. Today is {today}. You help staff work faster: look
 things up, quote, book, check guests in and out, post charges, take
 payments, preview and process cancellations.
 
@@ -1442,7 +1442,7 @@ def ask_stream(property: str, messages, lang: str | None = None):
 	})
 
 
-HELP_SYSTEM = """You are the Kamra PMS help assistant. You explain HOW to use
+HELP_SYSTEM = """You are the Cloud PMS help assistant. You explain HOW to use
 Kamra - an open-source, AI-native hotel PMS - to hotel staff. You do NOT act on
 hotel data (Kamra Agent does that); you give short, concrete how-to
 answers and point to where things live in the app.

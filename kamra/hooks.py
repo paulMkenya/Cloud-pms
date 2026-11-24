@@ -20,7 +20,7 @@ add_to_apps_screen = [
 	{
 		"name": "kamra",
 		"logo": "/assets/kamra/kamra-mark.svg",
-		"title": "Kamra",
+		"title": "Cloud PMS",
 		"route": "/kamra",
 	}
 ]

@@ -882,7 +882,7 @@ def _import_rate_plan_mappings(conn, details: dict, index: dict, dry_run: int) -
 			continue
 		rooms = frappe.db.count("Room", {"room_type": match})
 		if r.get("count_of_rooms") is not None and int(r["count_of_rooms"]) != rooms:
-			warn("count_of_rooms", room_id, _("The channel manager has {0} rooms of {1}; Kamra has {2}.").format(
+			warn("count_of_rooms", room_id, _("The channel manager has {0} rooms of {1}; Cloud PMS has {2}.").format(
 				r["count_of_rooms"], r.get("room_name") or room_id, rooms))
 		paired, loose = [], []
 		for rp in rateplans:
@@ -894,11 +894,11 @@ def _import_rate_plan_mappings(conn, details: dict, index: dict, dry_run: int) -
 		for rp, _plan in loose:
 			unmatched.append({"room_id": room_id, "room_name": r.get("room_name"),
 			                  "rateplan_id": str(rp.get("rateplan_id") or ""), "rateplan_name": rp.get("rateplan_name"),
-			                  "reason": _("Several rate plans of this room match no Kamra rate plan: map them by hand.")})
+			                  "reason": _("Several rate plans of this room match no Cloud PMS rate plan: map them by hand.")})
 		for rp, plan in paired:
 			rate_id = str(rp.get("rateplan_id") or "")
 			if rp.get("sell_mode") == "per_person":
-				warn("per_person", rate_id, _("Rate plan {0} is priced per person; Kamra sends one price per room.").format(
+				warn("per_person", rate_id, _("Rate plan {0} is priced per person; Cloud PMS sends one price per room.").format(
 					rp.get("rateplan_name") or rate_id))
 			if plan and plan.modifier_type in ("Amount", "Absolute"):
 				warn("fixed_amount", plan.name, _("Rate plan {0} adds a fixed amount: on the channels it applies every "

@@ -1,0 +1,1 @@
+import{r as n}from"./vendor-KYOhuZ5s.js";const o="(max-width: 639px)";function c(){const[a,i]=n.useState(()=>typeof window<"u"&&!!window.matchMedia&&window.matchMedia(o).matches);return n.useEffect(()=>{if(!window.matchMedia)return;const e=window.matchMedia(o),t=()=>i(e.matches);return t(),e.addEventListener("change",t),()=>e.removeEventListener("change",t)},[]),a}export{c as u};

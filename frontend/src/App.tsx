@@ -30,6 +30,9 @@ const Portfolio = lazy(() => import("./screens/Portfolio"))
 const FolioView = lazy(() => import("./screens/FolioView"))
 const GuestJourney = lazy(() => import("./screens/GuestJourney"))
 const HkApp = lazy(() => import("./screens/HkApp"))
+const CleanerApp = lazy(() => import("./screens/CleanerApp"))
+const CleaningLog = lazy(() => import("./screens/CleaningLog"))
+const CleaningMap = lazy(() => import("./screens/CleaningMap"))
 const Guests = lazy(() => import("./screens/Guests"))
 const RegistrationCard = lazy(() => import("./screens/RegistrationCard"))
 const GroupQuotation = lazy(() => import("./screens/GroupQuotation"))
@@ -229,6 +232,8 @@ export default function App() {
         <Route path="loyalty" element={<LoyaltyPage />} />
         {/* housekeeping phone app - share the /hk URL with the HK team */}
         <Route path="hk" element={<HkApp />} />
+        {/* cleaners (no system login): WhatsApp code, clock in, apartments, checklist - /clean */}
+        <Route path="clean" element={<CleanerApp />} />
         {/* dedicated login route so signing out changes the URL */}
         <Route path="login" element={<LoginPage />} />
         {/* password reset email lands on /update-password?key=… (redirected
@@ -431,6 +436,8 @@ export default function App() {
           <Route path="recreation" element={<Recreation />} />
           <Route path="unit-owners" element={<UnitOwners />} />
           <Route path="housekeeping-board" element={<HousekeepingBoard />} />
+          <Route path="cleaning-log" element={<CleaningLog />} />
+          <Route path="cleaning-map" element={<CleaningMap />} />
           <Route path="room-board" element={<Rooms />} />
           <Route
             path="housekeeping"

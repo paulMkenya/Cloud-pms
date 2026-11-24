@@ -59,6 +59,7 @@ import { McpAccessPage } from "./McpAccessPage"
 import { GuestMessagesPage } from "./GuestMessagesPage"
 import { WhatsAppButtonPage } from "./WhatsAppButtonPage"
 import { PropertyOrderPage } from "./PropertyOrderPage"
+import { CleanerAppPage } from "./CleanerAppPage"
 import { ChannelsPage } from "./ChannelsPage"
 import { ModulePage, Switch, type OptionSources } from "./ModulePage"
 import { UsageReportingPage } from "./UsageReportingPage"
@@ -117,6 +118,9 @@ const CUSTOM_PAGES: CustomPage[] = [
   { id: "guest-messages", title: "Guest messages", group: "integrations", icon: MessageSquareText,
     description: "WhatsApp and SMS texts guests receive - booking, deposit, reminders and access details.",
     keywords: "whatsapp sms template message guest notification booking confirmation deposit reminder wifi access wording text" },
+  { id: "cleaner-app", title: "Cleaner app", group: "integrations", icon: ClipboardCheck,
+    description: "The cleaners' checklist, required photos, GPS and the WhatsApp messages you get.",
+    keywords: "cleaner cleaning housekeeping checklist photo gps location clock in out token shower toiletries whatsapp app" },
   { id: "property-order", title: "Order of properties", group: "integrations", icon: ListOrdered,
     description: "The order guests see the properties in on the booking homepage.",
     keywords: "order sort arrange rank homepage booking page properties first top position move" },
@@ -563,6 +567,8 @@ function CustomPageBody({
       return <WhatsAppButtonPage />
     case "property-order":
       return <PropertyOrderPage />
+    case "cleaner-app":
+      return <CleanerAppPage />
     case "channels":
       return <ChannelsPage />
     case "webhooks":

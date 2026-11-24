@@ -720,6 +720,15 @@ export default function PublicBooking() {
     const qs = new URLSearchParams(location.search)
     if (propertySlug) qs.set("property", propertySlug)
     const query = qs.toString()
+    // the all-properties page opened without dates keeps a date-free
+    // address: writing the default dates in would make a reload (a phone's
+    // pull-to-refresh) look like a search, price every card for tomorrow and
+    // re-sort them away from the owner's order
+    if (!propertySlug && !arrivedWithDates) {
+      if (params.checkin)
+        navigate(`/book${query ? `?${query}` : ""}`, { replace: true })
+      return
+    }
     navigate(
       `/book/${search.check_in_date}/${checkOut}/${search.adults}/${search.children}${query ? `?${query}` : ""}`,
       { replace: true },

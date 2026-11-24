@@ -139,29 +139,40 @@ async function prepare(file: File): Promise<string> {
   })
 }
 
-/** add_photo with upload progress and a time limit (fetch has no progress). */
-function sendPhoto(params: Record<string, unknown>, onProgress: (pct: number) => void): Promise<Visit> {
-  return new Promise((resolve, reject) => {
-    const x = new XMLHttpRequest()
-    x.open("POST", `/api/method/${API}add_photo`)
-    x.setRequestHeader("Content-Type", "application/json")
-    x.setRequestHeader("Accept", "application/json")
-    x.timeout = 120_000
-    x.upload.onprogress = (e) => e.lengthComputable && onProgress(Math.round((e.loaded / e.total) * 100))
-    x.onload = () => {
-      let body: { message?: Visit; _server_messages?: string } = {}
-      try { body = JSON.parse(x.responseText || "{}") } catch { /* keep empty */ }
-      if (x.status >= 200 && x.status < 300 && body.message) return resolve(body.message)
-      let msg = "The photo did not send."
-      try { const m = JSON.parse(body._server_messages || "[]"); if (m.length) msg = JSON.parse(m[0]).message || msg } catch { /* default */ }
-      const e = new ApiError(msg.replace(/<[^>]+>/g, ""))
-      e.status = x.status
-      reject(e)
+/** add_photo with a time limit. Sent without cookies, like every other
+ *  call here: a phone that is also signed in to the PMS (a manager) would
+ *  otherwise send its staff session, which Frappe refuses without the
+ *  staff page's security token ("Invalid Request", 400). */
+async function sendPhoto(params: Record<string, unknown>, onProgress: (pct: number) => void): Promise<Visit> {
+  const ctl = new AbortController()
+  const timer = setTimeout(() => ctl.abort(), 120_000)
+  // no upload progress in fetch: show steady movement instead of a stuck 0
+  let pct = 5
+  onProgress(pct)
+  const tick = setInterval(() => { pct = Math.min(90, pct + 7); onProgress(pct) }, 700)
+  try {
+    let res: Response
+    try {
+      res = await fetch(`/api/method/${API}add_photo`, {
+        method: "POST", credentials: "omit", signal: ctl.signal,
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(params),
+      })
+    } catch {
+      throw new Error(ctl.signal.aborted ? "The connection is slow - the photo is kept and will send again."
+        : "No internet - the photo is kept and will send again.")
     }
-    x.onerror = () => reject(new Error("No internet - the photo is kept and will send again."))
-    x.ontimeout = () => reject(new Error("The connection is slow - the photo is kept and will send again."))
-    x.send(JSON.stringify(params))
-  })
+    const body = await res.json().catch(() => ({} as { message?: Visit; _server_messages?: string }))
+    if (res.ok && body.message) { onProgress(100); return body.message }
+    let msg = "The photo did not send."
+    try { const m = JSON.parse(body._server_messages || "[]"); if (m.length) msg = JSON.parse(m[0]).message || msg } catch { /* default */ }
+    const e = new ApiError(msg.replace(/<[^>]+>/g, ""))
+    e.status = res.status
+    throw e
+  } finally {
+    clearTimeout(timer)
+    clearInterval(tick)
+  }
 }
 
 /** Photos not yet confirmed by the server are kept on the phone, so a
@@ -750,7 +761,12 @@ function usePhotoQueue(visit: string, token: string, onVisit: (v: Visit) => void
           onVisit(v)
         } catch (e) {
           const status = e instanceof ApiError ? e.status : 0
-          if (status >= 400 && status < 500) {
+          if (status === 401) {
+            // signed out: keep the photo for after signing in again
+            patch(item.id, { failed: (e as Error).message, pct: 0 })
+            window.dispatchEvent(new CustomEvent("ct-clean-error", { detail: (e as Error).message }))
+            break
+          } else if (status === 403 || status === 404 || status === 417) {
             // refused for good (apartment already finished, not a photo): drop it and say why
             drop(item.id)
             window.dispatchEvent(new CustomEvent("ct-clean-error", { detail: (e as Error).message }))

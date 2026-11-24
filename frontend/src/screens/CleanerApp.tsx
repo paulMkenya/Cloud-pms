@@ -4,7 +4,7 @@
  *  a token from the WhatsApp code is kept on the phone. Server:
  *  cloudtrade_hospitality.cleaner_app. */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
-import { Camera, Check, ChevronLeft, ChevronRight, Clock, Download, Image as ImageIcon, LogOut, MapPin, MoreVertical, RefreshCw, RotateCcw, Share, X } from "lucide-react"
+import { AlertTriangle, CalendarDays, Camera, Check, ChevronLeft, ChevronRight, Clock, Download, Image as ImageIcon, LogOut, MapPin, MoreVertical, RefreshCw, RotateCcw, Share, Star, X } from "lucide-react"
 
 const API = "cloudtrade_hospitality.cleaner_app."
 const TOKEN_KEY = "ct_cleaner_token"
@@ -20,7 +20,12 @@ interface Task {
   next_guest: string
   notes?: string | null
   busy_by?: string | null
+  vip?: boolean
+  requests?: string | null
+  eta?: string | null
+  late?: boolean
 }
+interface ComingUp { property: string; label: string; date: string; day: string; checkout_time: string }
 interface Photo { name: string; stage: string; image: string; note?: string }
 interface Visit {
   name: string
@@ -44,6 +49,7 @@ interface Me {
   settings: { checklist: CheckItem[]; photo_damage: number; photo_left: number; photo_final: number; gps: number }
   inventory_due?: Due[]
   last_out?: string | null
+  coming_up?: ComingUp[]
 }
 interface Due { property: string; property_name: string; items: { item: string; qty: number }[] }
 
@@ -529,8 +535,12 @@ function Home({ me, token, busy, run }: {
                   className="w-full rounded-2xl border border-zinc-200 bg-white p-4 text-start active:bg-zinc-50 disabled:opacity-60">
                   <div className="flex items-start gap-2">
                     <span className="min-w-0 flex-1">
-                      <span className="block text-lg font-semibold text-zinc-900">{t.unit}</span>
-                      <span className="block text-sm text-zinc-600">{t.task_type} · {t.next_guest}</span>
+                      <span className="flex items-center gap-1.5 text-lg font-semibold text-zinc-900">
+                        {t.unit}{t.vip && <Star className="size-4 shrink-0 fill-amber-400 text-amber-400" aria-label="VIP guest next" />}
+                      </span>
+                      <span className="block text-sm text-zinc-600">{t.task_type} · {t.next_guest}{t.eta ? ` (arrives ${t.eta})` : ""}</span>
+                      {t.late && <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-sm font-semibold text-rose-800"><Clock className="size-3.5" /> Guest due soon - start now / Haraka</span>}
+                      {t.requests && <span className="mt-1 block rounded-lg bg-amber-50 px-2 py-1 text-sm text-amber-900">Guest asked: {t.requests}</span>}
                       {t.notes && <span className="mt-1 block text-sm text-zinc-500 line-clamp-2">{t.notes}</span>}
                     </span>
                     <span className={`shrink-0 rounded-full px-2.5 py-1 text-sm font-semibold ${PRIO[t.priority]}`}>{t.priority}</span>
@@ -544,6 +554,29 @@ function Home({ me, token, busy, run }: {
           </ul>
         )}
       </section>
+      {(me.coming_up || []).length > 0 && (
+        <section className="space-y-2 rounded-2xl border border-zinc-200 bg-white p-4">
+          <h2 className="flex items-center gap-2 text-base font-semibold text-zinc-800"><CalendarDays className="size-5 text-brand-600" /> Coming up for you / Kazi zijazo</h2>
+          <ul className="divide-y divide-zinc-100">
+            {(me.coming_up || []).map((c) => (
+              <li key={`${c.property}|${c.date}`} className="flex items-center gap-3 py-2">
+                <span className="min-w-0 flex-1 text-base text-zinc-800">
+                  <span className="block font-medium">{c.label}</span>
+                  <span className="block text-sm text-zinc-500">Guest leaves {c.day} by {c.checkout_time}</span>
+                </span>
+                <button type="button" disabled={busy}
+                  onClick={() => window.confirm(`You can't do ${c.label} ${c.day}? The manager will be told to give it to someone else.`) &&
+                    run(() => api<Me>("cant_make_it", { token, property: c.property, date: c.date }))}
+                  className="shrink-0 rounded-xl border border-zinc-300 px-3 py-2 text-sm text-zinc-700 active:bg-zinc-50">
+                  I can't make it
+                </button>
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs text-zinc-500">We message you when the guest has checked out and it is ready.</p>
+        </section>
+      )}
+      <Problem token={token} />
       {me.done_today.length > 0 && (
         <section className="rounded-2xl border border-zinc-200 bg-white p-4">
           <h2 className="mb-2 text-base font-semibold text-zinc-800">Done today / Umemaliza</h2>
@@ -562,6 +595,70 @@ function Home({ me, token, busy, run }: {
         </Big>
       </div>
     </>
+  )
+}
+
+/** Report a problem in a house any time - not only during a clean. */
+function Problem({ token }: { token: string }) {
+  const [open, setOpen] = useState(false)
+  const [house, setHouse] = useState<string>("")
+  const [note, setNote] = useState("")
+  const [img, setImg] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const [list, setList] = useState<[string, string][]>([])
+  const cam = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    if (!open) return
+    void api<{ houses: [string, string][] }>("my_houses", { token }).then((r) => {
+      setList(r.houses)
+      if (r.houses.length === 1) setHouse(r.houses[0][0])
+    }).catch(() => undefined)
+  }, [open, token])
+  if (!open) {
+    return (
+      <button type="button" onClick={() => { setOpen(true); setMsg(null) }}
+        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-amber-300 bg-amber-50 text-base font-semibold text-amber-900 active:bg-amber-100">
+        <AlertTriangle className="size-5" /> Report a problem / Ripoti tatizo
+      </button>
+    )
+  }
+  const send = async () => {
+    setBusy(true); setMsg(null)
+    try {
+      const r = await api<{ label: string }>("report_issue", { token, property: house, note, image: img })
+      setMsg({ ok: true, text: `Sent - the manager has it (${r.label}). Asante!` })
+      setNote(""); setImg(null)
+    } catch (e) { setMsg({ ok: false, text: (e as Error).message }) } finally { setBusy(false) }
+  }
+  return (
+    <section className="space-y-3 rounded-2xl border border-amber-300 bg-white p-4">
+      <div className="flex items-center">
+        <h2 className="flex-1 text-lg font-semibold text-zinc-900">Report a problem / Ripoti tatizo</h2>
+        <button type="button" aria-label="Close" onClick={() => setOpen(false)}><X className="size-5 text-zinc-500" /></button>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {list.map(([p, label]) => (
+          <button key={p} type="button" onClick={() => setHouse(p)}
+            className={`rounded-full border px-3 py-2 text-base ${house === p ? "border-brand-600 bg-brand-600 text-white" : "border-zinc-300 bg-white text-zinc-700"}`}>{label}</button>
+        ))}
+      </div>
+      <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder="What is wrong? e.g. shower not draining / Nini imeharibika?"
+        className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-lg" />
+      <input ref={cam} type="file" accept="image/*" hidden onChange={async (e) => {
+        const f = e.target.files?.[0]
+        if (f) { try { setImg(await prepare(f)) } catch (er) { setMsg({ ok: false, text: (er as Error).message }) } }
+        if (cam.current) cam.current.value = ""
+      }} />
+      <div className="flex items-center gap-3">
+        {img ? <img src={img} alt="" className="size-20 rounded-xl object-cover" /> : null}
+        <button type="button" onClick={() => cam.current?.click()} className="flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl border-2 border-dashed border-brand-600 bg-brand-50 text-base font-semibold text-brand-700">
+          <Camera className="size-5" /> {img ? "Change photo" : "Add a photo"}
+        </button>
+      </div>
+      {msg && <p className={`rounded-xl px-3 py-2 text-base ${msg.ok ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-800"}`}>{msg.text}</p>}
+      <Big disabled={busy || !house || !note.trim()} onClick={() => void send()}>{busy ? "Sending…" : "Send to the manager · Tuma"}</Big>
+    </section>
   )
 }
 

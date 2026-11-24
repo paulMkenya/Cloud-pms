@@ -40,10 +40,30 @@ def get_context(context):
 	# Inject before the module script so the token is set before the app boots.
 	html = html.replace("</head>", boot + "</head>", 1)
 	html = _with_meta(html, frappe.request.path if frappe.request else "/")
+	html = _cleaning_app(html, frappe.request.path if frappe.request else "/")
 
 	context.spa_html = html
 	context.no_cache = 1
 	return context
+
+
+_CLEAN = re.compile(r"^/(?:kamra/)?clean/?$")
+
+
+def _cleaning_app(html: str, path: str) -> str:
+	"""/clean installs as its own phone app ("Cleaning"), opening straight
+	on the cleaner's screen - not the staff PMS and its login."""
+	if not _CLEAN.match(path or ""):
+		return html
+	html = re.sub(r'<link rel="manifest"[^>]*>',
+	              '<link rel="manifest" href="/assets/kamra/frontend/clean.webmanifest" />', html, count=1)
+	html = re.sub(r"<title>.*?</title>", "<title>Cleaning</title>", html, count=1, flags=re.S)
+	tags = ('<meta name="theme-color" content="#1E7B4F" />'
+	        '<meta name="mobile-web-app-capable" content="yes" />'
+	        '<meta name="apple-mobile-web-app-capable" content="yes" />'
+	        '<meta name="apple-mobile-web-app-title" content="Cleaning" />'
+	        '<link rel="apple-touch-icon" href="/assets/kamra/frontend/clean-192.png" />')
+	return html.replace("</head>", tags + "</head>", 1)
 
 
 # Link previews and most crawlers never run the SPA, so the guest pages get

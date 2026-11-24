@@ -18,6 +18,14 @@ window.addEventListener("vite:preloadError", (event) => {
     window.location.reload()
   }
 })
+// The cleaning app (/clean) shows its own Install button: keep the
+// browser's install offer for it, even if it comes before that screen loads.
+if (/^\/kamra\/clean\/?$/.test(location.pathname)) {
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault()
+    ;(window as unknown as { __ctInstall?: Event }).__ctInstall = e
+  })
+}
 import App from "./App"
 import { initTheme } from "./lib/theme"
 import { initLang } from "./lib/dir"

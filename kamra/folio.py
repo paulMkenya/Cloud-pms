@@ -413,7 +413,7 @@ def _day_use_room_charge(reservation, date) -> tuple[float, float, str] | None:
 		plan_billing,
 		reservation_slot_hours,
 	)
-	from kamra.pricing import rates_include_tax, room_gst_rate
+	from kamra.pricing import room_net_rate
 
 	if not getattr(reservation, "is_day_use", 0):
 		return None
@@ -432,12 +432,9 @@ def _day_use_room_charge(reservation, date) -> tuple[float, float, str] | None:
 		return amount, _nightly_gst(reservation, date), "day use · full day"
 	gross = Decimal(str(units["amount"]))
 	rt = frappe.get_doc("Room Type", reservation.room_type)
-	gst = float(room_gst_rate(reservation.property, rt,
-	                          gross + _over_cap_night(reservation)))
-	if rates_include_tax(reservation.property):
-		amount = float(gross / (Decimal(1) + Decimal(str(gst)) / Decimal(100)))
-	else:
-		amount = float(gross)
+	net, gst_rate = room_net_rate(reservation.property, rt, gross,
+	                              _over_cap_night(reservation))
+	gst, amount = float(gst_rate), float(net)
 	if plan["billing_basis"] == "Hourly":
 		label = f"day use · {units['hours']:g} h"
 	else:
@@ -473,8 +470,7 @@ def _plan_free_night_rate(reservation, date) -> Decimal:
 	"""One night before the rate plan - the per-night step of pricing.quote."""
 	from kamra.pricing import (
 		occupancy_rate,
-		rates_include_tax,
-		room_gst_rate,
+		room_net_rate,
 		season_adjust,
 		small_group_allows_stay,
 	)
@@ -486,10 +482,8 @@ def _plan_free_night_rate(reservation, date) -> Decimal:
 			rt, reservation.check_in_date, reservation.check_out_date))
 	rate = season_adjust(reservation.property, date, base,
 	                     reservation.room_type)
-	if rates_include_tax(reservation.property):
-		gst = room_gst_rate(reservation.property, rt,
-		                    rate + _over_cap_night(reservation))
-		rate = rate / (Decimal(1) + gst / Decimal(100))
+	rate, _gst = room_net_rate(reservation.property, rt, rate,
+	                           _over_cap_night(reservation))
 	return rate
 
 
@@ -506,7 +500,7 @@ def _nightly_gst(reservation, date) -> float:
 		return float(locked.gst_rate or 0)
 	from kamra.pricing import (
 		occupancy_rate,
-		room_gst_rate,
+		room_net_rate,
 		season_adjust,
 		small_group_allows_stay,
 	)
@@ -518,8 +512,9 @@ def _nightly_gst(reservation, date) -> float:
 			rt, reservation.check_in_date, reservation.check_out_date))
 	gross = season_adjust(reservation.property, date, base,
 	                      reservation.room_type)
-	return float(room_gst_rate(reservation.property, rt,
-	                           gross + _over_cap_night(reservation)))
+	_net, gst = room_net_rate(reservation.property, rt, gross,
+	                          _over_cap_night(reservation))
+	return float(gst)
 
 
 def _append_charge(folios, reservation, charge_type, line, is_alcohol=0):
@@ -627,7 +622,10 @@ def _post_room_levy(folios, reservation, date, night_rate):
 	if not pct or not night_rate or _charge_posted(
 			reservation.name, "Room Levy", date):
 		return
-	levy = round(float(night_rate) * pct / 100, 2)
+	# whole cents, unless the levy is inside the displayed price: then it has to
+	# add back to that price exactly
+	from kamra.pricing import levy_digits
+	levy = round(float(night_rate) * pct / 100, levy_digits(reservation.property))
 	_append_charge(folios, reservation, "Room Levy", {
 		"posting_date": date,
 		"charge_type": "Room Levy",
@@ -649,7 +647,7 @@ def _post_room_levy(folios, reservation, date, night_rate):
 RATE_ADJUSTMENT = "Rate Adjustment"
 
 
-def charged_nights(reservation_name: str) -> dict:
+def charged_nights(reservation_name: str, digits: int = 2) -> dict:
 	"""What the folios hold for each night of the stay already charged: the
 	room line(s) posted for the night plus every rate adjustment made to it
 	since, and the night's levy. {night: {base, tax, gst_rate, levy_base,
@@ -682,7 +680,7 @@ def charged_nights(reservation_name: str) -> dict:
 		n["base"] += amount
 		n["tax"] += tax
 	for n in out.values():
-		n["base"] = round(n["base"], 2)
+		n["base"] = round(n["base"], digits)
 		n["gst_rate"] = round(n["tax"] / n["base"] * 100, 2) if n["base"] else 0.0
 	return out
 
@@ -1703,10 +1701,23 @@ def run_night_audit(property: str, business_date: str | None = None,
 	from kamra.business_date import advance_business_date, ensure_business_date
 	ensure_business_date(property)
 	new_bd = advance_business_date(property, business_date)
+	# the closed date's KPI snapshot (#542), after the roll so its figures
+	# are the manager flash's for that date from now on. Never fails the audit.
+	try:
+		from kamra.reports import write_kpi_snapshot
+		write_kpi_snapshot(property, business_date)
+	except Exception:
+		frappe.log_error(title=f"KPI snapshot failed: {property} {business_date}")
 	# reports scheduled "After night audit" go out once this commits
 	frappe.enqueue("kamra.custom_reports.send_after_night_audit",
 	               property=property, business_date=business_date,
 	               enqueue_after_commit=True)
+	from kamra.erpnext_bridge import gl_posting_on
+	if gl_posting_on(property):
+		# the day's journal entry to ERPNext (#228); a failure never blocks
+		frappe.enqueue("kamra.erpnext_bridge.after_night_audit",
+		               property=property, business_date=business_date,
+		               enqueue_after_commit=True)
 
 	from kamra.savings import log_action
 	log_action(

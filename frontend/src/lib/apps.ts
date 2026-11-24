@@ -27,6 +27,7 @@ import {
   ExternalLink,
   FileSpreadsheet,
   HeartPulse,
+  Dumbbell,
   Home,
   Landmark,
   KeyRound,
@@ -77,6 +78,7 @@ import {
   CalendarClock,
   Scale,
   Handshake,
+  Link2,
 } from "lucide-react"
 import { useEffect, useState } from "react"
 
@@ -114,6 +116,9 @@ export interface AppDef {
   items: AppNavItem[]
   /** extra route prefixes that belong to this app (detail pages etc.) */
   extraPrefixes?: string[]
+  /** Shown even when the property's module list does not name this app.
+   *  Unit owners are not a module a hotel turns off. */
+  always?: boolean
 }
 
 const DESK = import.meta.env.PROD ? "" : "http://localhost:8000"
@@ -159,6 +164,8 @@ export const APPS: AppDef[] = [
       { to: "/calendar", label: "Calendar", icon: CalendarDays },
       { to: "/crs", label: "Central Reservations", icon: Search },
       { to: "/room-blocks", label: "Room Blocks", icon: Lock },
+      { to: "/recreation", label: "Recreation", icon: Dumbbell,
+        keywords: ["Gym", "Pool", "Spa", "Membership", "Walk-in"] },
       { to: "/groups", label: "Group Booking", icon: Users,
         keywords: ["Groups", "Group bookings", "Rooming list", "Blocks"] },
       { to: "/reports", label: "Reports", icon: ChartLine },
@@ -284,6 +291,8 @@ export const APPS: AppDef[] = [
         keywords: ["bar", "best available rate", "base rate", "rack rate", "tariff", "pricing", "price by date"] },
       { to: "/rate-plans", label: "Rate Plans", icon: Tags },
       { to: "/seasons", label: "Seasons", icon: CalendarDays },
+      { to: "/rate-restrictions", label: "Stay restrictions", icon: CalendarDays,
+        keywords: ["min stay", "max stay", "closed to arrival", "CTA", "CTD", "stop sell", "restriction", "LOS"] },
       { to: "/packages", label: "Packages", icon: Package,
         keywords: ["holiday package", "pacote", "carnaval", "reveillon", "special offer", "feriado", "closed package"] },
       { to: "/guardrails", label: "Guardrails", icon: ShieldCheck },
@@ -379,6 +388,7 @@ export const APPS: AppDef[] = [
       { to: "/booking-settings/faq", label: "FAQ", icon: HelpCircle },
       { to: "/booking-settings/seo", label: "SEO", icon: Search },
       { to: "/booking-settings/share", label: "Share Links", icon: Share2 },
+      { to: "/booking-settings/links", label: "Booking links", icon: Link2 },
       { to: "/settings/booking-engine", label: "Settings", icon: SettingsIcon,
         roles: ["Revenue Manager", "Hotel Admin", "System Manager", "Administrator"] },
     ],
@@ -402,6 +412,8 @@ export const APPS: AppDef[] = [
       { to: "/room-types", label: "Room Types", icon: LayoutGrid },
       { to: "/rooms", label: "Rooms", icon: BedDouble,
         keywords: ["Add rooms", "Room setup", "Floors", "Room numbers"] },
+      { to: "/unit-owners", label: "Unit owners", icon: Building2,
+        keywords: ["Owner", "Landlord", "Owner login", "Owner portal"] },
       { to: "/activity", label: "Activity Log", icon: ScrollText },
       { to: "/marketplace", label: "Marketplace", icon: Store },
       {
@@ -440,6 +452,19 @@ export const APPS: AppDef[] = [
     roles: ["Property Owner", "System Manager", "Administrator"],
     items: [
       { to: "/owner-portal", label: "My Property", icon: KeyRound },
+    ],
+  },
+  {
+    id: "unit-owners",
+    name: "My units",
+    icon: Building2,
+    tint: APP_TILE,
+    description: "Occupancy, bookings and revenue for the units you own.",
+    roles: ["Owner"],
+    always: true,
+    items: [
+      { to: "/unit-owners", label: "My units", icon: Building2,
+        keywords: ["Owner portal", "My units", "Occupancy"] },
     ],
   },
 ]
@@ -487,7 +512,7 @@ export function visibleApps(roles: string[], modules?: string[]): AppDef[] {
   return APPS.filter(
     (a) =>
       a.roles.some((r) => roles.includes(r)) &&
-      (!modules?.length || modules.includes(a.id)),
+      (a.always || !modules?.length || modules.includes(a.id)),
   )
 }
 

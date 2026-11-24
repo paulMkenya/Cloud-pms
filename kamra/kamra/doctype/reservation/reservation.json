@@ -21,6 +21,7 @@
   "pays_own_charges",
   "source",
   "channel",
+  "source_tag",
   "ota_ref",
   "ota_live_key",
   "idempotency_key",
@@ -123,6 +124,8 @@
   "valet_parking",
   "early_checkin",
   "late_checkout",
+  "needs_accessible",
+  "needs_connecting",
   "sb_instructions",
   "instructions",
   "sb_occupants",
@@ -180,6 +183,49 @@
    "options": "Waitlist\nInquiry\nQuoted\nRequested\nHeld\nPending Payment\nConfirmed\nChecked In\nChecked Out\nCancelled\nNo Show"
   },
   {
+   "default": "Individual",
+   "fieldname": "booking_type",
+   "fieldtype": "Select",
+   "label": "Booking Type",
+   "options": "Individual\nGroup\nCorporate"
+  },
+  {
+   "description": "Who the business is (corporate, leisure, group…), for revenue reports by segment",
+   "fieldname": "market_segment",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Market Segment",
+   "options": "\nCorporate\nLeisure\nGroup\nMICE\nGovernment\nWedding\nLong Stay\nAirline Crew\nComplimentary\nHouse Use"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Corporate Account"
+  },
+  {
+   "fieldname": "group_booking",
+   "fieldtype": "Link",
+   "label": "Group Booking",
+   "options": "Group Booking"
+  },
+  {
+   "description": "A trip across several properties: this stay is one leg of it",
+   "fieldname": "itinerary",
+   "fieldtype": "Link",
+   "label": "Itinerary",
+   "options": "Itinerary",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "default": "0",
+   "description": "Group stay: this room's charges stay on its own bill, not the main room's",
+   "fieldname": "pays_own_charges",
+   "fieldtype": "Check",
+   "label": "Pays Own Charges"
+  },
+  {
    "default": "Manual",
    "fieldname": "source",
    "fieldtype": "Select",
@@ -193,20 +239,28 @@
    "label": "Channel"
   },
   {
+   "description": "The tag on the booking link the guest came from (src or utm_source).",
+   "fieldname": "source_tag",
+   "fieldtype": "Data",
+   "in_standard_filter": 1,
+   "label": "Source Tag",
+   "read_only": 1
+  },
+  {
+   "description": "The channel manager's booking id - modifications and cancellations match on it",
    "fieldname": "ota_ref",
    "fieldtype": "Data",
    "label": "OTA Booking Ref",
-   "read_only": 1,
-   "description": "The channel manager's booking id - modifications and cancellations match on it"
+   "read_only": 1
   },
   {
+   "description": "property and OTA reference while this stay is not cancelled and not a group room that shares the reference. Empty otherwise, so a duplicate delivery cannot insert a second live stay.",
    "fieldname": "ota_live_key",
    "fieldtype": "Data",
-   "label": "OTA Live Key",
-   "unique": 1,
-   "read_only": 1,
    "hidden": 1,
-   "description": "property and OTA reference while this stay is not cancelled and not a group room that shares the reference. Empty otherwise, so a duplicate delivery cannot insert a second live stay."
+   "label": "OTA Live Key",
+   "read_only": 1,
+   "unique": 1
   },
   {
    "description": "Caller-supplied key so duplicate public/OTA book requests return the same reservation (ADR-007).",
@@ -220,6 +274,47 @@
    "fieldname": "hold_expires_on",
    "fieldtype": "Datetime",
    "label": "Hold Expires On"
+  },
+  {
+   "fieldname": "travel_agent",
+   "fieldtype": "Link",
+   "label": "Travel Agent",
+   "options": "Travel Agent"
+  },
+  {
+   "fieldname": "commission_amount",
+   "fieldtype": "Currency",
+   "label": "Agent Commission",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sb_booker",
+   "fieldtype": "Section Break",
+   "label": "Booked By (if not the guest)"
+  },
+  {
+   "fieldname": "booked_by_name",
+   "fieldtype": "Data",
+   "label": "Booker Name"
+  },
+  {
+   "fieldname": "booked_by_phone",
+   "fieldtype": "Data",
+   "label": "Booker Phone"
+  },
+  {
+   "fieldname": "booker_relation",
+   "fieldtype": "Select",
+   "label": "Relation",
+   "options": "\nAssistant\nFamily\nCompany Travel Desk\nTravel Agent\nOther"
+  },
+  {
+   "default": "Guest",
+   "description": "Who the hotel (and agents) should message about this stay",
+   "fieldname": "contact_preference",
+   "fieldtype": "Select",
+   "label": "Contact For This Stay",
+   "options": "Guest\nBooker\nBoth"
   },
   {
    "fieldname": "sb_stay",
@@ -247,6 +342,18 @@
    "options": "Sellable Unit"
   },
   {
+   "fieldname": "meal_plan",
+   "fieldtype": "Link",
+   "label": "Meal Plan",
+   "options": "Meal Plan"
+  },
+  {
+   "fieldname": "rate_plan",
+   "fieldtype": "Link",
+   "label": "Rate Plan",
+   "options": "Rate Plan"
+  },
+  {
    "fieldname": "column_break_b",
    "fieldtype": "Column Break",
    "label": "Column Break B"
@@ -271,6 +378,24 @@
    "fieldtype": "Int",
    "label": "Nights",
    "read_only": 1
+  },
+  {
+   "default": "0",
+   "description": "Same-day stay: check-out date equals check-in date.",
+   "fieldname": "is_day_use",
+   "fieldtype": "Check",
+   "label": "Day Use"
+  },
+  {
+   "description": "For day-use / hourly bookings",
+   "fieldname": "planned_check_in_time",
+   "fieldtype": "Time",
+   "label": "Planned Check-in Time"
+  },
+  {
+   "fieldname": "planned_check_out_time",
+   "fieldtype": "Time",
+   "label": "Planned Check-out Time"
   },
   {
    "fieldname": "column_break_c",
@@ -312,18 +437,18 @@
    "read_only": 1
   },
   {
+   "description": "The business date the guest checked out on: a checkout can be undone only until it moves on",
    "fieldname": "check_out_business_date",
    "fieldtype": "Date",
    "label": "Check-out Business Date",
-   "read_only": 1,
-   "description": "The business date the guest checked out on: a checkout can be undone only until it moves on"
+   "read_only": 1
   },
   {
+   "description": "The departure date before an early check-out shortened the stay",
    "fieldname": "booked_check_out_date",
    "fieldtype": "Date",
    "label": "Booked Check Out",
-   "read_only": 1,
-   "description": "The departure date before an early check-out shortened the stay"
+   "read_only": 1
   },
   {
    "fieldname": "early_departure_reason",
@@ -332,10 +457,10 @@
    "read_only": 1
   },
   {
+   "collapsible": 1,
    "fieldname": "sb_checkin_record",
    "fieldtype": "Section Break",
-   "label": "Check-in record",
-   "collapsible": 1
+   "label": "Check-in record"
   },
   {
    "fieldname": "checked_in_by",
@@ -394,18 +519,18 @@
   },
   {
    "default": "1",
+   "description": "Off: outlets, laundry and minibar cannot post to this room; the guest settles at the outlet.",
    "fieldname": "room_charges_allowed",
    "fieldtype": "Check",
-   "label": "Room Charges Allowed",
-   "description": "Off: outlets, laundry and minibar cannot post to this room; the guest settles at the outlet."
+   "label": "Room Charges Allowed"
   },
   {
+   "description": "Who did each guided check-in step and when (JSON).",
    "fieldname": "checkin_steps",
    "fieldtype": "Long Text",
-   "label": "Check-in Steps",
    "hidden": 1,
-   "read_only": 1,
-   "description": "Who did each guided check-in step and when (JSON)."
+   "label": "Check-in Steps",
+   "read_only": 1
   },
   {
    "fieldname": "sb_money",
@@ -444,71 +569,6 @@
    "label": "Pay at Hotel"
   },
   {
-   "fieldname": "sb_notes",
-   "fieldtype": "Section Break",
-   "label": "Notes"
-  },
-  {
-   "fieldname": "special_requests",
-   "fieldtype": "Small Text",
-   "label": "Special Requests"
-  },
-  {
-   "default": "Individual",
-   "fieldname": "booking_type",
-   "fieldtype": "Select",
-   "label": "Booking Type",
-   "options": "Individual\nGroup\nCorporate"
-  },
-  {
-   "fieldname": "market_segment",
-   "fieldtype": "Select",
-   "label": "Market Segment",
-   "options": "\nCorporate\nLeisure\nGroup\nMICE\nGovernment\nWedding\nLong Stay\nAirline Crew\nComplimentary\nHouse Use",
-   "in_standard_filter": 1,
-   "description": "Who the business is (corporate, leisure, group…), for revenue reports by segment"
-  },
-  {
-   "fieldname": "company",
-   "fieldtype": "Link",
-   "label": "Company",
-   "options": "Corporate Account"
-  },
-  {
-   "fieldname": "group_booking",
-   "fieldtype": "Link",
-   "label": "Group Booking",
-   "options": "Group Booking"
-  },
-  {
-   "description": "A trip across several properties: this stay is one leg of it",
-   "fieldname": "itinerary",
-   "fieldtype": "Link",
-   "label": "Itinerary",
-   "options": "Itinerary",
-   "read_only": 1,
-   "search_index": 1
-  },
-  {
-   "default": "0",
-   "description": "Group stay: this room's charges stay on its own bill, not the main room's",
-   "fieldname": "pays_own_charges",
-   "fieldtype": "Check",
-   "label": "Pays Own Charges"
-  },
-  {
-   "fieldname": "meal_plan",
-   "fieldtype": "Link",
-   "label": "Meal Plan",
-   "options": "Meal Plan"
-  },
-  {
-   "fieldname": "rate_plan",
-   "fieldtype": "Link",
-   "label": "Rate Plan",
-   "options": "Rate Plan"
-  },
-  {
    "fieldname": "voucher",
    "fieldtype": "Link",
    "label": "Voucher",
@@ -539,15 +599,15 @@
    "fieldname": "agreed_rate_note",
    "fieldtype": "Small Text",
    "label": "Rate Note (internal)",
-   "read_only": 1,
-   "no_copy": 1
+   "no_copy": 1,
+   "read_only": 1
   },
   {
    "fieldname": "offer_token",
    "fieldtype": "Data",
+   "hidden": 1,
    "label": "Offer Token",
-   "read_only": 1,
-   "hidden": 1
+   "read_only": 1
   },
   {
    "fieldname": "offer_expires_on",
@@ -564,22 +624,14 @@
    "read_only": 1
   },
   {
-   "default": "0",
-   "description": "Same-day stay: check-out date equals check-in date.",
-   "fieldname": "is_day_use",
-   "fieldtype": "Check",
-   "label": "Day Use"
+   "fieldname": "sb_notes",
+   "fieldtype": "Section Break",
+   "label": "Notes"
   },
   {
-   "fieldname": "planned_check_in_time",
-   "fieldtype": "Time",
-   "label": "Planned Check-in Time",
-   "description": "For day-use / hourly bookings"
-  },
-  {
-   "fieldname": "planned_check_out_time",
-   "fieldtype": "Time",
-   "label": "Planned Check-out Time"
+   "fieldname": "special_requests",
+   "fieldtype": "Small Text",
+   "label": "Special Requests"
   },
   {
    "fieldname": "sb_precheckin",
@@ -608,11 +660,11 @@
    "read_only": 1
   },
   {
+   "description": "Guest e-signature (data URL) from self check-in",
    "fieldname": "precheckin_signature",
    "fieldtype": "Long Text",
    "label": "Pre-check-in Signature",
-   "read_only": 1,
-   "description": "Guest e-signature (data URL) from self check-in"
+   "read_only": 1
   },
   {
    "fieldname": "precheckin_consent",
@@ -621,51 +673,51 @@
    "read_only": 1
   },
   {
+   "description": "The guest's ID scan for THIS stay. Always private: it is served only to staff who can read this booking, never over a public /files/ URL. Attached to the reservation, not the guest profile, so a repeat guest's other live stay keeps its own copy.",
    "fieldname": "id_document",
    "fieldtype": "Attach",
    "label": "ID Document",
-   "read_only": 1,
    "no_copy": 1,
-   "description": "The guest's ID scan for THIS stay. Always private: it is served only to staff who can read this booking, never over a public /files/ URL. Attached to the reservation, not the guest profile, so a repeat guest's other live stay keeps its own copy."
+   "read_only": 1
   },
   {
    "fieldname": "id_document_source",
    "fieldtype": "Select",
    "label": "ID Captured By",
+   "no_copy": 1,
    "options": "\nGuest\nDesk",
-   "read_only": 1,
-   "no_copy": 1
+   "read_only": 1
   },
   {
    "fieldname": "id_document_on",
    "fieldtype": "Datetime",
    "label": "ID Captured On",
-   "read_only": 1,
-   "no_copy": 1
+   "no_copy": 1,
+   "read_only": 1
   },
   {
+   "default": "0",
+   "description": "The scan was deleted at checkout under Verify & Discard retention. Distinguishes 'deleted on purpose' from 'never uploaded' - without it a checked-out booking looks non-compliant forever.",
    "fieldname": "id_document_discarded",
    "fieldtype": "Check",
    "label": "ID Discarded",
-   "read_only": 1,
    "no_copy": 1,
-   "default": "0",
-   "description": "The scan was deleted at checkout under Verify & Discard retention. Distinguishes 'deleted on purpose' from 'never uploaded' - without it a checked-out booking looks non-compliant forever."
+   "read_only": 1
   },
   {
    "fieldname": "precheckin_verified_by",
    "fieldtype": "Link",
    "label": "Verified By",
+   "no_copy": 1,
    "options": "User",
-   "read_only": 1,
-   "no_copy": 1
+   "read_only": 1
   },
   {
    "fieldname": "precheckin_verified_on",
    "fieldtype": "Datetime",
    "label": "Verified On",
-   "read_only": 1,
-   "no_copy": 1
+   "no_copy": 1,
+   "read_only": 1
   },
   {
    "fieldname": "precheckin_link_sent",
@@ -687,45 +739,156 @@
    "label": "Late Arrival"
   },
   {
-   "fieldname": "travel_agent",
-   "fieldtype": "Link",
-   "label": "Travel Agent",
-   "options": "Travel Agent"
-  },
-  {
-   "fieldname": "commission_amount",
-   "fieldtype": "Currency",
-   "label": "Agent Commission",
-   "read_only": 1
-  },
-  {
-   "fieldname": "sb_booker",
+   "collapsible": 1,
+   "fieldname": "sb_arrival",
    "fieldtype": "Section Break",
-   "label": "Booked By (if not the guest)"
+   "label": "Arrival & transport"
   },
   {
-   "fieldname": "booked_by_name",
-   "fieldtype": "Data",
-   "label": "Booker Name"
-  },
-  {
-   "fieldname": "booked_by_phone",
-   "fieldtype": "Data",
-   "label": "Booker Phone"
-  },
-  {
-   "fieldname": "booker_relation",
+   "fieldname": "arrival_mode",
    "fieldtype": "Select",
-   "label": "Relation",
-   "options": "\nAssistant\nFamily\nCompany Travel Desk\nTravel Agent\nOther"
+   "label": "Arrival Mode",
+   "options": "\nAir\nRoad\nRail\nSea\nOwn vehicle"
   },
   {
-   "default": "Guest",
-   "description": "Who the hotel (and agents) should message about this stay",
-   "fieldname": "contact_preference",
+   "fieldname": "arrival_ref",
+   "fieldtype": "Data",
+   "label": "Flight / Train No."
+  },
+  {
+   "fieldname": "arrival_datetime",
+   "fieldtype": "Datetime",
+   "label": "Arrival Time"
+  },
+  {
+   "fieldname": "pickup_required",
+   "fieldtype": "Check",
+   "label": "Airport / Station Pickup"
+  },
+  {
+   "depends_on": "pickup_required",
+   "fieldname": "pickup_note",
+   "fieldtype": "Data",
+   "label": "Pickup Note"
+  },
+  {
+   "fieldname": "cb_arrival",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "departure_mode",
    "fieldtype": "Select",
-   "label": "Contact For This Stay",
-   "options": "Guest\nBooker\nBoth"
+   "label": "Departure Mode",
+   "options": "\nAir\nRoad\nRail\nSea\nOwn vehicle"
+  },
+  {
+   "fieldname": "departure_ref",
+   "fieldtype": "Data",
+   "label": "Departure Flight / Train No."
+  },
+  {
+   "fieldname": "departure_datetime",
+   "fieldtype": "Datetime",
+   "label": "Departure Time"
+  },
+  {
+   "fieldname": "drop_required",
+   "fieldtype": "Check",
+   "label": "Airport / Station Drop"
+  },
+  {
+   "depends_on": "drop_required",
+   "fieldname": "drop_note",
+   "fieldtype": "Data",
+   "label": "Drop Note"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "sb_extras",
+   "fieldtype": "Section Break",
+   "label": "Stay details"
+  },
+  {
+   "fieldname": "purpose",
+   "fieldtype": "Select",
+   "label": "Purpose of Visit",
+   "options": "\nLeisure\nBusiness\nEvent / Wedding\nMedical\nPilgrimage\nCrew\nOther"
+  },
+  {
+   "fieldname": "extra_beds",
+   "fieldtype": "Int",
+   "label": "Extra Beds"
+  },
+  {
+   "description": "How many guests above the room type's capacity this booking carries.",
+   "fieldname": "over_capacity_guests",
+   "fieldtype": "Int",
+   "label": "Extra Guests By Arrangement"
+  },
+  {
+   "description": "The amount agreed for those guests, per night. Posts to the folio with the room charge.",
+   "fieldname": "over_capacity_charge",
+   "fieldtype": "Currency",
+   "label": "Extra Guest Charge / Night"
+  },
+  {
+   "description": "Required to book above the room type's capacity. Allowed only up to the extra beds the room type permits.",
+   "fieldname": "over_capacity_reason",
+   "fieldtype": "Small Text",
+   "label": "Over-capacity Reason"
+  },
+  {
+   "default": "0",
+   "description": "Pets travelling with the party. Priced from the property's pet charge.",
+   "fieldname": "pets",
+   "fieldtype": "Int",
+   "label": "Pets"
+  },
+  {
+   "fieldname": "infants",
+   "fieldtype": "Int",
+   "label": "Infants"
+  },
+  {
+   "fieldname": "cb_extras",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "valet_parking",
+   "fieldtype": "Check",
+   "label": "Valet Parking"
+  },
+  {
+   "fieldname": "early_checkin",
+   "fieldtype": "Check",
+   "label": "Early Check-in Requested"
+  },
+  {
+   "fieldname": "late_checkout",
+   "fieldtype": "Check",
+   "label": "Late Check-out Requested"
+  },
+  {
+   "fieldname": "needs_accessible",
+   "fieldtype": "Check",
+   "label": "Needs an Accessible Room"
+  },
+  {
+   "description": "Allocation puts two such stays of the same group or guest in a connecting pair.",
+   "fieldname": "needs_connecting",
+   "fieldtype": "Check",
+   "label": "Wants Connecting Rooms"
+  },
+  {
+   "fieldname": "sb_instructions",
+   "fieldtype": "Section Break",
+   "label": "Special instructions"
+  },
+  {
+   "fieldname": "instructions",
+   "fieldtype": "Table",
+   "label": "Special Instructions",
+   "options": "Stay Instruction"
   },
   {
    "fieldname": "sb_occupants",
@@ -784,11 +947,11 @@
    "read_only": 1
   },
   {
+   "description": "Amount asked upfront at booking, snapshotted from the policy in force then.",
    "fieldname": "advance_due",
    "fieldtype": "Currency",
    "label": "Advance Due",
-   "read_only": 1,
-   "description": "Amount asked upfront at booking, snapshotted from the policy in force then."
+   "read_only": 1
   },
   {
    "fieldname": "payment_policy",
@@ -817,8 +980,8 @@
    "fieldtype": "Data",
    "hidden": 1,
    "label": "Rate Lock Key",
-   "read_only": 1,
-   "no_copy": 1
+   "no_copy": 1,
+   "read_only": 1
   },
   {
    "default": "0",
@@ -832,153 +995,12 @@
    "fieldtype": "Datetime",
    "label": "Access Released On",
    "read_only": 1
-  },
-  {
-   "fieldname": "sb_arrival",
-   "fieldtype": "Section Break",
-   "label": "Arrival & transport",
-   "collapsible": 1
-  },
-  {
-   "fieldname": "arrival_mode",
-   "fieldtype": "Select",
-   "label": "Arrival Mode",
-   "options": "\nAir\nRoad\nRail\nSea\nOwn vehicle"
-  },
-  {
-   "fieldname": "arrival_ref",
-   "fieldtype": "Data",
-   "label": "Flight / Train No."
-  },
-  {
-   "fieldname": "arrival_datetime",
-   "fieldtype": "Datetime",
-   "label": "Arrival Time"
-  },
-  {
-   "fieldname": "pickup_required",
-   "fieldtype": "Check",
-   "label": "Airport / Station Pickup"
-  },
-  {
-   "fieldname": "pickup_note",
-   "fieldtype": "Data",
-   "label": "Pickup Note",
-   "depends_on": "pickup_required"
-  },
-  {
-   "fieldname": "cb_arrival",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "departure_mode",
-   "fieldtype": "Select",
-   "label": "Departure Mode",
-   "options": "\nAir\nRoad\nRail\nSea\nOwn vehicle"
-  },
-  {
-   "fieldname": "departure_ref",
-   "fieldtype": "Data",
-   "label": "Departure Flight / Train No."
-  },
-  {
-   "fieldname": "departure_datetime",
-   "fieldtype": "Datetime",
-   "label": "Departure Time"
-  },
-  {
-   "fieldname": "drop_required",
-   "fieldtype": "Check",
-   "label": "Airport / Station Drop"
-  },
-  {
-   "fieldname": "drop_note",
-   "fieldtype": "Data",
-   "label": "Drop Note",
-   "depends_on": "drop_required"
-  },
-  {
-   "fieldname": "sb_extras",
-   "fieldtype": "Section Break",
-   "label": "Stay details",
-   "collapsible": 1
-  },
-  {
-   "fieldname": "purpose",
-   "fieldtype": "Select",
-   "label": "Purpose of Visit",
-   "options": "\nLeisure\nBusiness\nEvent / Wedding\nMedical\nPilgrimage\nCrew\nOther"
-  },
-  {
-   "fieldname": "extra_beds",
-   "fieldtype": "Int",
-   "label": "Extra Beds"
-  },
-  {
-   "fieldname": "over_capacity_guests",
-   "fieldtype": "Int",
-   "label": "Extra Guests By Arrangement",
-   "description": "How many guests above the room type's capacity this booking carries."
-  },
-  {
-   "fieldname": "over_capacity_charge",
-   "fieldtype": "Currency",
-   "label": "Extra Guest Charge / Night",
-   "description": "The amount agreed for those guests, per night. Posts to the folio with the room charge."
-  },
-  {
-   "fieldname": "over_capacity_reason",
-   "fieldtype": "Small Text",
-   "label": "Over-capacity Reason",
-   "description": "Required to book above the room type's capacity. Allowed only up to the extra beds the room type permits."
-  },
-  {
-   "default": "0",
-   "description": "Pets travelling with the party. Priced from the property's pet charge.",
-   "fieldname": "pets",
-   "fieldtype": "Int",
-   "label": "Pets"
-  },
-  {
-   "fieldname": "infants",
-   "fieldtype": "Int",
-   "label": "Infants"
-  },
-  {
-   "fieldname": "cb_extras",
-   "fieldtype": "Column Break"
-  },
-  {
-   "fieldname": "valet_parking",
-   "fieldtype": "Check",
-   "label": "Valet Parking"
-  },
-  {
-   "fieldname": "early_checkin",
-   "fieldtype": "Check",
-   "label": "Early Check-in Requested"
-  },
-  {
-   "fieldname": "late_checkout",
-   "fieldtype": "Check",
-   "label": "Late Check-out Requested"
-  },
-  {
-   "fieldname": "sb_instructions",
-   "fieldtype": "Section Break",
-   "label": "Special instructions"
-  },
-  {
-   "fieldname": "instructions",
-   "fieldtype": "Table",
-   "label": "Special Instructions",
-   "options": "Stay Instruction"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-11-20 22:00:00.000000",
+ "modified": "2026-11-23 13:00:00.000000",
  "modified_by": "Administrator",
  "module": "Kamra",
  "name": "Reservation",
@@ -1055,9 +1077,9 @@
    "role": "Housekeeping Supervisor"
   },
   {
+   "print": 1,
    "read": 1,
    "report": 1,
-   "print": 1,
    "role": "Night Auditor"
   }
  ],

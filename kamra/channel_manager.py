@@ -190,12 +190,31 @@ def ari_snapshot(property: str, connection: str, days: int = 90, start=None,
 def _one_night_rate(property: str, room_type: str, d, d2) -> float:
 	"""The pricing engine's one-night sell rate (2 adults), 0 when the
 	night cannot be quoted - availability still goes out for that day."""
-	from kamra.pricing import quote
+	from kamra.pricing import quote, rates_include_levy
 	try:
-		q = quote(property, room_type, str(d), str(d2), 2, 0)
-		return round(float(q["nightly"][0]["rate"]), 2)
+		q = quote(property, room_type, str(d), str(d2), 2, 0, check_restrictions=False)
+		night = q["nightly"][0]
+		rate = float(night["rate"])
+		if rates_include_levy(property):
+			# The channel adds its own tax to whatever price it is given and
+			# knows no levy, so a levy inside the displayed price is pushed
+			# inside that price. An untaxed levy is sent with the tax taken
+			# out, or the channel taxes it. The displayed price does not have
+			# to include tax already: the channel adds tax either way. Room
+			# 100, levy 10%, tax 10% bills 120 here; pushing 110 would show 121,
+			# and the booking that comes back would lock a different room rate.
+			levy = float(q.get("room_levy") or 0)
+			if not _levy_is_taxed(property):
+				levy /= 1 + float(night.get("gst_rate") or 0) / 100
+			rate += levy
+		return round(rate, 2)
 	except Exception:
 		return 0.0
+
+
+def _levy_is_taxed(property: str) -> bool:
+	taxable = frappe.get_cached_doc("Property", property).get("room_levy_taxable")
+	return bool(1 if taxable is None else taxable)
 
 
 def _apply_villa_lockout(rows: list[dict], meta: dict) -> None:
@@ -334,13 +353,11 @@ def webhook(connection: str | None = None, **kwargs):
 	"""One URL per connection:
 	/api/method/kamra.channel_manager.webhook?connection=CMC-00001
 	Authenticated by the connection's webhook secret (X-Webhook-Secret
-	header or `secret` in the payload).
-
-	Frappe v16 puts a JSON POST's body — and only the body — into
-	form_dict, so a `?connection=` query arg never reaches the signature.
-	Read it from request.args as well."""
-	if not connection and frappe.request:
-		connection = frappe.request.args.get("connection")
+	header or `secret` in the payload)."""
+	# A JSON body makes Frappe build the arguments from the body alone
+	# (app.make_form_dict), so the ?connection= of that URL comes from here.
+	connection = connection or (frappe.request.args.get("connection")
+	                            if frappe.request else None)
 	if not connection:
 		frappe.throw("Missing connection.", frappe.ValidationError)
 	conn = frappe.get_doc("Channel Manager Connection", connection)
@@ -389,6 +406,36 @@ def _room_type_for(connection: str, external_id: str) -> str | None:
 		"room_type")
 
 
+def _storable_phone(phone: str | None) -> bool:
+	"""Whether the Guest's Data/Phone field takes it: the check Frappe runs on
+	insert (document.py, validate_phone_number(data, throw=True))."""
+	return not phone or frappe.utils.validate_phone_number(phone)
+
+
+def _storable_email(email: str | None) -> bool:
+	"""Whether the Guest's Data/Email field takes it: every address Frappe
+	splits out of it must be valid, as it checks on insert."""
+	text = (email or "").strip()
+	return not text or all(frappe.utils.validate_email_address(a)
+	                       for a in frappe.utils.split_emails(text))
+
+
+def _unstorable_contact(phone: str | None, email: str | None,
+                        property: str | None) -> list[str]:
+	"""The OTA contact the guest profile can't hold, exactly as it came (#468
+	follow-up): a phone or an email Frappe would refuse on the Guest insert.
+	It goes to the reservation's notes, so the booking is never lost over it."""
+	from kamra import phone as phone_mod
+	items = []
+	typed = (phone or "").strip()
+	if typed and not _storable_phone(phone_mod.for_property(typed, property)[0]):
+		items.append(typed)
+	mail = (email or "").strip()
+	if not _storable_email(mail):
+		items.append(mail)
+	return items
+
+
 def _find_or_create_guest(name: str, phone: str, email: str,
                           property: str | None = None) -> str:
 	"""The OTA guest's profile. The phone is read with the property's
@@ -397,6 +444,13 @@ def _find_or_create_guest(name: str, phone: str, email: str,
 	from kamra import phone as phone_mod
 	typed = (phone or "").strip()
 	phone, problem = phone_mod.for_property(typed, property)
+	# #468 follow-up: what Frappe would refuse on the Guest insert stays off
+	# the profile (blank) and on the reservation instead - see
+	# _unstorable_contact. The phone is still flagged, without the number.
+	if not _storable_phone(phone):
+		phone, problem = "", phone_mod.INVALID
+	if not _storable_email(email):
+		email = ""
 	for filt in ({"phone": phone_mod.matching(typed, property)} if phone else None,
 	             {"email": email} if email else None):
 		if filt:
@@ -445,6 +499,30 @@ def _locked_live_ota(property: str, ota_ref: str | None):
 		   FOR UPDATE""",
 		(property, ota_ref), as_dict=True)
 	return rows[0] if rows else None
+
+
+_CONTACT_LINE_EN = ("Contact from {0} could not be saved on the guest profile "
+                    "and is kept here: {1}")
+
+
+def _contact_line(channel: str | None, items: list[str]) -> str:
+	"""The notes line that keeps an OTA contact the guest profile can't
+	hold (#468 follow-up)."""
+	return _("Contact from {0} could not be saved on the guest profile and is kept here: {1}"
+	         ).format(channel, ", ".join(items))
+
+
+def _kept_contact_line(notes: str | None) -> str | None:
+	"""The contact line a reservation's notes already carry (#468 follow-up),
+	in English or translated, so a modify without contact keeps it."""
+	shapes = set()
+	for template in (_CONTACT_LINE_EN.format("\0", "\1"), _contact_line("\0", ["\1"])):
+		prefix, _sep, rest = template.partition("\0")
+		shapes.add((prefix, rest.partition("\1")[0]))
+	for line in (notes or "").splitlines():
+		if any(line.startswith(prefix) and middle in line for prefix, middle in shapes):
+			return line
+	return None
 
 
 def _apply_event(conn, e: dict, requested_reason: str | None = None) -> dict:
@@ -504,7 +582,13 @@ def _apply_event(conn, e: dict, requested_reason: str | None = None) -> dict:
 		doc.check_out_date = e["check_out"]
 		doc.adults = e.get("adults") or 2
 		doc.children = e.get("children") or 0
-		doc.special_requests = e.get("notes") or None
+		# #468 follow-up: a modify carries the contact line too - the new one
+		# when the channel sends a contact the profile can't hold, else the one
+		# the reservation already had.
+		unstorable = _unstorable_contact(e.get("phone"), e.get("email"), conn.property)
+		contact = (_contact_line(e.get("channel"), unstorable) if unstorable
+		           else _kept_contact_line(doc.special_requests))
+		doc.special_requests = "\n".join(s for s in (e.get("notes"), contact) if s) or None
 		doc.auto_price = 0 if requested_reason or e.get("total") else 1
 		if e.get("total") or requested_reason:
 			doc.amount_after_tax = e.get("total") or 0
@@ -527,6 +611,11 @@ def _apply_event(conn, e: dict, requested_reason: str | None = None) -> dict:
 
 	guest = _find_or_create_guest(e.get("guest_name"), e.get("phone"),
 	                              e.get("email"), conn.property)
+	notes = e.get("notes") or ""
+	unstorable = _unstorable_contact(e.get("phone"), e.get("email"), conn.property)
+	if unstorable:
+		# #468 follow-up: what the profile refused stays on the reservation.
+		notes = "\n".join(s for s in (notes, _contact_line(e.get("channel"), unstorable)) if s)
 	doc = frappe.get_doc({
 		"doctype": "Reservation",
 		"property": conn.property,
@@ -540,7 +629,7 @@ def _apply_event(conn, e: dict, requested_reason: str | None = None) -> dict:
 		"status": "Requested" if requested_reason else "Confirmed",
 		"channel": e.get("channel"),
 		"ota_ref": e.get("ota_ref"),
-		"special_requests": e.get("notes") or None,
+		"special_requests": notes or None,
 		# the OTA already sold at its price - keep their number, don't reprice
 		"auto_price": 0 if requested_reason or e.get("total") else 1,
 	})
@@ -588,7 +677,7 @@ def lock_channel_rates(doc, total_after_tax, nightly=None) -> None:
 		return
 	from frappe.utils import date_diff, getdate
 
-	from kamra.pricing import room_gst_rate
+	from kamra.pricing import rates_include_levy, room_gst_rate, room_net_rate, room_rate_digits
 
 	nights = max(date_diff(doc.check_out_date, doc.check_in_date), 1)
 	dates = [str(add_days(doc.check_in_date, i)) for i in range(nights)]
@@ -600,16 +689,23 @@ def lock_channel_rates(doc, total_after_tax, nightly=None) -> None:
 	rt = frappe.get_doc("Room Type", doc.room_type)
 	rows, running = [], 0.0
 	scale = total / sum(weights)
+	# the room rate keeps the decimals the property's own bookings keep
+	digits = room_rate_digits(doc.property)
+	levy_inside = rates_include_levy(doc.property)
 	for i, (d, w) in enumerate(zip(dates, weights, strict=True)):
 		gross = round(total - running, 2) if i == nights - 1 else round(w * scale, 2)
 		running += gross
-		gst = Decimal(str(room_gst_rate(doc.property, rt, Decimal(str(gross)))))
-		pre = Decimal(str(gross)) / (1 + gst / 100)
-		gst2 = Decimal(str(room_gst_rate(doc.property, rt, pre)))
-		if gst2 != gst:  # the slab follows the pre-tax rate
-			gst = gst2
+		if levy_inside:
+			# the OTA's total is the guest's price: the levy comes out of it too
+			pre, gst = room_net_rate(doc.property, rt, gross, tax_included=True)
+		else:
+			gst = Decimal(str(room_gst_rate(doc.property, rt, Decimal(str(gross)))))
 			pre = Decimal(str(gross)) / (1 + gst / 100)
-		rows.append({"stay_date": d, "rate": round(float(pre), 2),
+			gst2 = Decimal(str(room_gst_rate(doc.property, rt, pre)))
+			if gst2 != gst:  # the slab follows the pre-tax rate
+				gst = gst2
+				pre = Decimal(str(gross)) / (1 + gst / 100)
+		rows.append({"stay_date": d, "rate": round(float(pre), digits),
 		             "gst_rate": float(gst), "meal_amount": 0,
 		             "demand_premium_pct": 0})
 	doc.set("night_rates", rows)

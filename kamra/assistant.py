@@ -748,6 +748,8 @@ REPLY_LANGS = {
 	# the UI says zh-CN, Frappe's catalogue says zh: accept both from clients
 	"zh-CN": "Simplified Chinese", "zh": "Simplified Chinese",
 	"fil-PH": "Filipino",
+	"vi-VN": "Vietnamese", "vi": "Vietnamese",
+	"sw-TZ": "Swahili",
 }
 
 
@@ -773,6 +775,8 @@ def _system_prompt(property: str, settings, lang: str | None = None) -> str:
 	symbol = (frappe.db.get_value("Currency", currency, "symbol") or "").strip() if currency else ""
 	inclusive = bool(prop.get("rates_include_tax"))
 	tax_mode = "rates include taxes" if inclusive else "rates exclude taxes"
+	if prop.get("rates_include_levy") and float(prop.get("room_levy_percent") or 0) > 0:
+		tax_mode += ", and the displayed rates already include the room levy"
 	today = getdate(nowdate())
 	week = ", ".join(f"{d:%A} {d}" for d in (add_days(today, i) for i in range(1, 8)))
 	return SYSTEM.format(
@@ -1355,7 +1359,15 @@ def ask_stream(property: str, messages, lang: str | None = None):
 			if _out_of_credit(resp):
 				return Response(_sse("error", _no_credit()) + _sse("done", {}),
 				                mimetype="text/event-stream")
-			frappe.throw(f"AI provider error ({resp.status_code}): {resp.text[:200]}")
+			# a rejected key or a provider 500 is an SSE error, same as a
+			# credit failure. Throwing here became "check the AI key" for
+			# every failure, including one that had nothing to do with the key.
+			return Response(
+				_sse("error", {"message": _provider_error(resp, 200),
+				               "code": "provider_error",
+				               "status": resp.status_code})
+				+ _sse("done", {}),
+				mimetype="text/event-stream")
 		msg = resp.json()["choices"][0]["message"]
 		calls = msg.get("tool_calls") or []
 		if not calls:

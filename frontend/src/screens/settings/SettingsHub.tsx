@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import {
+  Activity,
   BarChart3,
   BedDouble,
   Bot,
@@ -60,6 +61,7 @@ import { WhatsAppButtonPage } from "./WhatsAppButtonPage"
 import { PropertyOrderPage } from "./PropertyOrderPage"
 import { ChannelsPage } from "./ChannelsPage"
 import { ModulePage, Switch, type OptionSources } from "./ModulePage"
+import { UsageReportingPage } from "./UsageReportingPage"
 import { WebhooksPage } from "./WebhooksPage"
 
 
@@ -130,6 +132,9 @@ const CUSTOM_PAGES: CustomPage[] = [
   { id: "zatca", title: "ZATCA e-invoicing", group: "integrations", icon: FileCheck2,
     description: "Saudi Arabia (FATOORA): seller details for every invoice XML.",
     keywords: "saudi vat fatoora e-invoice qr xml" },
+  { id: "usage", title: "Usage reporting", group: "organisation", icon: Activity,
+    description: "The anonymous daily heartbeat to kamrapms.com, and an optional property registration.",
+    keywords: "telemetry heartbeat analytics privacy anonymous usage statistics register showcase opt out do not track" },
   { id: "appearance", title: "Appearance", group: "personal", icon: Palette,
     description: "Theme and language for this browser.",
     keywords: "dark mode theme language arabic rtl spanish español idioma es" },
@@ -562,6 +567,8 @@ function CustomPageBody({
       return <ChannelsPage />
     case "webhooks":
       return <WebhooksPage property={property} />
+    case "usage":
+      return <UsageReportingPage />
     case "verify":
       return <KamraVerifyCard />
     case "zatca":

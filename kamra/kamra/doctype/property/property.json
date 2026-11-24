@@ -37,6 +37,7 @@
   "room_levy_label",
   "room_levy_percent",
   "room_levy_taxable",
+  "rates_include_levy",
   "default_company_billing",
   "wifi_name",
   "access_instructions",
@@ -111,7 +112,11 @@
   "mcp_section",
   "mcp_enabled",
   "mcp_read_only",
-  "mcp_blocked_tools"
+  "mcp_blocked_tools",
+  "operating_company",
+  "owner_name",
+  "owner_email",
+  "owner_commission_pct"
  ],
  "fields": [
   {
@@ -126,31 +131,6 @@
    "fieldname": "legal_name",
    "fieldtype": "Data",
    "label": "Legal Name"
-  },
-  {
-   "fieldname": "operating_company",
-   "fieldtype": "Link",
-   "label": "Operating Company",
-   "options": "Company",
-   "description": "The legal entity guests see on invoices and documents (e.g. the management company). Falls back to Legal Name when blank."
-  },
-  {
-   "fieldname": "owner_name",
-   "fieldtype": "Data",
-   "label": "Owner Name",
-   "description": "The unit owner this property belongs to (owner portal)."
-  },
-  {
-   "fieldname": "owner_email",
-   "fieldtype": "Data",
-   "label": "Owner Email",
-   "description": "Login email that unlocks this property in the owner portal."
-  },
-  {
-   "fieldname": "owner_commission_pct",
-   "fieldtype": "Float",
-   "label": "Management Fee %",
-   "description": "The operator's share of room revenue on owner statements. 0 = owner keeps all."
   },
   {
    "description": "2 to 6 letters or digits. Numbers allowance vouchers (ALW-<code>-YY-#####). Changing it starts a new voucher series.",
@@ -301,22 +281,29 @@
    "label": "Cleaning Fee Taxable"
   },
   {
+   "description": "A per-night levy charged on the room rate - municipality fee (Saudi Arabia, UAE), tourism or city tax. Leave the % at 0 when none applies.",
    "fieldname": "room_levy_label",
    "fieldtype": "Data",
-   "label": "Room levy name",
-   "description": "A per-night levy charged on the room rate - municipality fee (Saudi Arabia, UAE), tourism or city tax. Leave the % at 0 when none applies."
+   "label": "Room levy name"
   },
   {
+   "default": "0",
    "fieldname": "room_levy_percent",
    "fieldtype": "Percent",
-   "label": "Room levy %",
-   "default": "0"
+   "label": "Room levy %"
   },
   {
+   "default": "1",
    "fieldname": "room_levy_taxable",
    "fieldtype": "Check",
-   "label": "VAT / tax applies to the levy",
-   "default": "1"
+   "label": "VAT / tax applies to the levy"
+  },
+  {
+   "default": "0",
+   "description": "On: configured room prices already contain the room levy; the engine backs the levy out of the price and shows it as its own line. Only has an effect when the levy % is above 0.",
+   "fieldname": "rates_include_levy",
+   "fieldtype": "Check",
+   "label": "Displayed rates include the levy"
   },
   {
    "default": "Room and F&B (liquor to guest)",
@@ -332,15 +319,15 @@
    "label": "Wi-Fi Network"
   },
   {
-   "fieldname": "wifi_password",
-   "fieldtype": "Password",
-   "label": "Wi-Fi Password"
-  },
-  {
    "description": "Released to the guest only after payment, deposit, and optional pre-check-in gates pass.",
    "fieldname": "access_instructions",
    "fieldtype": "Text",
    "label": "Access Instructions"
+  },
+  {
+   "fieldname": "wifi_password",
+   "fieldtype": "Password",
+   "label": "Wi-Fi Password"
   },
   {
    "default": "0",
@@ -388,10 +375,10 @@
    "label": "Disabled"
   },
   {
+   "default": "en-IN",
    "fieldname": "locale",
    "fieldtype": "Data",
-   "label": "Locale",
-   "default": "en-IN"
+   "label": "Locale"
   },
   {
    "fieldname": "sb_gst",
@@ -410,7 +397,7 @@
    "default": "7500",
    "fieldname": "gst_slab_threshold",
    "fieldtype": "Currency",
-   "label": "Slab Threshold (\u00e2\u201a\u00b9/night)"
+   "label": "Slab Threshold (â‚¹/night)"
   },
   {
    "default": "5",
@@ -442,10 +429,10 @@
    "label": "Modules"
   },
   {
+   "description": "Which parts of Kamra this property actually runs, comma separated. Empty = everything. A serviced-apartment operator has no restaurant and no banquet hall, and shouldn't be shown three empty menus on their first morning.",
    "fieldname": "enabled_modules",
    "fieldtype": "Small Text",
-   "label": "Modules In Use",
-   "description": "Which parts of Kamra this property actually runs, comma separated. Empty = everything. A serviced-apartment operator has no restaurant and no banquet hall, and shouldn't be shown three empty menus on their first morning."
+   "label": "Modules In Use"
   },
   {
    "default": "1",
@@ -454,45 +441,45 @@
    "label": "Booking Engine Enabled"
   },
   {
+   "default": "Pay at hotel",
+   "description": "What the guest pays online when booking on the public page. Existing bookings keep the terms they were made under.",
    "fieldname": "booking_payment_mode",
    "fieldtype": "Select",
    "label": "Booking Payment",
-   "options": "Pay at hotel\nAdvance percent\nRegistration fee\nFull online",
-   "default": "Pay at hotel",
-   "description": "What the guest pays online when booking on the public page. Existing bookings keep the terms they were made under."
+   "options": "Pay at hotel\nAdvance percent\nRegistration fee\nFull online"
   },
   {
+   "depends_on": "eval:doc.booking_payment_mode=='Advance percent'",
+   "description": "Percent of the total collected upfront; the rest is paid at the hotel.",
    "fieldname": "advance_percent",
    "fieldtype": "Percent",
-   "label": "Advance %",
-   "depends_on": "eval:doc.booking_payment_mode=='Advance percent'",
-   "description": "Percent of the total collected upfront; the rest is paid at the hotel."
+   "label": "Advance %"
   },
   {
+   "depends_on": "eval:doc.booking_payment_mode=='Registration fee'",
+   "description": "Flat amount collected upfront; the rest is paid at the hotel.",
    "fieldname": "registration_fee",
    "fieldtype": "Currency",
-   "label": "Registration Fee",
-   "depends_on": "eval:doc.booking_payment_mode=='Registration fee'",
-   "description": "Flat amount collected upfront; the rest is paid at the hotel."
+   "label": "Registration Fee"
   },
   {
+   "default": "0",
    "fieldname": "require_cashier_pin",
    "fieldtype": "Check",
-   "label": "Require cashier PIN on money actions",
-   "default": "0"
+   "label": "Require cashier PIN on money actions"
   },
   {
+   "default": "0",
+   "description": "Standing imprest for this property only. Each hotel keeps its own petty cash box and vouchers.",
    "fieldname": "petty_cash_float",
    "fieldtype": "Currency",
-   "label": "Petty cash float",
-   "default": "0",
-   "description": "Standing imprest for this property only. Each hotel keeps its own petty cash box and vouchers."
+   "label": "Petty cash float"
   },
   {
+   "description": "Current front-office business date. Advanced by night audit.",
    "fieldname": "business_date",
    "fieldtype": "Date",
-   "label": "Business Date",
-   "description": "Current front-office business date. Advanced by night audit."
+   "label": "Business Date"
   },
   {
    "fieldname": "showcase_description",
@@ -500,10 +487,10 @@
    "label": "Description (public)"
   },
   {
+   "description": "1920Ã—1080px (16:9 landscape), JPG or WebP under 2 MB. The big photo at the top of the booking page.",
    "fieldname": "hero_image",
    "fieldtype": "Attach Image",
-   "label": "Hero Image",
-   "description": "1920\u00c3\u20141080px (16:9 landscape), JPG or WebP under 2 MB. The big photo at the top of the booking page."
+   "label": "Hero Image"
   },
   {
    "fieldname": "star_category",
@@ -528,7 +515,7 @@
    "label": "Property Amenities (public)"
   },
   {
-   "description": "Square, 512\u00c3\u2014512px. PNG or SVG with a transparent background. Shown on the booking page and invoices.",
+   "description": "Square, 512Ã—512px. PNG or SVG with a transparent background. Shown on the booking page and invoices.",
    "fieldname": "logo_url",
    "fieldtype": "Attach Image",
    "label": "Logo"
@@ -549,26 +536,26 @@
    "options": "Store\nVerify & Discard"
   },
   {
+   "default": "36",
+   "description": "Guests with no stay for this long are erased automatically (bills stay for the books). 0 keeps them indefinitely. Blacklisted guests are kept.",
    "fieldname": "guest_retention_months",
    "fieldtype": "Int",
    "label": "Erase guest data after (months)",
-   "default": "36",
-   "non_negative": 1,
-   "description": "Guests with no stay for this long are erased automatically (bills stay for the books). 0 keeps them indefinitely. Blacklisted guests are kept."
+   "non_negative": 1
   },
   {
+   "default": "90",
+   "description": "WhatsApp message text and AI assistant chats older than this are cleared every night. Who, when and delivery status stay for audit. 0 keeps them.",
    "fieldname": "message_retention_days",
    "fieldtype": "Int",
    "label": "Clear message text after (days)",
-   "default": "90",
-   "non_negative": 1,
-   "description": "WhatsApp message text and AI assistant chats older than this are cleared every night. Who, when and delivery status stay for audit. 0 keeps them."
+   "non_negative": 1
   },
   {
+   "description": "Email or phone that guests can use for access, correction and erasure requests. Shown on the booking and check-in pages.",
    "fieldname": "privacy_contact",
    "fieldtype": "Data",
-   "label": "Privacy contact (Grievance Officer)",
-   "description": "Email or phone that guests can use for access, correction and erasure requests. Shown on the booking and check-in pages."
+   "label": "Privacy contact (Grievance Officer)"
   },
   {
    "description": "Shown to staff in the booking dialog and read by the AI agent as its upsell prompt.",
@@ -591,11 +578,11 @@
    "options": "None\nFirst Night\nFull Stay"
   },
   {
+   "description": "Leave empty to use the single free-cancellation window above. Add bands for a tiered policy, e.g. 7 days / 0%, 3 days / 50%, 0 days / 100%.",
    "fieldname": "cancellation_tiers",
    "fieldtype": "Table",
    "label": "Cancellation Tiers",
-   "options": "Cancellation Tier",
-   "description": "Leave empty to use the single free-cancellation window above. Add bands for a tiered policy, e.g. 7 days / 0%, 3 days / 50%, 0 days / 100%."
+   "options": "Cancellation Tier"
   },
   {
    "default": "First Night",
@@ -728,16 +715,16 @@
    "label": "Meta Description"
   },
   {
+   "description": "Language guests see first on the booking page and self check-in. Empty: the guest's browser language, when that language is switched on. Guests can still switch among the languages in Settings, Languages.",
    "fieldname": "booking_language",
    "fieldtype": "Data",
-   "label": "Booking Engine Language",
-   "description": "Language guests see first on the booking page and self check-in. Empty: the guest's browser language, when that language is switched on. Guests can still switch among the languages in Settings, Languages."
+   "label": "Booking Engine Language"
   },
   {
+   "description": "Exactly 1200Ã—630px, JPG or PNG. What WhatsApp, Google and social previews show when the booking page is shared.",
    "fieldname": "og_image",
    "fieldtype": "Attach Image",
-   "label": "OG Image",
-   "description": "Exactly 1200\u00c3\u2014630px, JPG or PNG. What WhatsApp, Google and social previews show when the booking page is shared."
+   "label": "OG Image"
   },
   {
    "fieldname": "page_slug",
@@ -745,23 +732,23 @@
    "label": "Page Slug"
   },
   {
+   "description": "Sell unassigned bookings above physical capacity by this much (0 = never overbook). Room types can override.",
    "fieldname": "overbooking_pct",
    "fieldtype": "Percent",
-   "label": "Overbooking Allowance %",
-   "description": "Sell unassigned bookings above physical capacity by this much (0 = never overbook). Room types can override."
+   "label": "Overbooking Allowance %"
   },
   {
+   "description": "What was asked for during setup (e.g. channel-manager), so the Finish setup list can remind.",
    "fieldname": "setup_wants",
    "fieldtype": "Small Text",
-   "label": "Setup Wishlist",
    "hidden": 1,
-   "description": "What was asked for during setup (e.g. channel-manager), so the Finish setup list can remind."
+   "label": "Setup Wishlist"
   },
   {
+   "collapsible": 1,
    "fieldname": "mcp_section",
    "fieldtype": "Section Break",
-   "label": "AI access (MCP)",
-   "collapsible": 1
+   "label": "AI access (MCP)"
   },
   {
    "default": "1",
@@ -782,12 +769,37 @@
    "fieldname": "mcp_blocked_tools",
    "fieldtype": "Small Text",
    "label": "Blocked MCP tools"
+  },
+  {
+   "description": "The legal entity guests see on invoices and documents (e.g. the management company). Falls back to Legal Name when blank.",
+   "fieldname": "operating_company",
+   "fieldtype": "Link",
+   "label": "Operating Company",
+   "options": "Company"
+  },
+  {
+   "description": "The unit owner this property belongs to (owner portal).",
+   "fieldname": "owner_name",
+   "fieldtype": "Data",
+   "label": "Owner Name"
+  },
+  {
+   "description": "Login email that unlocks this property in the owner portal.",
+   "fieldname": "owner_email",
+   "fieldtype": "Data",
+   "label": "Owner Email"
+  },
+  {
+   "description": "The operator's share of room revenue on owner statements. 0 = owner keeps all.",
+   "fieldname": "owner_commission_pct",
+   "fieldtype": "Float",
+   "label": "Management Fee %"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-11-12 10:00:00.000000",
+ "modified": "2026-11-23 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Kamra",
  "name": "Property",
@@ -860,16 +872,20 @@
    "role": "Housekeeping Supervisor"
   },
   {
+   "print": 1,
    "read": 1,
    "report": 1,
-   "print": 1,
    "role": "Night Auditor"
   },
   {
+   "print": 1,
    "read": 1,
    "report": 1,
-   "print": 1,
    "role": "F&B Manager"
+  },
+  {
+   "read": 1,
+   "role": "Owner"
   }
  ],
  "row_format": "Dynamic",

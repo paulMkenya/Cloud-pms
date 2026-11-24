@@ -32,6 +32,7 @@ const GuestJourney = lazy(() => import("./screens/GuestJourney"))
 const HkApp = lazy(() => import("./screens/HkApp"))
 const CleanerApp = lazy(() => import("./screens/CleanerApp"))
 const CleaningLog = lazy(() => import("./screens/CleaningLog"))
+const CleaningCheckouts = lazy(() => import("./screens/CleaningCheckouts"))
 const CleaningMap = lazy(() => import("./screens/CleaningMap"))
 const Guests = lazy(() => import("./screens/Guests"))
 const RegistrationCard = lazy(() => import("./screens/RegistrationCard"))
@@ -437,6 +438,7 @@ export default function App() {
           <Route path="unit-owners" element={<UnitOwners />} />
           <Route path="housekeeping-board" element={<HousekeepingBoard />} />
           <Route path="cleaning-log" element={<CleaningLog />} />
+          <Route path="cleaning-checkouts" element={<CleaningCheckouts />} />
           <Route path="cleaning-map" element={<CleaningMap />} />
           <Route path="room-board" element={<Rooms />} />
           <Route

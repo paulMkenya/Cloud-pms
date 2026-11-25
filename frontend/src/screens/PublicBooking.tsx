@@ -266,7 +266,7 @@ function PropertyChooser({
   }, [priced])
   const stayPath = `/${stay.checkIn}/${stay.checkOut}/${stay.adults}/${stay.children}`
   const stayValid = !!parseDate(stay.checkIn) && !!parseDate(stay.checkOut) && stay.checkOut > stay.checkIn
-  const [city, setCity] = useState("")
+  const [citySel, setCitySel] = useState(() => new URLSearchParams(query).get("city") || "")
   const [size, setSize] = useState<number | null>(null)
   // each card's rating from Airbnb / Booking.com, when the owner shows badges
   const [ratings, setRatings] = useState<Record<string, RatingBadge[]>>({})
@@ -281,6 +281,7 @@ function PropertyChooser({
     document.title = t("Places to stay - book direct")
   }, [t])
   const cities = [...new Set(properties.map((p) => p.city).filter((c): c is string => !!c))].sort()
+  const city = cities.includes(citySel) ? citySel : ""
   const bedSizes = [...new Set(properties.flatMap((p) => p.bedrooms ?? []))].sort((a, b) => a - b)
   const shownProps = properties.filter(
     (p) =>
@@ -372,7 +373,7 @@ function PropertyChooser({
             {cities.length > 1 && (
               <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
                 <label htmlFor="city-filter" className="text-xs font-medium text-zinc-500 sm:text-sm sm:font-normal">{t("Location")}</label>
-                <select id="city-filter" value={city} onChange={(e) => setCity(e.target.value)}
+                <select id="city-filter" value={city} onChange={(e) => setCitySel(e.target.value)}
                   className="w-full min-w-0 truncate rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm focus:outline-2 focus:outline-offset-1 focus:outline-brand-600 max-sm:min-h-11 sm:w-auto">
                   <option value="">{t("All locations")}</option>
                   {cities.map((c) => <option key={c} value={c}>{c}</option>)}

@@ -10,6 +10,8 @@ export type SiteInfo = {
   /** The hotel's or partner's own name and logo (Website / Navbar Settings). */
   brand_name?: string | null
   brand_logo?: string | null
+  /** Wide logo shown instead of the booking homepage heading (site_config booking_logo). */
+  booking_logo?: string | null
   frappe_version?: string
 }
 

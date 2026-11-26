@@ -25,6 +25,7 @@ import {
   Zap,
 } from "lucide-react"
 import { callGuest, getDefaultProperty } from "../lib/api"
+import { getSiteInfo } from "../lib/siteInfo"
 import { googleMapsEmbed } from "../lib/utils"
 import { serverError } from "../lib/resource"
 import { accentVars } from "../lib/accents"
@@ -234,6 +235,26 @@ interface CatalogStay {
   too_small?: boolean
 }
 
+/** The booking homepage heading: the site's wide logo when one is set
+ *  (site_config booking_logo) - its alt text is the heading, so screen
+ *  readers and search engines still read it - else the heading as text.
+ *  Fixed height, so nothing below moves when the logo loads. */
+function BookingHeading({ text }: { text: string }) {
+  const [logo, setLogo] = useState<string | null | undefined>(undefined)
+  const [broken, setBroken] = useState(false)
+  useEffect(() => {
+    let live = true
+    getSiteInfo().then((i) => live && setLogo(i.booking_logo ?? null))
+    return () => { live = false }
+  }, [])
+  if (logo === undefined) return <span className="invisible">{text}</span>
+  if (!logo || broken) return <>{text}</>
+  return (
+    <img src={logo} alt={text} onError={() => setBroken(true)}
+      className="block h-9 w-auto max-w-full object-contain object-left sm:h-12" />
+  )
+}
+
 function PropertyChooser({
   properties,
   initialStay,
@@ -308,7 +329,7 @@ function PropertyChooser({
             centred on the block. */}
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-x-3 sm:gap-x-4">
           <h1 className="col-start-1 row-start-1 min-w-0 break-words text-2xl font-semibold tracking-tight text-zinc-900 max-sm:leading-tight sm:text-4xl">
-            {t("Places to stay")}
+            <BookingHeading text={t("Places to stay")} />
           </h1>
           <LanguageSwitcher className="col-start-2 row-start-1 max-sm:min-h-11 sm:row-span-3 sm:self-center" />
           <p className="col-span-2 row-start-2 mt-1 text-sm text-zinc-500 sm:col-span-1 sm:mt-2 sm:max-w-xl sm:text-base">

@@ -300,6 +300,10 @@ def site_info():
 		# kamra_build (a short commit id) is optional.
 		"channel": (frappe.conf.get("kamra_channel") or "")[:20] or None,
 		"build": (frappe.conf.get("kamra_build") or "")[:12] or None,
+		# a wide logo for the public booking homepage heading (site_config
+		# "booking_logo", e.g. /files/brand-logo.png); without it the heading
+		# stays text
+		"booking_logo": (frappe.conf.get("booking_logo") or "").strip() or None,
 		**_brand(),
 	}
 
